@@ -664,3 +664,46 @@ body.dark .input-cliente-mesa {
 body.dark .input-cliente-mesa::placeholder {
   color: #9ca3af;
 }
+/* CORREÇÃO MODAL PEDIDO DA MESA - TEMA CLARO */
+body:not(.dark) .modal-pedido-mesa {
+  background: #ffffff !important;
+  color: #111827 !important;
+}
+
+body:not(.dark) .modal-pedido-mesa h2 {
+  color: #111827 !important;
+}
+
+body:not(.dark) .modal-pedido-mesa p {
+  color: #4b5563 !important;
+}
+
+body:not(.dark) .mesa-pedido-item {
+  background: #f8fafc !important;
+  border: 1px solid #e5e7eb !important;
+}
+
+body:not(.dark) .mesa-pedido-info strong {
+  color: #111827 !important;
+}
+
+body:not(.dark) .mesa-pedido-info span {
+  color: #64748b !important;
+}
+
+body:not(.dark) .mesa-pedido-controles span {
+  color: #111827 !important;
+}
+
+body:not(.dark) .mesa-pedido-total-modal span {
+  color: #64748b !important;
+}
+
+body:not(.dark) .mesa-pedido-total-modal strong {
+  color: #111827 !important;
+}
+
+body:not(.dark) .modal-btn.cancelar {
+  background: #e5e7eb !important;
+  color: #111827 !important;
+}
