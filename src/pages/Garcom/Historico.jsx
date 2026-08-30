@@ -9,7 +9,7 @@ import {
   orderBy,
 } from "firebase/firestore";
 import { db } from "../../firebase";
-import "../../styles/Garçom/Historico.css";
+import "../../styles/Garcom/Historico.css";
 
 function Historico() {
   const [historico, setHistorico] = useState([]);

@@ -471,3 +471,55 @@ body.dark .estoque-modal-form input {
   color: var(--text);
   border: 1px solid var(--border);
 }
+/* ============================================================
+   RENOMEAR PRODUTO NO ESTOQUE (adicionado)
+   ============================================================ */
+
+.estoque-nome-clicavel {
+  cursor: pointer;
+}
+
+.estoque-nome-editando {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.estoque-nome-editando input {
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--card-3);
+  background: var(--card);
+  color: var(--text);
+  font-size: 14px;
+  width: 130px;
+}
+
+.estoque-nome-ok {
+  border: none;
+  background: var(--green);
+  color: white;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.estoque-nome-cancelar {
+  border: none;
+  background: var(--card-3);
+  color: var(--muted);
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+.estoque-nome-erro {
+  width: 100%;
+  color: #ef4444;
+  font-size: 11px;
+}

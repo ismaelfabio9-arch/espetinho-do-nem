@@ -10,7 +10,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase";
-import "../../styles/Garçom/MesaDetalhe.css";
+import "../../styles/Garcom/MesaDetalhe.css";
 
 function Viagem() {
   const [produtos, setProdutos] = useState([]);

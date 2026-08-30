@@ -393,3 +393,77 @@ body.dark .produto-esgotado {
   opacity: 0.4;
   cursor: not-allowed;
 }
+
+/* Organização das categorias no cardápio da mesa */
+.cardapio-categoria {
+  position: relative;
+  touch-action: pan-y;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.cardapio-categoria.arrastando {
+  opacity: 0.55;
+  transform: scale(0.985);
+  z-index: 20;
+}
+
+.cardapio-categoria.sobre .cardapio-categoria-btn {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 2px rgba(34, 197, 94, 0.16);
+}
+
+.cardapio-categoria-btn {
+  gap: 12px;
+  min-width: 0;
+  touch-action: pan-y;
+}
+
+.cardapio-categoria-nome {
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+  overflow-wrap: anywhere;
+  line-height: 1.25;
+}
+
+.cardapio-categoria-direita {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.cardapio-categoria-arraste {
+  color: #8b8b8b !important;
+  font-size: 22px;
+  line-height: 1;
+  letter-spacing: -3px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+@media (max-width: 600px) {
+  .cardapio-cliente-page {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 10px;
+    overflow-x: hidden;
+  }
+
+  .cardapio-cliente-card {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    padding: 14px;
+    border-radius: 16px;
+  }
+
+  .cardapio-categoria-btn {
+    padding: 14px 12px;
+    font-size: 16px;
+  }
+
+  .cardapio-categoria-arraste {
+    font-size: 20px;
+  }
+}

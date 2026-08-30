@@ -707,3 +707,152 @@ body:not(.dark) .modal-btn.cancelar {
   background: #e5e7eb !important;
   color: #111827 !important;
 }
+/* ============================================================
+   ENCERRAMENTO COM COMPROVANTE / PAGAMENTO (adicionado)
+   ============================================================ */
+
+.modal-total-encerrar {
+  font-size: 16px;
+  margin-bottom: 14px !important;
+}
+
+.modal-acoes.coluna {
+  flex-direction: column;
+}
+
+.modal-btn.secundario {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.formas-pagamento {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 16px 0;
+}
+
+.formas-pagamento button {
+  padding: 14px;
+  border-radius: 12px;
+  border: 1px solid #d1d5db;
+  background: #f9fafb;
+  color: #111827;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.formas-pagamento button.ativo {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: white;
+}
+
+.btn-imprimir-comanda {
+  width: 100%;
+  margin-top: 10px;
+  padding: 13px;
+  border-radius: 14px;
+  border: 1px dashed #9ca3af;
+  background: transparent;
+  color: #374151;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+body.dark .modal-btn.secundario {
+  background: #27272a !important;
+  color: #ffffff !important;
+}
+
+body.dark .formas-pagamento button {
+  background: #101010 !important;
+  border-color: #333 !important;
+  color: white !important;
+}
+
+body.dark .formas-pagamento button.ativo {
+  background: #22c55e !important;
+  border-color: #22c55e !important;
+}
+
+body.dark .btn-imprimir-comanda {
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+/* ============================================================
+   REORDENAR PRODUTOS DENTRO DA CATEGORIA (adicionado)
+   ============================================================ */
+
+.categoria-header-acoes {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.btn-organizar-categoria {
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #374151;
+  font-weight: 700;
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-organizar-categoria.ativo {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: white;
+}
+
+.produto-card-organizando {
+  border: 1.5px dashed #4f46e5;
+}
+
+.produto-reordenar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.produto-reordenar button {
+  width: 38px;
+  height: 38px;
+  border: none;
+  border-radius: 10px;
+  background: rgba(79, 70, 229, 0.12);
+  color: #4f46e5;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.produto-reordenar button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+body.dark .btn-organizar-categoria {
+  background: #141414 !important;
+  border: 1px solid #2a2a2a !important;
+  color: #f0f0f0 !important;
+}
+
+body.dark .btn-organizar-categoria.ativo {
+  background: #16a34a !important;
+  border-color: #16a34a !important;
+  color: white !important;
+}
+
+body.dark .produto-card-organizando {
+  border: 1.5px dashed #6366f1 !important;
+}
+
+body.dark .produto-reordenar button {
+  background: rgba(99, 102, 241, 0.18) !important;
+  color: #a5b4fc !important;
+}

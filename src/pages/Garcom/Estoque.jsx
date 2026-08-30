@@ -7,9 +7,11 @@ import {
   setDoc,
   deleteDoc,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../../firebase";
-import "../../styles/Garçom/Estoque.css";
+import { ordenarItensCategoria } from "../../utils/produtosOrdem";
+import "../../styles/Garcom/Estoque.css";
 
 function Estoque() {
   const [produtos, setProdutos] = useState([]);
@@ -27,6 +29,10 @@ function Estoque() {
   const [novaQuantidade, setNovaQuantidade] = useState("");
   const [novoMinimo, setNovoMinimo] = useState("");
   const [mensagemErro, setMensagemErro] = useState("");
+
+  const [editandoNomeId, setEditandoNomeId] = useState(null);
+  const [novoNomeEstoque, setNovoNomeEstoque] = useState("");
+  const [erroNomeEstoque, setErroNomeEstoque] = useState("");
 
   useEffect(() => {
     const cancelarProdutos = onSnapshot(collection(db, "produtos"), (snapshot) => {
@@ -75,17 +81,6 @@ function Estoque() {
     if (categoria.includes("Quartinho")) return "🥃";
     if (categoria.includes("Dose")) return "🥃";
     return "📦";
-  }
-
-  function ordenarProdutos(lista) {
-    return [...lista].sort((a, b) => {
-      const precoA = Number(a.preco || 0);
-      const precoB = Number(b.preco || 0);
-
-      if (precoA !== precoB) return precoA - precoB;
-
-      return a.nome.localeCompare(b.nome);
-    });
   }
 
 async function salvarEstoque(produto) {
@@ -155,6 +150,52 @@ async function salvarEstoque(produto) {
     );
 
     setProdutoParaExcluir(null);
+  }
+
+  async function salvarNomeProdutoEstoque(produto) {
+    const nomeTratado = novoNomeEstoque.trim();
+
+    if (!nomeTratado) {
+      setErroNomeEstoque("O nome não pode ficar em branco.");
+      return;
+    }
+
+    const nomeJaExiste = produtos.some(
+      (item) =>
+        item.id !== produto.id &&
+        item.categoria === produto.categoria &&
+        item.nome.trim().toLowerCase() === nomeTratado.toLowerCase()
+    );
+
+    if (nomeJaExiste) {
+      setErroNomeEstoque("Já existe um produto com esse nome nessa categoria.");
+      return;
+    }
+
+    try {
+      const batch = writeBatch(db);
+
+      batch.set(
+        doc(db, "produtos", produto.id),
+        { nome: nomeTratado, atualizadoEm: new Date().toISOString() },
+        { merge: true }
+      );
+
+      batch.set(
+        doc(db, "estoque", produto.id),
+        { nome: nomeTratado, atualizadoEm: new Date().toISOString() },
+        { merge: true }
+      );
+
+      await batch.commit();
+
+      setEditandoNomeId(null);
+      setNovoNomeEstoque("");
+      setErroNomeEstoque("");
+    } catch (erro) {
+      console.error("Erro ao renomear produto:", erro);
+      setErroNomeEstoque("Erro ao renomear. Tente novamente.");
+    }
   }
 
   async function ajustarQuantidade(produto, valor) {
@@ -358,7 +399,7 @@ async function salvarEstoque(produto) {
 
       {Object.keys(produtosPorCategoria).map((categoria) => {
         const aberta = categoriaAberta === categoria;
-        const itens = ordenarProdutos(produtosPorCategoria[categoria]);
+        const itens = ordenarItensCategoria(produtosPorCategoria[categoria]);
 
         return (
           <div key={categoria} className="estoque-categoria">
@@ -391,7 +432,52 @@ async function salvarEstoque(produto) {
                     >
                       <div className="estoque-item-topo">
                         <div>
-                          <strong>{produto.nome}</strong>
+                          {editandoNomeId === produto.id ? (
+                            <div className="estoque-nome-editando">
+                              <input
+                                type="text"
+                                value={novoNomeEstoque}
+                                onChange={(e) => setNovoNomeEstoque(e.target.value)}
+                                autoFocus
+                              />
+
+                              <button
+                                className="estoque-nome-ok"
+                                onClick={() => salvarNomeProdutoEstoque(produto)}
+                              >
+                                OK
+                              </button>
+
+                              <button
+                                className="estoque-nome-cancelar"
+                                onClick={() => {
+                                  setEditandoNomeId(null);
+                                  setNovoNomeEstoque("");
+                                  setErroNomeEstoque("");
+                                }}
+                              >
+                                ✕
+                              </button>
+
+                              {erroNomeEstoque && (
+                                <small className="estoque-nome-erro">
+                                  {erroNomeEstoque}
+                                </small>
+                              )}
+                            </div>
+                          ) : (
+                            <strong
+                              className="estoque-nome-clicavel"
+                              onClick={() => {
+                                setEditandoNomeId(produto.id);
+                                setNovoNomeEstoque(produto.nome);
+                                setErroNomeEstoque("");
+                              }}
+                              title="Toque para renomear"
+                            >
+                              {produto.nome} ✏️
+                            </strong>
+                          )}
                           <p>R$ {formatarMoeda(produto.preco)}</p>
                         </div>
 

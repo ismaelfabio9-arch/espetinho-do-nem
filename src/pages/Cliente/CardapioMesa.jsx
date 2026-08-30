@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { db } from "../../firebase";
+import { ordenarGruposPorCategoria, trocarOrdemCategorias } from "../../utils/categorias";
 import "../../styles/Cliente/CardapioMesa.css";
 import {
   collection,
@@ -33,6 +34,14 @@ function CardapioMesa() {
   const [formaPagamento, setFormaPagamento] = useState("");
   const [produtos, setProdutos] = useState([]);
   const [estoque, setEstoque] = useState({});
+  const [categoriasDocs, setCategoriasDocs] = useState([]);
+  const [categoriaArrastando, setCategoriaArrastando] = useState(null);
+  const [categoriaSobre, setCategoriaSobre] = useState(null);
+  const arrastoTouchRef = useRef(null);
+  const arrastoTimerRef = useRef(null);
+  const categoriaSobreRef = useRef(null);
+  const movimentoTouchRef = useRef({ x: 0, y: 0 });
+  const arrastoExecutadoRef = useRef(false);
 
   function formatarMoeda(valor) {
     return Number(valor || 0).toFixed(2).replace(".", ",");
@@ -47,6 +56,27 @@ function CardapioMesa() {
     if (categoria.includes("Dose")) return "🥃";
     return "🍽️";
   }
+
+  useEffect(() => {
+    const cancelarCategorias = onSnapshot(collection(db, "categorias"), (snapshot) => {
+      setCategoriasDocs(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+
+    const cancelarEstoque = onSnapshot(collection(db, "estoque"), (snapshot) => {
+      const dados = {};
+
+      snapshot.docs.forEach((documento) => {
+        dados[documento.id] = documento.data();
+      });
+
+      setEstoque(dados);
+    });
+
+    return () => {
+      cancelarCategorias();
+      cancelarEstoque();
+    };
+  }, []);
 
   useEffect(() => {
     const cancelarProdutos = onSnapshot(collection(db, "produtos"), (snapshot) => {
@@ -74,24 +104,13 @@ function CardapioMesa() {
         return resultado;
       }, {});
 
-      setProdutos(Object.values(grupos));
+      setProdutos(
+        ordenarGruposPorCategoria(Object.values(grupos), categoriasDocs)
+      );
     });
 
-    const cancelarEstoque = onSnapshot(collection(db, "estoque"), (snapshot) => {
-      const dados = {};
-
-      snapshot.docs.forEach((documento) => {
-        dados[documento.id] = documento.data();
-      });
-
-      setEstoque(dados);
-    });
-
-    return () => {
-      cancelarProdutos();
-      cancelarEstoque();
-    };
-  }, []);
+    return () => cancelarProdutos();
+  }, [categoriasDocs]);
 
   useEffect(() => {
     const nomeSalvo = localStorage.getItem(`mesa_${mesa}_cliente`);
@@ -221,6 +240,105 @@ function CardapioMesa() {
   );
 
   const produtosDisponiveis = produtos;
+
+  function limparArrastoTouch() {
+    if (arrastoTimerRef.current) {
+      clearTimeout(arrastoTimerRef.current);
+      arrastoTimerRef.current = null;
+    }
+
+    arrastoTouchRef.current = null;
+    categoriaSobreRef.current = null;
+    arrastoExecutadoRef.current = false;
+    setCategoriaArrastando(null);
+    setCategoriaSobre(null);
+  }
+
+  function iniciarArrastoCategoriaTouch(evento, nomeCategoria) {
+    if (evento.pointerType === "mouse") return;
+
+    const ponto = { x: evento.clientX, y: evento.clientY };
+    movimentoTouchRef.current = ponto;
+
+    if (arrastoTimerRef.current) clearTimeout(arrastoTimerRef.current);
+
+    arrastoTouchRef.current = {
+      nome: nomeCategoria,
+      pointerId: evento.pointerId,
+      iniciado: false,
+    };
+
+    arrastoTimerRef.current = setTimeout(() => {
+      if (!arrastoTouchRef.current) return;
+      arrastoTouchRef.current.iniciado = true;
+      arrastoExecutadoRef.current = true;
+      setCategoriaArrastando(nomeCategoria);
+      if (navigator.vibrate) navigator.vibrate(25);
+    }, 320);
+  }
+
+  function moverArrastoCategoriaTouch(evento) {
+    const arrasto = arrastoTouchRef.current;
+    if (!arrasto || evento.pointerId !== arrasto.pointerId) return;
+
+    const dx = evento.clientX - movimentoTouchRef.current.x;
+    const dy = evento.clientY - movimentoTouchRef.current.y;
+
+    if (!arrasto.iniciado) {
+      if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
+        if (arrastoTimerRef.current) clearTimeout(arrastoTimerRef.current);
+        arrastoTimerRef.current = null;
+        arrastoTouchRef.current = null;
+      }
+      return;
+    }
+
+    evento.preventDefault();
+
+    const elemento = document.elementFromPoint(evento.clientX, evento.clientY);
+    const alvo = elemento?.closest("[data-categoria-cardapio]");
+
+    if (alvo) {
+      const nomeAlvo = alvo.getAttribute("data-categoria-cardapio");
+      categoriaSobreRef.current = nomeAlvo;
+      setCategoriaSobre(nomeAlvo);
+    }
+  }
+
+  async function finalizarArrastoCategoriaTouch(evento) {
+    const arrasto = arrastoTouchRef.current;
+    if (!arrasto || evento.pointerId !== arrasto.pointerId) return;
+
+    const estavaArrastando = arrasto.iniciado;
+    const origemNome = arrasto.nome;
+    const alvoNome = categoriaSobreRef.current;
+
+    if (arrastoTimerRef.current) clearTimeout(arrastoTimerRef.current);
+    arrastoTimerRef.current = null;
+    arrastoTouchRef.current = null;
+    categoriaSobreRef.current = null;
+
+    if (!estavaArrastando) {
+      setCategoriaSobre(null);
+      return;
+    }
+
+    setCategoriaArrastando(null);
+    setCategoriaSobre(null);
+
+    if (!alvoNome || origemNome === alvoNome) return;
+
+    const origem = categoriasDocs.find((categoria) => categoria.nome === origemNome);
+    const alvo = categoriasDocs.find((categoria) => categoria.nome === alvoNome);
+
+    if (!origem || !alvo) return;
+
+    try {
+      await trocarOrdemCategorias(origem, alvo);
+    } catch (erro) {
+      console.error("Erro ao trocar ordem das categorias:", erro);
+    }
+  }
 
   async function baixarEstoque(itens) {
     for (const item of itens) {
@@ -393,7 +511,7 @@ function CardapioMesa() {
         criadoEm: serverTimestamp(),
       });
 
-      setMensagem("Garçom chamado com sucesso!");
+      setMensagem("Garcom chamado com sucesso!");
 
       setTimeout(() => {
         setMensagem("");
@@ -516,7 +634,7 @@ function CardapioMesa() {
             onClick={chamarGarcom}
             disabled={enviando}
           >
-            🛎️ Chamar Garçom
+            🛎️ Chamar Garcom
           </button>
         </div>
 
@@ -530,17 +648,49 @@ function CardapioMesa() {
           const aberta = categoriaAberta === categoria.categoria;
 
           return (
-            <div key={categoria.categoria} className="cardapio-categoria">
+            <div
+              key={categoria.categoria}
+              className={`cardapio-categoria ${
+                categoriaArrastando === categoria.categoria ? "arrastando" : ""
+              } ${
+                categoriaSobre === categoria.categoria ? "sobre" : ""
+              }`}
+              data-categoria-cardapio={categoria.categoria}
+              onPointerDown={(evento) => {
+                if (evento.currentTarget.setPointerCapture) {
+                  evento.currentTarget.setPointerCapture(evento.pointerId);
+                }
+                iniciarArrastoCategoriaTouch(evento, categoria.categoria);
+              }}
+              onPointerMove={moverArrastoCategoriaTouch}
+              onPointerUp={finalizarArrastoCategoriaTouch}
+              onPointerCancel={limparArrastoTouch}
+            >
               <button
                 className="cardapio-categoria-btn"
-                onClick={() =>
-                  setCategoriaAberta(aberta ? "" : categoria.categoria)
-                }
+                onClick={(evento) => {
+                  if (arrastoExecutadoRef.current) {
+                    evento.preventDefault();
+                    arrastoExecutadoRef.current = false;
+                    return;
+                  }
+
+                  setCategoriaAberta(aberta ? "" : categoria.categoria);
+                }}
               >
-                <span>
+                <span className="cardapio-categoria-nome">
                   {emojiCategoria(categoria.categoria)} {categoria.categoria}
                 </span>
-                <strong>{aberta ? "▲" : "▼"}</strong>
+                <span className="cardapio-categoria-direita">
+                  <span
+                    className="cardapio-categoria-arraste"
+                    aria-label="Segure e arraste para mover esta categoria"
+                    title="Segure e arraste para trocar de posição"
+                  >
+                    ⠿
+                  </span>
+                  <strong>{aberta ? "▲" : "▼"}</strong>
+                </span>
               </button>
 
               {aberta &&

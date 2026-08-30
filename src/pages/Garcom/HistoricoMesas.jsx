@@ -11,7 +11,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { db } from "../../firebase";
-import "../../styles/Garçom/Pedidos.css";
+import "../../styles/Garcom/Pedidos.css";
 
 function HistoricoMesas() {
   const [historico, setHistorico] = useState([]);

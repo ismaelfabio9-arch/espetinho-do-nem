@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { db } from "../../firebase";
-import "../../styles/Garçom/RelatorioGerencial.css";
+import "../../styles/Garcom/RelatorioGerencial.css";
 
 function RelatorioGerencial() {
   const [historico, setHistorico] = useState([]);

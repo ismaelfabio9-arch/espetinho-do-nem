@@ -125,3 +125,65 @@ body.dark .mesa-card.livre p { color: var(--muted) !important; }
 body.dark .mesa-icone { background: var(--green-bg) !important; color: var(--green) !important; }
 body.dark .mesa-card.livre .mesa-icone { background: var(--card-3) !important; color: var(--muted) !important; }
 body.dark .mesa-editar-cliente { background: rgba(34, 197, 94, 0.16) !important; color: var(--green) !important; }
+/* ============================================================
+   ORGANIZAÇÃO DE MESAS (adicionado)
+   ============================================================ */
+
+.mesas-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.mesas-btn-organizar {
+  flex-shrink: 0;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #111827;
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.mesas-btn-organizar.ativo {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: white;
+}
+
+.grid-mesas.modo-organizar .mesa-card {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.mesa-card.arrastando {
+  opacity: 0.95;
+  transform: scale(1.04);
+}
+
+.mesa-card.alvo-troca {
+  border: 2px dashed #22c55e !important;
+  background: #ecfdf3 !important;
+}
+
+body.dark .mesas-btn-organizar {
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+body.dark .mesas-btn-organizar.ativo {
+  background: var(--green) !important;
+  border-color: var(--green) !important;
+  color: #06210f !important;
+}
+
+body.dark .mesa-card.alvo-troca {
+  background: var(--green-bg) !important;
+  border-color: var(--green) !important;
+}

@@ -15,7 +15,19 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase";
-import "../../styles/Garçom/MesaDetalhe.css";
+import { ordenarGruposPorCategoria } from "../../utils/categorias";
+import { ordenarItensCategoria, moverItemCategoria } from "../../utils/produtosOrdem";
+import { useConfigImpressora } from "../../hooks/useConfigImpressora";
+import {
+  gerarComandaHTML,
+  gerarComprovanteHTML,
+  imprimir,
+  jaImprimiu,
+  marcarComoImpresso,
+} from "../../utils/print";
+import "../../styles/Garcom/MesaDetalhe.css";
+
+const FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Débito", "Crédito"];
 
 function MesaDetalhe() {
   const { id } = useParams();
@@ -23,6 +35,7 @@ function MesaDetalhe() {
 
   const [produtos, setProdutos] = useState([]);
   const [categoriaAberta, setCategoriaAberta] = useState("");
+  const [categoriaOrganizando, setCategoriaOrganizando] = useState("");
   const [pedido, setPedido] = useState({});
   const [pedidoMesa, setPedidoMesa] = useState(null);
   const [pedidoMesaId, setPedidoMesaId] = useState(null);
@@ -34,6 +47,10 @@ function MesaDetalhe() {
   const [notificacao, setNotificacao] = useState("");
   const [encerrando, setEncerrando] = useState(false);
   const [mostrarModalEncerrarMesa, setMostrarModalEncerrarMesa] = useState(false);
+  const [categoriasDocs, setCategoriasDocs] = useState([]);
+  const [etapaEncerrar, setEtapaEncerrar] = useState("opcoes"); // opcoes | pagamento
+  const [formaPagamentoEncerrar, setFormaPagamentoEncerrar] = useState("");
+  const configImpressora = useConfigImpressora();
 
   useEffect(() => {
     const cancelar = onSnapshot(doc(db, "mesas", String(id)), (documento) => {
@@ -49,6 +66,16 @@ function MesaDetalhe() {
 
     return () => cancelar();
   }, [id]);
+
+  useEffect(() => {
+    const cancelarCategorias = onSnapshot(collection(db, "categorias"), (snapshot) => {
+      setCategoriasDocs(
+        snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
+      );
+    });
+
+    return () => cancelarCategorias();
+  }, []);
 
   useEffect(() => {
     const cancelar = onSnapshot(collection(db, "produtos"), (snapshot) => {
@@ -73,6 +100,7 @@ function MesaDetalhe() {
           id: produto.id,
           nome: produto.nome,
           preco: Number(produto.preco || 0),
+          ordem: produto.ordem,
         });
 
         return resultado;
@@ -81,14 +109,14 @@ function MesaDetalhe() {
       const listaCategorias = Object.values(grupos);
 
       listaCategorias.forEach((categoria) => {
-        categoria.itens.sort((a, b) => a.preco - b.preco);
+        categoria.itens = ordenarItensCategoria(categoria.itens);
       });
 
-      setProdutos(listaCategorias);
+      setProdutos(ordenarGruposPorCategoria(listaCategorias, categoriasDocs));
     });
 
     return () => cancelar();
-  }, []);
+  }, [categoriasDocs]);
 
   useEffect(() => {
     const pedidosRef = collection(db, "pedidos");
@@ -427,15 +455,77 @@ if (pedidosDaMesa.length === 0) {
         }
       }
 
+      const itensImpressos = itensPedido;
+      const totalImpresso = total;
+
       setPedido({});
       mostrarNotificacao("Pedido salvo com sucesso!");
+
+      if (configImpressora.habilitada && configImpressora.autoImprimirPedido) {
+        await imprimirComandaAgora(itensImpressos, totalImpresso);
+      }
     } catch (erro) {
       console.error("Erro ao salvar pedido da mesa:", erro);
       mostrarNotificacao("Erro ao salvar no Firebase.");
     }
   }
 
-  async function encerrarMesa() {
+  async function imprimirComandaAgora(itensParaImprimir, totalParaImprimir) {
+    const html = gerarComandaHTML({
+      numeroPedido: pedidoMesaId || Date.now(),
+      mesa: id,
+      cliente: nomeCliente,
+      itens: itensParaImprimir,
+      total: totalParaImprimir,
+      config: configImpressora,
+    });
+
+    await imprimir(html, configImpressora.larguraPapel);
+  }
+
+  async function imprimirComandaManual() {
+    if (itensMesa.length === 0) {
+      mostrarNotificacao("Não há itens na comanda da mesa para imprimir.");
+      return;
+    }
+
+    const chave = `comanda-manual-${pedidoMesaId}-${totalItensMesa}`;
+    if (jaImprimiu(chave)) {
+      mostrarNotificacao("Essa comanda já foi impressa nesta sessão.");
+      return;
+    }
+
+    await imprimirComandaAgora(itensMesa, totalMesa);
+    marcarComoImpresso(chave);
+  }
+
+  function abrirModalEncerrar() {
+    setEtapaEncerrar("opcoes");
+    setFormaPagamentoEncerrar("");
+    setMostrarModalEncerrarMesa(true);
+  }
+
+  function escolherEmitirComprovante() {
+    setEtapaEncerrar("pagamento");
+  }
+
+  async function confirmarEncerrarSemComprovante() {
+    await encerrarMesa({ emitirComprovante: false, formaPagamento: "" });
+  }
+
+  async function confirmarEncerrarComComprovante() {
+    if (!formaPagamentoEncerrar) {
+      mostrarNotificacao("Escolha a forma de pagamento.");
+      return;
+    }
+
+    await encerrarMesa({
+      emitirComprovante: true,
+      formaPagamento: formaPagamentoEncerrar,
+    });
+  }
+
+  async function encerrarMesa({ emitirComprovante, formaPagamento }) {
     setEncerrando(true);
     setMostrarModalEncerrarMesa(false);
 
@@ -450,6 +540,33 @@ if (pedidosDaMesa.length === 0) {
 
       const resultado = await getDocs(consultaMesa);
 
+      // Emite o comprovante do cliente ANTES de apagar os pedidos abertos,
+      // já que os documentos de "pedidos" são a fonte dos itens/total.
+      if (emitirComprovante) {
+        const todosItens = resultado.docs.flatMap(
+          (documento) => documento.data().itens || []
+        );
+
+        const totalComprovante = todosItens.reduce(
+          (soma, item) =>
+            soma + Number(item.preco || 0) * Number(item.qtd || item.quantidade || 0),
+          0
+        );
+
+        const html = gerarComprovanteHTML({
+          mesa: id,
+          cliente: nomeCliente,
+          itens: todosItens,
+          total: totalComprovante,
+          formaPagamento,
+          config: configImpressora,
+        });
+
+        if (configImpressora.habilitada) {
+          await imprimir(html, configImpressora.larguraPapel);
+        }
+      }
+
       for (const documento of resultado.docs) {
         const pedidoDados = documento.data();
 
@@ -460,6 +577,8 @@ if (pedidosDaMesa.length === 0) {
           itens: pedidoDados.itens || [],
           total: pedidoDados.total || 0,
           totalItens: pedidoDados.totalItens || 0,
+          formaPagamento: formaPagamento || "",
+          comprovanteEmitido: Boolean(emitirComprovante),
           finalizadoEm: new Date().toISOString(),
           criadoEm: serverTimestamp(),
         });
@@ -471,6 +590,8 @@ if (pedidosDaMesa.length === 0) {
           itens: pedidoDados.itens || [],
           total: pedidoDados.total || 0,
           totalItens: pedidoDados.totalItens || 0,
+          formaPagamento: formaPagamento || "",
+          comprovanteEmitido: Boolean(emitirComprovante),
           finalizadoEm: new Date().toISOString(),
           pedidoOriginalId: documento.id,
           status: "finalizada",
@@ -543,34 +664,94 @@ if (pedidosDaMesa.length === 0) {
         </div>
       )}
 
-      {mostrarModalEncerrarMesa && (
+      {mostrarModalEncerrarMesa && etapaEncerrar === "opcoes" && (
         <div className="modal-overlay">
           <div className="modal-card">
             <div className="modal-icon">🍽️</div>
 
             <h2>Encerrar Mesa {id}?</h2>
 
-            <p>O pedido será finalizado e salvo no histórico de mesas.</p>
+            <p className="modal-total-encerrar">
+              Total: <strong>R$ {formatarMoeda(totalGeralMesa)}</strong>
+            </p>
 
             <p className="modal-aviso">
               O nome do cliente também será removido da mesa.
             </p>
 
-            <div className="modal-acoes">
+            <div className="modal-acoes coluna">
+              <button
+                type="button"
+                className="modal-btn confirmar"
+                onClick={escolherEmitirComprovante}
+                disabled={encerrando}
+              >
+                🖨️ Emitir comprovante
+              </button>
+
+              <button
+                type="button"
+                className="modal-btn secundario"
+                onClick={confirmarEncerrarSemComprovante}
+                disabled={encerrando}
+              >
+                Encerrar sem comprovante
+              </button>
+
               <button
                 type="button"
                 className="modal-btn cancelar"
                 onClick={() => setMostrarModalEncerrarMesa(false)}
+                disabled={encerrando}
               >
                 Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {mostrarModalEncerrarMesa && etapaEncerrar === "pagamento" && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-icon">💳</div>
+
+            <h2>Forma de pagamento</h2>
+
+            <p className="modal-total-encerrar">
+              Total: <strong>R$ {formatarMoeda(totalGeralMesa)}</strong>
+            </p>
+
+            <div className="formas-pagamento">
+              {FORMAS_PAGAMENTO.map((forma) => (
+                <button
+                  key={forma}
+                  type="button"
+                  className={formaPagamentoEncerrar === forma ? "ativo" : ""}
+                  onClick={() => setFormaPagamentoEncerrar(forma)}
+                >
+                  {forma}
+                </button>
+              ))}
+            </div>
+
+            <div className="modal-acoes">
+              <button
+                type="button"
+                className="modal-btn cancelar"
+                onClick={() => setEtapaEncerrar("opcoes")}
+                disabled={encerrando}
+              >
+                Voltar
               </button>
 
               <button
                 type="button"
                 className="modal-btn confirmar"
-                onClick={encerrarMesa}
+                onClick={confirmarEncerrarComComprovante}
+                disabled={encerrando}
               >
-                Encerrar Mesa
+                {encerrando ? "Encerrando..." : "Imprimir e encerrar"}
               </button>
             </div>
           </div>
@@ -662,12 +843,18 @@ if (pedidosDaMesa.length === 0) {
 
         <button
           className="btn-cinza"
-          onClick={() => setMostrarModalEncerrarMesa(true)}
+          onClick={abrirModalEncerrar}
           disabled={encerrando}
         >
           {encerrando ? "Encerrando..." : "Encerrar mesa"}
         </button>
       </div>
+
+      {configImpressora.habilitada && totalItensMesa > 0 && (
+        <button className="btn-imprimir-comanda" onClick={imprimirComandaManual}>
+          🖨️ Imprimir comanda da mesa
+        </button>
+      )}
 
       {pedidoMesa && totalItensMesa > 0 && (
         <div className="pedido-mesa-resumo">
@@ -705,40 +892,96 @@ if (pedidosDaMesa.length === 0) {
           <p>Importe o cardápio na tela Produtos.</p>
         </div>
       ) : (
-        produtos.map((categoria) => (
-          <section className="categoria-bloco" key={categoria.categoria}>
-            <div
-              className="categoria-header"
-              onClick={() => alternarCategoria(categoria.categoria)}
-            >
-              <h3>{categoria.categoria}</h3>
-              <span>{categoriaAberta === categoria.categoria ? "▲" : "▼"}</span>
-            </div>
+        produtos.map((categoria) => {
+          const aberta = categoriaAberta === categoria.categoria;
+          const organizando = categoriaOrganizando === categoria.categoria;
 
-            {categoriaAberta === categoria.categoria && (
-              <div className="produtos-grid">
-                {categoria.itens.map((item) => {
-                  const quantidade = pedido[item.nome]?.qtd || 0;
+          return (
+            <section className="categoria-bloco" key={categoria.categoria}>
+              <div
+                className="categoria-header"
+                onClick={() => alternarCategoria(categoria.categoria)}
+              >
+                <h3>{categoria.categoria}</h3>
 
-                  return (
-                    <div className="produto-card" key={item.id}>
-                      <div className="produto-info">
-                        <strong>{item.nome}</strong>
-                        <span>R$ {formatarMoeda(item.preco)}</span>
-                      </div>
+                <div className="categoria-header-acoes">
+                  {aberta && (
+                    <button
+                      type="button"
+                      className={`btn-organizar-categoria ${
+                        organizando ? "ativo" : ""
+                      }`}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCategoriaOrganizando((atual) =>
+                          atual === categoria.categoria ? "" : categoria.categoria
+                        );
+                      }}
+                    >
+                      {organizando ? "✓ Concluir" : "↕ Organizar"}
+                    </button>
+                  )}
 
-                      <div className="contador">
-                        <button onClick={() => removerItem(item)}>-</button>
-                        <span>{quantidade}</span>
-                        <button onClick={() => adicionarItem(item)}>+</button>
-                      </div>
-                    </div>
-                  );
-                })}
+                  <span>{aberta ? "▲" : "▼"}</span>
+                </div>
               </div>
-            )}
-          </section>
-        ))
+
+              {aberta && (
+                <div className="produtos-grid">
+                  {categoria.itens.map((item, indice) => {
+                    const quantidade = pedido[item.nome]?.qtd || 0;
+
+                    return (
+                      <div
+                        className={`produto-card ${
+                          organizando ? "produto-card-organizando" : ""
+                        }`}
+                        key={item.id}
+                      >
+                        <div className="produto-info">
+                          <strong>{item.nome}</strong>
+                          <span>R$ {formatarMoeda(item.preco)}</span>
+                        </div>
+
+                        {organizando ? (
+                          <div className="produto-reordenar">
+                            <button
+                              type="button"
+                              disabled={indice === 0}
+                              onClick={() =>
+                                moverItemCategoria(db, categoria.itens, indice, -1)
+                              }
+                              title="Mover para cima"
+                            >
+                              ▲
+                            </button>
+
+                            <button
+                              type="button"
+                              disabled={indice === categoria.itens.length - 1}
+                              onClick={() =>
+                                moverItemCategoria(db, categoria.itens, indice, 1)
+                              }
+                              title="Mover para baixo"
+                            >
+                              ▼
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="contador">
+                            <button onClick={() => removerItem(item)}>-</button>
+                            <span>{quantidade}</span>
+                            <button onClick={() => adicionarItem(item)}>+</button>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </section>
+          );
+        })
       )}
 
       {totalItens > 0 && (

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Bell,
@@ -15,7 +15,7 @@ import {
   Package,
   Pencil,
 } from "lucide-react";
-import "../../styles/Garçom/Dashboard.css";
+import "../../styles/Garcom/Dashboard.css";
 import {
   collection,
   onSnapshot,
@@ -28,6 +28,7 @@ import {
   where,
   addDoc,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../../firebase";
 
@@ -35,6 +36,7 @@ function Dashboard() {
   const [faturamentoDia, setFaturamentoDia] = useState(0);
   const [mesas, setMesas] = useState([]);
   const [nomesMesas, setNomesMesas] = useState({});
+  const [posicoesMesas, setPosicoesMesas] = useState({});
   const [totalNotificacoes, setTotalNotificacoes] = useState(0);
   const [menuAberto, setMenuAberto] = useState(false);
   const [modalCliente, setModalCliente] = useState(null);
@@ -42,6 +44,14 @@ function Dashboard() {
   const [toastsPagamento, setToastsPagamento] = useState([]);
   const [toastsEstoque, setToastsEstoque] = useState([]);
   const [pagamentoAberto, setPagamentoAberto] = useState(null);
+
+  // ── Organizar mesas (mesma ordem/posicao usada na tela Mesas) ──
+  const [modoOrganizar, setModoOrganizar] = useState(false);
+  const [arrastando, setArrastando] = useState(null);
+  const [sobreNumero, setSobreNumero] = useState(null);
+  const [posicaoArraste, setPosicaoArraste] = useState({ x: 0, y: 0 });
+  const origemRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
+  const elementoArrastadoRef = useRef(null);
 
   function formatarMoeda(valor) {
     return Number(valor || 0).toFixed(2).replace(".", ",");
@@ -55,10 +65,19 @@ function Dashboard() {
 
     const cancelarMesas = onSnapshot(mesasRef, (snapshot) => {
       const nomes = {};
+      const posicoes = {};
+
       snapshot.docs.forEach((documento) => {
-        nomes[documento.id] = documento.data().cliente || "";
+        const info = documento.data();
+        nomes[documento.id] = info.cliente || "";
+        posicoes[documento.id] =
+          typeof info.posicao === "number"
+            ? info.posicao
+            : Number(documento.id) - 1;
       });
+
       setNomesMesas(nomes);
+      setPosicoesMesas(posicoes);
     });
 
     const cancelarPedidos = onSnapshot(pedidosRef, (snapshot) => {
@@ -291,7 +310,84 @@ function Dashboard() {
     .filter((m) => m.status === "aberta")
     .reduce((soma, m) => soma + m.totalItens, 0);
 
-  const mesasPainel = mesas.slice(0, 9);
+  async function trocarPosicoes(numeroA, numeroB) {
+    if (numeroA === numeroB) return;
+
+    const posA = posicoesMesas[numeroA] ?? numeroA - 1;
+    const posB = posicoesMesas[numeroB] ?? numeroB - 1;
+
+    const batch = writeBatch(db);
+    batch.set(doc(db, "mesas", String(numeroA)), { posicao: posB }, { merge: true });
+    batch.set(doc(db, "mesas", String(numeroB)), { posicao: posA }, { merge: true });
+    await batch.commit();
+  }
+
+  // Drag via Pointer Events — mesmo mecanismo usado na tela Mesas, funciona
+  // igual com o dedo (mobile) e com o mouse.
+  function aoPressionar(e, mesa) {
+    if (!modoOrganizar) return;
+
+    const alvo = e.currentTarget;
+    alvo.setPointerCapture(e.pointerId);
+
+    const retangulo = alvo.getBoundingClientRect();
+    origemRef.current = {
+      x: e.clientX - retangulo.left,
+      y: e.clientY - retangulo.top,
+      width: retangulo.width,
+      height: retangulo.height,
+    };
+
+    elementoArrastadoRef.current = alvo;
+    setArrastando(mesa.numero);
+    setPosicaoArraste({ x: retangulo.left, y: retangulo.top });
+  }
+
+  function aoMover(e) {
+    if (arrastando === null) return;
+
+    e.preventDefault();
+
+    const novoLeft = e.clientX - origemRef.current.x;
+    const novoTop = e.clientY - origemRef.current.y;
+    setPosicaoArraste({ x: novoLeft, y: novoTop });
+
+    const elementoAnterior = elementoArrastadoRef.current;
+    if (elementoAnterior) elementoAnterior.style.pointerEvents = "none";
+
+    const elementoEmbaixo = document.elementFromPoint(e.clientX, e.clientY);
+
+    if (elementoAnterior) elementoAnterior.style.pointerEvents = "";
+
+    const cartaoAlvo = elementoEmbaixo?.closest("[data-mesa-numero]");
+    if (cartaoAlvo) {
+      const numeroAlvo = Number(cartaoAlvo.dataset.mesaNumero);
+      setSobreNumero(numeroAlvo === arrastando ? null : numeroAlvo);
+    } else {
+      setSobreNumero(null);
+    }
+  }
+
+  async function aoSoltar() {
+    if (arrastando === null) return;
+
+    const numeroOrigem = arrastando;
+    const numeroDestino = sobreNumero;
+
+    setArrastando(null);
+    setSobreNumero(null);
+    elementoArrastadoRef.current = null;
+
+    if (numeroDestino && numeroDestino !== numeroOrigem) {
+      await trocarPosicoes(numeroOrigem, numeroDestino);
+    }
+  }
+
+  const mesasOrdenadas = [...mesas].sort(
+    (a, b) => (posicoesMesas[a.numero] ?? a.numero - 1) - (posicoesMesas[b.numero] ?? b.numero - 1)
+  );
+
+  const mesasPainel = mesasOrdenadas.slice(0, 9);
 
   return (
     <div className="app-ref">
@@ -513,28 +609,61 @@ function Dashboard() {
 
       <div className="section-title-ref">
         <h2>Mesas</h2>
-        <Link to="/mesas">Ver todas ›</Link>
+        <div className="section-title-acoes-ref">
+          <button
+            className={`table-btn-organizar ${modoOrganizar ? "ativo" : ""}`}
+            onClick={() => setModoOrganizar((v) => !v)}
+          >
+            {modoOrganizar ? "✓ Concluir" : "✋ Organizar"}
+          </button>
+          <Link to="/mesas">Ver todas ›</Link>
+        </div>
       </div>
 
-      <section className="tables-grid-ref">
+      <section
+        className={`tables-grid-ref ${modoOrganizar ? "modo-organizar" : ""}`}
+        onPointerMove={aoMover}
+        onPointerUp={aoSoltar}
+        onPointerCancel={aoSoltar}
+      >
         {mesasPainel.map((mesa) => {
           const cliente = nomesMesas[String(mesa.numero)];
+          const estaArrastando = arrastando === mesa.numero;
+          const estaSobre = sobreNumero === mesa.numero;
 
-          return (
-            <Link
-              key={mesa.numero}
-              to={`/mesa/${mesa.numero}`}
-              className="table-link-ref"
+          const conteudoCard = (
+            <article
+              data-mesa-numero={mesa.numero}
+              className={`table-card-ref ${mesa.status} ${
+                estaArrastando ? "arrastando" : ""
+              } ${estaSobre ? "alvo-troca" : ""}`}
+              style={
+                estaArrastando
+                  ? {
+                      position: "fixed",
+                      left: posicaoArraste.x,
+                      top: posicaoArraste.y,
+                      width: origemRef.current.width,
+                      height: origemRef.current.height,
+                      zIndex: 999,
+                      boxShadow: "0 12px 30px rgba(0,0,0,0.35)",
+                      touchAction: "none",
+                    }
+                  : modoOrganizar
+                  ? { touchAction: "none" }
+                  : undefined
+              }
+              onPointerDown={(e) => aoPressionar(e, mesa)}
             >
-              <article className={`table-card-ref ${mesa.status}`}>
-                <span className={`table-dot-ref ${mesa.status}`}></span>
+              <span className={`table-dot-ref ${mesa.status}`}></span>
 
-                <div className="mesa-nome-linha">
-                  <h3>
-                    Mesa {mesa.numero}
-                    {cliente ? ` - ${cliente}` : ""}
-                  </h3>
+              <div className="mesa-nome-linha">
+                <h3>
+                  Mesa {mesa.numero}
+                  {cliente ? ` - ${cliente}` : ""}
+                </h3>
 
+                {!modoOrganizar && (
                   <button
                     className="mesa-editar-cliente"
                     onClick={(e) => abrirModalCliente(e, mesa)}
@@ -542,15 +671,33 @@ function Dashboard() {
                   >
                     <Pencil size={13} />
                   </button>
-                </div>
+                )}
+              </div>
 
-                <div className={`table-icon-ref ${mesa.status}`}>
+              <div className={`table-icon-ref ${mesa.status}`}>
+                {modoOrganizar ? (
+                  <span style={{ fontSize: 18 }}>⠿</span>
+                ) : (
                   <Table2 size={29} strokeWidth={2.4} />
-                </div>
+                )}
+              </div>
 
-                <strong>R$ {formatarMoeda(mesa.total)}</strong>
-                <small>{mesa.totalItens} itens</small>
-              </article>
+              <strong>R$ {formatarMoeda(mesa.total)}</strong>
+              <small>{mesa.totalItens} itens</small>
+            </article>
+          );
+
+          if (modoOrganizar) {
+            return <div key={mesa.numero}>{conteudoCard}</div>;
+          }
+
+          return (
+            <Link
+              key={mesa.numero}
+              to={`/mesa/${mesa.numero}`}
+              className="table-link-ref"
+            >
+              {conteudoCard}
             </Link>
           );
         })}

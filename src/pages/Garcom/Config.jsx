@@ -8,9 +8,10 @@ import {
   doc,
   setDoc,
   serverTimestamp,
+  writeBatch,
 } from "firebase/firestore";
 import { db } from "../../firebase";
-import "../../styles/Garçom/Config.css";
+import "../../styles/Garcom/Config.css";
 
 function Config() {
   const [mensagem, setMensagem] = useState("");
@@ -111,6 +112,30 @@ await addDoc(collection(db, "relatorioGerencial"), fechamentoDoDia);
         await deleteDoc(doc(db, "historicoMesas", mesa.id));
       }
 
+      // Retorna todas as mesas para a posição visual original.
+      // Isso NUNCA altera número da mesa, pedidos, histórico ou produtos —
+      // só o campo "posicao" usado para desenhar a grade de mesas.
+      const mesasSnapshot = await getDocs(collection(db, "mesas"));
+      const batchPosicoes = writeBatch(db);
+      let precisaResetarPosicoes = false;
+
+      mesasSnapshot.docs.forEach((mesaDoc) => {
+        const dados = mesaDoc.data();
+        const posicaoOriginal =
+          typeof dados.posicaoOriginal === "number"
+            ? dados.posicaoOriginal
+            : Number(mesaDoc.id) - 1;
+
+        if (dados.posicao !== posicaoOriginal) {
+          precisaResetarPosicoes = true;
+          batchPosicoes.update(doc(db, "mesas", mesaDoc.id), {
+            posicao: posicaoOriginal,
+          });
+        }
+      });
+
+      if (precisaResetarPosicoes) await batchPosicoes.commit();
+
       Object.keys(localStorage).forEach((chave) => {
         if (
           chave.startsWith("notificacao_") ||
@@ -176,6 +201,17 @@ await addDoc(collection(db, "relatorioGerencial"), fechamentoDoDia);
             <h2>Relatório Gerencial</h2>
             <p>Faturamento por período, produtos vendidos e PDF.</p>
             <strong>Abrir relatório</strong>
+          </div>
+        </div>
+      </Link>
+
+      <Link to="/config/impressora" style={{ textDecoration: "none" }}>
+        <div className="config-card">
+          <div className="config-icon">🖨️</div>
+          <div>
+            <h2>Impressora</h2>
+            <p>Comanda, comprovante e dados do estabelecimento.</p>
+            <strong>Configurar impressora</strong>
           </div>
         </div>
       </Link>
@@ -269,7 +305,8 @@ await addDoc(collection(db, "relatorioGerencial"), fechamentoDoDia);
 
             <p>
               Isso vai salvar o relatório no histórico, zerar as vendas do dia,
-              limpar o histórico das mesas e zerar o estoque.
+              limpar o histórico das mesas, zerar o estoque e devolver as mesas
+              à posição original.
             </p>
 
             <strong>Essa ação não pode ser desfeita.</strong>

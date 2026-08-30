@@ -13,7 +13,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase";
-import "../../styles/Garçom/Pedidos.css";
+import "../../styles/Garcom/Pedidos.css";
 
 function Pedidos() {
   const [pedidos, setPedidos] = useState([]);

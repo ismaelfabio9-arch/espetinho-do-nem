@@ -10,7 +10,7 @@ import {
   getDocs,
 } from "firebase/firestore";
 import { db } from "../../firebase";
-import "../../styles/Garçom/Notificacoes.css";
+import "../../styles/Garcom/Notificacoes.css";
 
 function Notificacoes() {
   const [notificacoes, setNotificacoes] = useState([]);

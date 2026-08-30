@@ -450,3 +450,64 @@ body.dark .toast-estoque-garcom {
   color: #ffd36a;
   border: 1px solid #8a6500;
 }
+/* ============================================================
+   ORGANIZAÇÃO DE MESAS NO PAINEL (adicionado — mesma ordem/posicao
+   usada na tela Mesas)
+   ============================================================ */
+
+.section-title-acoes-ref {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.table-btn-organizar {
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #111827;
+  border-radius: 10px;
+  padding: 7px 11px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.table-btn-organizar.ativo {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: white;
+}
+
+.tables-grid-ref.modo-organizar .table-card-ref {
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.table-card-ref.arrastando {
+  opacity: 0.95;
+  transform: scale(1.04);
+}
+
+.table-card-ref.alvo-troca {
+  border: 2px dashed #22c55e !important;
+  background: #ecfdf3 !important;
+}
+
+body.dark .table-btn-organizar {
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+  color: var(--text) !important;
+}
+
+body.dark .table-btn-organizar.ativo {
+  background: var(--green) !important;
+  border-color: var(--green) !important;
+  color: #06210f !important;
+}
+
+body.dark .table-card-ref.alvo-troca {
+  background: var(--green-bg) !important;
+  border-color: var(--green) !important;
+}
