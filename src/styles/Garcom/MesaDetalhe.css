@@ -856,3 +856,76 @@ body.dark .produto-reordenar button {
   background: rgba(99, 102, 241, 0.18) !important;
   color: #a5b4fc !important;
 }
+
+/* ============================================================
+   REORDENAR CATEGORIAS DENTRO DA MESA (adicionado)
+   ============================================================ */
+
+.titulo-secao-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.titulo-secao-linha .titulo-secao {
+  margin-bottom: 0;
+}
+
+.btn-organizar-categorias {
+  border: 1px solid #e5e7eb;
+  background: #f9fafb;
+  color: #374151;
+  font-weight: 700;
+  font-size: 12px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.btn-organizar-categorias.ativo {
+  background: #16a34a;
+  border-color: #16a34a;
+  color: white;
+}
+
+.categoria-reordenar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.categoria-reordenar button {
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(79, 70, 229, 0.12);
+  color: #4f46e5;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.categoria-reordenar button:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+body.dark .btn-organizar-categorias {
+  background: #141414 !important;
+  border: 1px solid #2a2a2a !important;
+  color: #f0f0f0 !important;
+}
+
+body.dark .btn-organizar-categorias.ativo {
+  background: #16a34a !important;
+  border-color: #16a34a !important;
+  color: white !important;
+}
+
+body.dark .categoria-reordenar button {
+  background: rgba(99, 102, 241, 0.18) !important;
+  color: #a5b4fc !important;
+}

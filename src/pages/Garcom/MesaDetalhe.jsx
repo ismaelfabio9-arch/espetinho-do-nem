@@ -15,7 +15,7 @@ import {
   getDoc,
 } from "firebase/firestore";
 import { db } from "../../firebase";
-import { ordenarGruposPorCategoria } from "../../utils/categorias";
+import { ordenarGruposPorCategoria, trocarOrdemCategorias } from "../../utils/categorias";
 import { ordenarItensCategoria, moverItemCategoria } from "../../utils/produtosOrdem";
 import { useConfigImpressora } from "../../hooks/useConfigImpressora";
 import {
@@ -36,6 +36,7 @@ function MesaDetalhe() {
   const [produtos, setProdutos] = useState([]);
   const [categoriaAberta, setCategoriaAberta] = useState("");
   const [categoriaOrganizando, setCategoriaOrganizando] = useState("");
+  const [organizandoCategorias, setOrganizandoCategorias] = useState(false);
   const [pedido, setPedido] = useState({});
   const [pedidoMesa, setPedidoMesa] = useState(null);
   const [pedidoMesaId, setPedidoMesaId] = useState(null);
@@ -203,6 +204,22 @@ if (pedidosDaMesa.length === 0) {
 
   function alternarCategoria(nomeCategoria) {
     setCategoriaAberta(categoriaAberta === nomeCategoria ? "" : nomeCategoria);
+  }
+
+  function moverCategoria(indice, direcao) {
+    const novoIndice = indice + direcao;
+    if (novoIndice < 0 || novoIndice >= produtos.length) return;
+
+    const categoriaAtual = categoriasDocs.find(
+      (c) => c.nome === produtos[indice].categoria
+    );
+    const categoriaAlvo = categoriasDocs.find(
+      (c) => c.nome === produtos[novoIndice].categoria
+    );
+
+    if (!categoriaAtual || !categoriaAlvo) return;
+
+    trocarOrdemCategorias(categoriaAtual, categoriaAlvo);
   }
 
   function adicionarItem(item) {
@@ -884,7 +901,21 @@ if (pedidosDaMesa.length === 0) {
         </div>
       )}
 
-      <h2 className="titulo-secao">Adicionar pedido</h2>
+      <div className="titulo-secao-linha">
+        <h2 className="titulo-secao">Adicionar pedido</h2>
+
+        {produtos.length > 1 && (
+          <button
+            type="button"
+            className={`btn-organizar-categorias ${
+              organizandoCategorias ? "ativo" : ""
+            }`}
+            onClick={() => setOrganizandoCategorias((v) => !v)}
+          >
+            {organizandoCategorias ? "✓ Concluir" : "↕ Organizar categorias"}
+          </button>
+        )}
+      </div>
 
       {produtos.length === 0 ? (
         <div className="card-principal">
@@ -892,7 +923,7 @@ if (pedidosDaMesa.length === 0) {
           <p>Importe o cardápio na tela Produtos.</p>
         </div>
       ) : (
-        produtos.map((categoria) => {
+        produtos.map((categoria, indiceCategoria) => {
           const aberta = categoriaAberta === categoria.categoria;
           const organizando = categoriaOrganizando === categoria.categoria;
 
@@ -900,12 +931,40 @@ if (pedidosDaMesa.length === 0) {
             <section className="categoria-bloco" key={categoria.categoria}>
               <div
                 className="categoria-header"
-                onClick={() => alternarCategoria(categoria.categoria)}
+                onClick={() => {
+                  if (!organizandoCategorias) {
+                    alternarCategoria(categoria.categoria);
+                  }
+                }}
               >
+                {organizandoCategorias && (
+                  <div
+                    className="categoria-reordenar"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      type="button"
+                      disabled={indiceCategoria === 0}
+                      onClick={() => moverCategoria(indiceCategoria, -1)}
+                      title="Mover categoria para cima"
+                    >
+                      ▲
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={indiceCategoria === produtos.length - 1}
+                      onClick={() => moverCategoria(indiceCategoria, 1)}
+                      title="Mover categoria para baixo"
+                    >
+                      ▼
+                    </button>
+                  </div>
+                )}
                 <h3>{categoria.categoria}</h3>
 
                 <div className="categoria-header-acoes">
-                  {aberta && (
+                  {aberta && !organizandoCategorias && (
                     <button
                       type="button"
                       className={`btn-organizar-categoria ${
@@ -922,11 +981,11 @@ if (pedidosDaMesa.length === 0) {
                     </button>
                   )}
 
-                  <span>{aberta ? "▲" : "▼"}</span>
+                  {!organizandoCategorias && <span>{aberta ? "▲" : "▼"}</span>}
                 </div>
               </div>
 
-              {aberta && (
+              {aberta && !organizandoCategorias && (
                 <div className="produtos-grid">
                   {categoria.itens.map((item, indice) => {
                     const quantidade = pedido[item.nome]?.qtd || 0;
