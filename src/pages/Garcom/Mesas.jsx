@@ -53,10 +53,12 @@ function Mesas() {
   const [arrastando, setArrastando] = useState(null); // numero da mesa sendo arrastada
   const [sobreNumero, setSobreNumero] = useState(null);
   const [posicaoArraste, setPosicaoArraste] = useState({ x: 0, y: 0 });
+  const [adicionandoMesa, setAdicionandoMesa] = useState(false);
 
   const gridRef = useRef(null);
   const origemRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
   const elementoArrastadoRef = useRef(null);
+  const totalMesasRef = useRef(TOTAL_MESAS);
 
   useEffect(() => {
     garantirPosicoesMesas().catch((erro) =>
@@ -80,6 +82,12 @@ function Mesas() {
         };
       });
       setDadosMesas(dados);
+
+      const maiorNumero = Object.keys(dados).reduce(
+        (max, numero) => Math.max(max, Number(numero)),
+        TOTAL_MESAS
+      );
+      totalMesasRef.current = maiorNumero;
     });
 
     const cancelarPedidos = onSnapshot(collection(db, "pedidos"), (snapshot) => {
@@ -90,7 +98,7 @@ function Mesas() {
 
       const resultado = {};
 
-      for (let i = 1; i <= TOTAL_MESAS; i++) {
+      for (let i = 1; i <= totalMesasRef.current; i++) {
         const pedidosMesa = pedidos.filter(
           (pedido) => pedido.tipo === "mesa" && Number(pedido.mesa) === i
         );
@@ -121,7 +129,12 @@ function Mesas() {
     };
   }, []);
 
-  const mesas = Array.from({ length: TOTAL_MESAS }, (_, i) => i + 1).map(
+  const totalMesas = Object.keys(dadosMesas).reduce(
+    (max, numero) => Math.max(max, Number(numero)),
+    TOTAL_MESAS
+  );
+
+  const mesas = Array.from({ length: totalMesas }, (_, i) => i + 1).map(
     (numero) => ({
       numero,
       cliente: dadosMesas[numero]?.cliente || "",
@@ -133,6 +146,33 @@ function Mesas() {
   );
 
   const mesasOrdenadas = [...mesas].sort((a, b) => a.posicao - b.posicao);
+
+  async function adicionarMesa() {
+    if (adicionandoMesa) return;
+    setAdicionandoMesa(true);
+
+    try {
+      const novoNumero = totalMesas + 1;
+      const maiorPosicao = mesas.reduce(
+        (max, mesa) => Math.max(max, mesa.posicao),
+        -1
+      );
+
+      await setDoc(
+        doc(db, "mesas", String(novoNumero)),
+        {
+          numero: novoNumero,
+          posicao: maiorPosicao + 1,
+          posicaoOriginal: maiorPosicao + 1,
+        },
+        { merge: true }
+      );
+    } catch (erro) {
+      console.error("Erro ao adicionar mesa:", erro);
+    } finally {
+      setAdicionandoMesa(false);
+    }
+  }
 
   function abrirModalCliente(e, mesa) {
     e.preventDefault();
@@ -285,12 +325,22 @@ function Mesas() {
           </p>
         </div>
 
-        <button
-          className={`mesas-btn-organizar ${modoOrganizar ? "ativo" : ""}`}
-          onClick={() => setModoOrganizar((v) => !v)}
-        >
-          {modoOrganizar ? "✓ Concluir" : "✋ Organizar mesas"}
-        </button>
+        <div className="mesas-header-acoes">
+          <button
+            className={`mesas-btn-organizar ${modoOrganizar ? "ativo" : ""}`}
+            onClick={() => setModoOrganizar((v) => !v)}
+          >
+            {modoOrganizar ? "✓ Concluir" : "✋ Organizar mesas"}
+          </button>
+
+          <button
+            className="mesas-btn-adicionar"
+            onClick={adicionarMesa}
+            disabled={adicionandoMesa || modoOrganizar}
+          >
+            {adicionandoMesa ? "Adicionando..." : "+ Adicionar mesa"}
+          </button>
+        </div>
       </div>
 
       <div className="mesas-resumo">
@@ -306,7 +356,7 @@ function Mesas() {
 
         <div>
           <span>Total</span>
-          <strong>{TOTAL_MESAS}</strong>
+          <strong>{totalMesas}</strong>
         </div>
       </div>
 

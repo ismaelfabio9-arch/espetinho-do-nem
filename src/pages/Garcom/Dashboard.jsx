@@ -52,6 +52,7 @@ function Dashboard() {
   const [posicaoArraste, setPosicaoArraste] = useState({ x: 0, y: 0 });
   const origemRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
   const elementoArrastadoRef = useRef(null);
+  const totalMesasRef = useRef(15);
 
   function formatarMoeda(valor) {
     return Number(valor || 0).toFixed(2).replace(".", ",");
@@ -78,6 +79,11 @@ function Dashboard() {
 
       setNomesMesas(nomes);
       setPosicoesMesas(posicoes);
+
+      totalMesasRef.current = Object.keys(posicoes).reduce(
+        (max, numero) => Math.max(max, Number(numero)),
+        15
+      );
     });
 
     const cancelarPedidos = onSnapshot(pedidosRef, (snapshot) => {
@@ -88,7 +94,7 @@ function Dashboard() {
 
       const listaMesas = [];
 
-      for (let i = 1; i <= 15; i++) {
+      for (let i = 1; i <= totalMesasRef.current; i++) {
         const pedidosMesa = listaPedidos.filter(
           (pedido) => pedido.tipo === "mesa" && Number(pedido.mesa) === i
         );
