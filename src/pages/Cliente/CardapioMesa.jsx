@@ -657,7 +657,10 @@ function CardapioMesa() {
               }`}
               data-categoria-cardapio={categoria.categoria}
               onPointerDown={(evento) => {
-                if (evento.currentTarget.setPointerCapture) {
+                // Só prende o ponteiro no toque (é lá que existe o arrastar). Com o
+                // mouse, prender aqui fazia o clique não chegar no botão e a
+                // categoria não abria no computador.
+                if (evento.pointerType !== "mouse" && evento.currentTarget.setPointerCapture) {
                   evento.currentTarget.setPointerCapture(evento.pointerId);
                 }
                 iniciarArrastoCategoriaTouch(evento, categoria.categoria);
