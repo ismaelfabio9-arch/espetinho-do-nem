@@ -1,7 +1,8 @@
 import { seedDemo } from "./seed";
 
 // Faixa da demonstração: avisa que os dados são de exemplo, que tudo fica só
-// neste aparelho, mostra o cardápio do cliente e leva para a contratação.
+// neste aparelho, mostra o cardápio do cliente, deixa sair para a página do sistema e leva
+// para a contratação no site.
 export function DemoBanner() {
   function recomecar() {
     if (!window.confirm("Apagar o que você fez na demonstração e voltar para o bar de exemplo do começo?")) return;
@@ -23,7 +24,10 @@ export function DemoBanner() {
       <button type="button" onClick={recomecar} style={botao}>
         Recomeçar
       </button>
-      <a href="https://iftechpe.com.br/sistemas/espetinho" style={{ background: "#fff", color: "#1d4ed8", borderRadius: 8, padding: "7px 14px", fontWeight: 700, textDecoration: "none" }}>
+      <a href="/sistemas/espetinho" style={botao}>
+        Sair da demonstração
+      </a>
+      <a href="/ativar/espetinho" style={{ background: "#fff", color: "#1d4ed8", borderRadius: 8, padding: "7px 14px", fontWeight: 700, textDecoration: "none" }}>
         Quero para o meu bar
       </a>
     </div>
