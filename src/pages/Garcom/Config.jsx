@@ -12,8 +12,11 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import "../../styles/Garcom/Config.css";
+import InstallModal from "../../components/InstallApp";
+import { isInstalled } from "../../utils/installPrompt";
 
 function Config() {
+  const [instalarAberto, setInstalarAberto] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [encerrando, setEncerrando] = useState(false);
   const [modalEncerrarDia, setModalEncerrarDia] = useState(false);
@@ -230,11 +233,18 @@ await addDoc(collection(db, "relatorioGerencial"), fechamentoDoDia);
       <div className="config-card">
         <div className="config-icon">📱</div>
         <div>
-          <h2>Aplicativo</h2>
-          <p>Aplicativo Oficial da ByteForce.</p>
-          <strong>Espetinho do Nem</strong>
+          <h2>Instalar o app</h2>
+          <p>Coloque o sistema na tela de início: abre como um app, num toque. Sistema de Mesas da IFTech.</p>
+          {isInstalled() ? (
+            <strong>Já instalado neste aparelho</strong>
+          ) : (
+            <button className="config-btn" onClick={() => setInstalarAberto(true)}>
+              Instalar o app
+            </button>
+          )}
         </div>
       </div>
+      {instalarAberto && <InstallModal onClose={() => setInstalarAberto(false)} />}
 
       <div className="config-card">
         <div className="config-icon">✅</div>
