@@ -1,3 +1,4 @@
+import { L } from "../../loja";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -21,7 +22,7 @@ function Historico() {
 
   useEffect(() => {
     const historicoRef = query(
-      collection(db, "historicoDias"),
+      collection(db, ...L(), "historicoDias"),
       orderBy("criadoEm", "desc")
     );
 
@@ -39,7 +40,7 @@ function Historico() {
 
   async function limparHistorico() {
     for (const dia of historico) {
-      await deleteDoc(doc(db, "historicoDias", dia.id));
+      await deleteDoc(doc(db, ...L(), "historicoDias", dia.id));
     }
 
     setFechamentoAberto(null);

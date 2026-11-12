@@ -1,3 +1,4 @@
+import { L } from "../../loja";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
@@ -15,7 +16,7 @@ function ConfiguracaoImpressora() {
   const [mensagem, setMensagem] = useState("");
 
   useEffect(() => {
-    const cancelar = onSnapshot(doc(db, "configuracoes", "impressora"), (snap) => {
+    const cancelar = onSnapshot(doc(db, ...L(), "configuracoes", "impressora"), (snap) => {
       if (snap.exists()) {
         setConfig({ ...CONFIG_IMPRESSORA_PADRAO, ...snap.data() });
       }
@@ -37,7 +38,7 @@ function ConfiguracaoImpressora() {
     setSalvando(true);
     try {
       await setDoc(
-        doc(db, "configuracoes", "impressora"),
+        doc(db, ...L(), "configuracoes", "impressora"),
         {
           ...config,
           atualizadoEm: new Date().toISOString(),

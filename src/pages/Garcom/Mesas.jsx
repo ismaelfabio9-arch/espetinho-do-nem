@@ -1,3 +1,4 @@
+import { L, MULTI } from "../../loja";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -16,7 +17,7 @@ const TOTAL_MESAS = 15;
 
 /** Garante que toda mesa 1..15 tenha posicao/posicaoOriginal salvos no Firebase. */
 async function garantirPosicoesMesas() {
-  const snapshot = await getDocs(collection(db, "mesas"));
+  const snapshot = await getDocs(collection(db, ...L(), "mesas"));
   const existentes = {};
   snapshot.docs.forEach((d) => {
     existentes[d.id] = d.data();
@@ -30,7 +31,7 @@ async function garantirPosicoesMesas() {
     if (!dados || typeof dados.posicao !== "number") {
       precisaSalvar = true;
       batch.set(
-        doc(db, "mesas", String(numero)),
+        doc(db, ...L(), "mesas", String(numero)),
         {
           numero,
           posicao: numero - 1,
@@ -65,7 +66,7 @@ function Mesas() {
       console.error("Erro ao inicializar posicoes das mesas:", erro)
     );
 
-    const cancelarMesas = onSnapshot(collection(db, "mesas"), (snapshot) => {
+    const cancelarMesas = onSnapshot(collection(db, ...L(), "mesas"), (snapshot) => {
       const dados = {};
       snapshot.docs.forEach((documento) => {
         const info = documento.data();
@@ -90,7 +91,7 @@ function Mesas() {
       totalMesasRef.current = maiorNumero;
     });
 
-    const cancelarPedidos = onSnapshot(collection(db, "pedidos"), (snapshot) => {
+    const cancelarPedidos = onSnapshot(collection(db, ...L(), "pedidos"), (snapshot) => {
       const pedidos = snapshot.docs.map((documento) => ({
         id: documento.id,
         ...documento.data(),
@@ -159,7 +160,7 @@ function Mesas() {
       );
 
       await setDoc(
-        doc(db, "mesas", String(novoNumero)),
+        doc(db, ...L(), "mesas", String(novoNumero)),
         {
           numero: novoNumero,
           posicao: maiorPosicao + 1,
@@ -186,7 +187,7 @@ function Mesas() {
     if (!modalCliente) return;
 
     await setDoc(
-      doc(db, "mesas", String(modalCliente)),
+      doc(db, ...L(), "mesas", String(modalCliente)),
       {
         numero: modalCliente,
         cliente: nomeCliente.trim(),
@@ -205,8 +206,8 @@ function Mesas() {
     const posB = dadosMesas[numeroB]?.posicao ?? numeroB - 1;
 
     const batch = writeBatch(db);
-    batch.update(doc(db, "mesas", String(numeroA)), { posicao: posB });
-    batch.update(doc(db, "mesas", String(numeroB)), { posicao: posA });
+    batch.update(doc(db, ...L(), "mesas", String(numeroA)), { posicao: posB });
+    batch.update(doc(db, ...L(), "mesas", String(numeroB)), { posicao: posA });
     await batch.commit();
   }
 
@@ -326,6 +327,11 @@ function Mesas() {
         </div>
 
         <div className="mesas-header-acoes">
+          {MULTI && (
+            <Link to="/qrcodes" className="mesas-btn-organizar" style={{ textDecoration: "none" }}>
+              ▦ QR Codes
+            </Link>
+          )}
           <button
             className={`mesas-btn-organizar ${modoOrganizar ? "ativo" : ""}`}
             onClick={() => setModoOrganizar((v) => !v)}

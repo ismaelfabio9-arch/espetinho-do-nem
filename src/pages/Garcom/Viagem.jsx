@@ -1,3 +1,4 @@
+import { L } from "../../loja";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -22,7 +23,7 @@ function Viagem() {
   const [editandoNomeCliente, setEditandoNomeCliente] = useState(false);
 
   useEffect(() => {
-    const cancelar = onSnapshot(collection(db, "produtos"), (snapshot) => {
+    const cancelar = onSnapshot(collection(db, ...L(), "produtos"), (snapshot) => {
       const listaProdutos = snapshot.docs.map((documento) => ({
         id: documento.id,
         ...documento.data(),
@@ -153,7 +154,7 @@ function Viagem() {
     for (const item of itens) {
       if (!item.produtoId) continue;
 
-      const estoqueRef = doc(db, "estoque", item.produtoId);
+      const estoqueRef = doc(db, ...L(), "estoque", item.produtoId);
       const estoqueSnap = await getDoc(estoqueRef);
 
       if (!estoqueSnap.exists()) continue;
@@ -172,7 +173,7 @@ function Viagem() {
       );
 
       if (novaQuantidade === 0 && quantidadeAtual > 0) {
-        await addDoc(collection(db, "notificacoes"), {
+        await addDoc(collection(db, ...L(), "notificacoes"), {
           tipo: "estoque",
           mensagem: `${item.nome} acabou no estoque`,
           produtoId: item.produtoId,
@@ -211,12 +212,12 @@ function Viagem() {
     };
 
     try {
-      await addDoc(collection(db, "pedidos"), dadosPedido);
+      await addDoc(collection(db, ...L(), "pedidos"), dadosPedido);
 
       // ✅ CORREÇÃO BUG 2: baixa estoque após salvar pedido viagem
       await baixarEstoque(itensPedido);
 
-      await addDoc(collection(db, "notificacoes"), {
+      await addDoc(collection(db, ...L(), "notificacoes"), {
         tipo: "pedido",
         mensagem: nomeCliente
           ? `Novo pedido viagem - ${nomeCliente}`

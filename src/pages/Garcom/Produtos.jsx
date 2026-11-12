@@ -1,3 +1,4 @@
+import { L, MULTI } from "../../loja";
 import { useEffect, useMemo, useState, useRef } from "react";
 import {
   collection,
@@ -66,7 +67,7 @@ function Produtos() {
       console.error("Erro ao migrar categorias:", erro)
     );
 
-    const cancelarProdutos = onSnapshot(collection(db, "produtos"), (snapshot) => {
+    const cancelarProdutos = onSnapshot(collection(db, ...L(), "produtos"), (snapshot) => {
       const lista = snapshot.docs.map((documento) => ({
         id: documento.id,
         ...documento.data(),
@@ -75,7 +76,7 @@ function Produtos() {
       setProdutos(lista);
     });
 
-    const cancelarCategorias = onSnapshot(collection(db, "categorias"), (snapshot) => {
+    const cancelarCategorias = onSnapshot(collection(db, ...L(), "categorias"), (snapshot) => {
       const lista = snapshot.docs
         .map((documento) => ({ id: documento.id, ...documento.data() }))
         .sort((a, b) => (a.ordem ?? 9999) - (b.ordem ?? 9999));
@@ -101,7 +102,7 @@ function Produtos() {
           item.id || criarIdProduto(`${categoria.categoria}-${item.nome}`);
 
         await setDoc(
-          doc(db, "produtos", produtoId),
+          doc(db, ...L(), "produtos", produtoId),
           {
             categoria: categoria.categoria,
             nome: item.nome,
@@ -113,7 +114,7 @@ function Produtos() {
         );
 
         await setDoc(
-          doc(db, "estoque", produtoId),
+          doc(db, ...L(), "estoque", produtoId),
           {
             nome: item.nome,
             categoria: categoria.categoria,
@@ -139,7 +140,7 @@ function Produtos() {
     const produtoId = criarIdProduto(`${categoriaTratada}-${nomeTratado}`);
 
     await setDoc(
-      doc(db, "produtos", produtoId),
+      doc(db, ...L(), "produtos", produtoId),
       {
         nome: nomeTratado,
         categoria: categoriaTratada,
@@ -151,7 +152,7 @@ function Produtos() {
     );
 
     await setDoc(
-      doc(db, "estoque", produtoId),
+      doc(db, ...L(), "estoque", produtoId),
       {
         nome: nomeTratado,
         categoria: categoriaTratada,
@@ -182,7 +183,7 @@ function Produtos() {
   }
 
   async function salvarPreco(produto) {
-    await updateDoc(doc(db, "produtos", produto.id), {
+    await updateDoc(doc(db, ...L(), "produtos", produto.id), {
       preco: Number(novoPreco),
       atualizadoEm: new Date().toISOString(),
     });
@@ -214,13 +215,13 @@ function Produtos() {
     try {
       const batch = writeBatch(db);
 
-      batch.update(doc(db, "produtos", produto.id), {
+      batch.update(doc(db, ...L(), "produtos", produto.id), {
         nome: nomeTratado,
         atualizadoEm: new Date().toISOString(),
       });
 
       batch.set(
-        doc(db, "estoque", produto.id),
+        doc(db, ...L(), "estoque", produto.id),
         { nome: nomeTratado, atualizadoEm: new Date().toISOString() },
         { merge: true }
       );
@@ -239,8 +240,8 @@ function Produtos() {
   async function confirmarExcluirProduto() {
     if (!produtoParaExcluir) return;
 
-    await deleteDoc(doc(db, "produtos", produtoParaExcluir.id));
-    await deleteDoc(doc(db, "estoque", produtoParaExcluir.id));
+    await deleteDoc(doc(db, ...L(), "produtos", produtoParaExcluir.id));
+    await deleteDoc(doc(db, ...L(), "estoque", produtoParaExcluir.id));
 
     setProdutoParaExcluir(null);
   }
@@ -730,7 +731,7 @@ function Produtos() {
         </div>
       )}
 
-      {produtos.length === 0 && (
+      {!MULTI && produtos.length === 0 && (
         <button
           className="btn-verde"
           style={{

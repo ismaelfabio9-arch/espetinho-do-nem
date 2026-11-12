@@ -1,4 +1,5 @@
 // ============================================================
+import { L } from "../loja";
 // utils/categorias.js
 // Lógica central de categorias, compartilhada entre Produtos.jsx,
 // MesaDetalhe.jsx e CardapioMesa.jsx — evita duplicar regras de
@@ -30,10 +31,10 @@ export const SEM_CATEGORIA = "Sem categoria";
  * Não apaga nem altera nenhum produto existente.
  */
 export async function migrarCategoriasSeNecessario() {
-  const categoriasSnap = await getDocs(collection(db, "categorias"));
+  const categoriasSnap = await getDocs(collection(db, ...L(), "categorias"));
   if (!categoriasSnap.empty) return;
 
-  const produtosSnap = await getDocs(collection(db, "produtos"));
+  const produtosSnap = await getDocs(collection(db, ...L(), "produtos"));
   if (produtosSnap.empty) return;
 
   const nomesUnicos = new Set();
@@ -53,7 +54,7 @@ export async function migrarCategoriasSeNecessario() {
   nomesOrdenados.forEach((nome, index) => {
     const id = slugify(nome) || `categoria-${index}`;
     batch.set(
-      doc(db, "categorias", id),
+      doc(db, ...L(), "categorias", id),
       {
         nome,
         ordem: index,
@@ -107,7 +108,7 @@ export async function criarCategoria(nome, categoriasAtuais) {
   );
 
   const batch = writeBatch(db);
-  batch.set(doc(db, "categorias", id), {
+  batch.set(doc(db, ...L(), "categorias", id), {
     nome: nomeTratado,
     ordem: maiorOrdem + 1,
     ativo: true,
@@ -129,18 +130,18 @@ export async function renomearCategoria(categoria, novoNome) {
   if (nomeTratado === categoria.nome) return;
 
   const produtosSnap = await getDocs(
-    query(collection(db, "produtos"), where("categoria", "==", categoria.nome))
+    query(collection(db, ...L(), "produtos"), where("categoria", "==", categoria.nome))
   );
 
   const batch = writeBatch(db);
 
-  batch.update(doc(db, "categorias", categoria.id), {
+  batch.update(doc(db, ...L(), "categorias", categoria.id), {
     nome: nomeTratado,
     atualizadoEm: new Date().toISOString(),
   });
 
   produtosSnap.docs.forEach((produtoDoc) => {
-    batch.update(doc(db, "produtos", produtoDoc.id), {
+    batch.update(doc(db, ...L(), "produtos", produtoDoc.id), {
       categoria: nomeTratado,
       atualizadoEm: new Date().toISOString(),
     });
@@ -148,10 +149,10 @@ export async function renomearCategoria(categoria, novoNome) {
 
   // Também atualiza o registro de estoque (guarda categoria só como referência de exibição)
   const estoqueSnap = await getDocs(
-    query(collection(db, "estoque"), where("categoria", "==", categoria.nome))
+    query(collection(db, ...L(), "estoque"), where("categoria", "==", categoria.nome))
   );
   estoqueSnap.docs.forEach((estoqueDoc) => {
-    batch.update(doc(db, "estoque", estoqueDoc.id), {
+    batch.update(doc(db, ...L(), "estoque", estoqueDoc.id), {
       categoria: nomeTratado,
     });
   });
@@ -168,7 +169,7 @@ export async function renomearCategoria(categoria, novoNome) {
  */
 export async function excluirCategoria(categoria, destino) {
   const produtosSnap = await getDocs(
-    query(collection(db, "produtos"), where("categoria", "==", categoria.nome))
+    query(collection(db, ...L(), "produtos"), where("categoria", "==", categoria.nome))
   );
 
   const batch = writeBatch(db);
@@ -178,14 +179,14 @@ export async function excluirCategoria(categoria, destino) {
       destino?.tipo === "mover" ? destino.categoriaDestino : SEM_CATEGORIA;
 
     produtosSnap.docs.forEach((produtoDoc) => {
-      batch.update(doc(db, "produtos", produtoDoc.id), {
+      batch.update(doc(db, ...L(), "produtos", produtoDoc.id), {
         categoria: novoNome,
         atualizadoEm: new Date().toISOString(),
       });
     });
   }
 
-  batch.delete(doc(db, "categorias", categoria.id));
+  batch.delete(doc(db, ...L(), "categorias", categoria.id));
 
   await batch.commit();
 }
@@ -193,7 +194,7 @@ export async function excluirCategoria(categoria, destino) {
 /** Move um produto para outra categoria (seletor ou drag). */
 export async function moverProdutoParaCategoria(produtoId, novaCategoria) {
   const { updateDoc } = await import("firebase/firestore");
-  await updateDoc(doc(db, "produtos", produtoId), {
+  await updateDoc(doc(db, ...L(), "produtos", produtoId), {
     categoria: novaCategoria,
     atualizadoEm: new Date().toISOString(),
   });
@@ -208,7 +209,7 @@ export async function salvarOrdemCategorias(categoriasOrdenadas) {
   const batch = writeBatch(db);
 
   categoriasOrdenadas.forEach((categoria, index) => {
-    batch.update(doc(db, "categorias", categoria.id), {
+    batch.update(doc(db, ...L(), "categorias", categoria.id), {
       ordem: index,
       atualizadoEm: new Date().toISOString(),
     });
@@ -233,12 +234,12 @@ export async function trocarOrdemCategorias(categoriaA, categoriaB) {
 
   const batch = writeBatch(db);
 
-  batch.update(doc(db, "categorias", categoriaA.id), {
+  batch.update(doc(db, ...L(), "categorias", categoriaA.id), {
     ordem: ordemB,
     atualizadoEm: new Date().toISOString(),
   });
 
-  batch.update(doc(db, "categorias", categoriaB.id), {
+  batch.update(doc(db, ...L(), "categorias", categoriaB.id), {
     ordem: ordemA,
     atualizadoEm: new Date().toISOString(),
   });

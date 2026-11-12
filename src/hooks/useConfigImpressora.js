@@ -1,3 +1,4 @@
+import { L } from "../loja";
 import { useEffect, useState } from "react";
 import { doc, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
@@ -17,7 +18,7 @@ export function useConfigImpressora() {
   const [config, setConfig] = useState(CONFIG_IMPRESSORA_PADRAO);
 
   useEffect(() => {
-    const cancelar = onSnapshot(doc(db, "configuracoes", "impressora"), (snap) => {
+    const cancelar = onSnapshot(doc(db, ...L(), "configuracoes", "impressora"), (snap) => {
       if (snap.exists()) {
         setConfig({ ...CONFIG_IMPRESSORA_PADRAO, ...snap.data() });
       } else {

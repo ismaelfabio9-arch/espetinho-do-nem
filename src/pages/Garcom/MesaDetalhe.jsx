@@ -1,3 +1,4 @@
+import { L } from "../../loja";
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -54,7 +55,7 @@ function MesaDetalhe() {
   const configImpressora = useConfigImpressora();
 
   useEffect(() => {
-    const cancelar = onSnapshot(doc(db, "mesas", String(id)), (documento) => {
+    const cancelar = onSnapshot(doc(db, ...L(), "mesas", String(id)), (documento) => {
       if (documento.exists()) {
         const cliente = documento.data().cliente || "";
         setNomeCliente(cliente);
@@ -69,7 +70,7 @@ function MesaDetalhe() {
   }, [id]);
 
   useEffect(() => {
-    const cancelarCategorias = onSnapshot(collection(db, "categorias"), (snapshot) => {
+    const cancelarCategorias = onSnapshot(collection(db, ...L(), "categorias"), (snapshot) => {
       setCategoriasDocs(
         snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
       );
@@ -79,7 +80,7 @@ function MesaDetalhe() {
   }, []);
 
   useEffect(() => {
-    const cancelar = onSnapshot(collection(db, "produtos"), (snapshot) => {
+    const cancelar = onSnapshot(collection(db, ...L(), "produtos"), (snapshot) => {
       const listaProdutos = snapshot.docs.map((documento) => ({
         id: documento.id,
         ...documento.data(),
@@ -120,7 +121,7 @@ function MesaDetalhe() {
   }, [categoriasDocs]);
 
   useEffect(() => {
-    const pedidosRef = collection(db, "pedidos");
+    const pedidosRef = collection(db, ...L(), "pedidos");
 
     const consultaMesa = query(
   pedidosRef,
@@ -271,7 +272,7 @@ if (pedidosDaMesa.length === 0) {
 
   async function salvarNomeCliente() {
     await setDoc(
-      doc(db, "mesas", String(id)),
+      doc(db, ...L(), "mesas", String(id)),
       {
         numero: Number(id),
         cliente: nomeClienteInput.trim(),
@@ -315,7 +316,7 @@ if (pedidosDaMesa.length === 0) {
     if (novosItens.length === 0) {
       // Se ficou sem itens, apaga todos os pedidos da mesa
       for (const pedidoId of todosPedidosIds) {
-        await deleteDoc(doc(db, "pedidos", pedidoId));
+        await deleteDoc(doc(db, ...L(), "pedidos", pedidoId));
       }
       setMostrarPedidoMesa(false);
       mostrarNotificacao("Pedido da mesa removido.");
@@ -333,7 +334,7 @@ if (pedidosDaMesa.length === 0) {
     );
 
     // Consolida tudo no primeiro pedido
-    await updateDoc(doc(db, "pedidos", pedidoMesaId), {
+    await updateDoc(doc(db, ...L(), "pedidos", pedidoMesaId), {
       itens: novosItens,
       total: novoTotal,
       totalItens: novoTotalItens,
@@ -343,7 +344,7 @@ if (pedidosDaMesa.length === 0) {
     // ✅ CORREÇÃO BUG 4: apaga pedidos extras se houver mais de um
     for (const pedidoId of todosPedidosIds) {
       if (pedidoId !== pedidoMesaId) {
-        await deleteDoc(doc(db, "pedidos", pedidoId));
+        await deleteDoc(doc(db, ...L(), "pedidos", pedidoId));
       }
     }
   }
@@ -377,7 +378,7 @@ if (pedidosDaMesa.length === 0) {
     }
 
     try {
-      const pedidosRef = collection(db, "pedidos");
+      const pedidosRef = collection(db, ...L(), "pedidos");
 
       const consultaMesaAberta = query(
         pedidosRef,
@@ -416,7 +417,7 @@ if (pedidosDaMesa.length === 0) {
           0
         );
 
-        await updateDoc(doc(db, "pedidos", documentoMesa.id), {
+        await updateDoc(doc(db, ...L(), "pedidos", documentoMesa.id), {
           itens: itensNovos,
           total: novoTotal,
           totalItens: novoTotalItens,
@@ -425,7 +426,7 @@ if (pedidosDaMesa.length === 0) {
       } else {
         const idPedido = Date.now();
 
-        await addDoc(collection(db, "pedidos"), {
+        await addDoc(collection(db, ...L(), "pedidos"), {
           idLocal: idPedido,
           tipo: "mesa",
           mesa: Number(id), // ✅ já estava correto aqui
@@ -442,7 +443,7 @@ if (pedidosDaMesa.length === 0) {
       for (const item of itensPedido) {
         if (!item.produtoId) continue;
 
-        const estoqueRef = doc(db, "estoque", item.produtoId);
+        const estoqueRef = doc(db, ...L(), "estoque", item.produtoId);
         const estoqueSnap = await getDoc(estoqueRef);
 
         if (estoqueSnap.exists()) {
@@ -459,7 +460,7 @@ if (pedidosDaMesa.length === 0) {
           );
 
           if (novaQuantidade === 0 && quantidadeAtual > 0) {
-            await addDoc(collection(db, "notificacoes"), {
+            await addDoc(collection(db, ...L(), "notificacoes"), {
               tipo: "estoque",
               mensagem: `${item.nome} acabou no estoque`,
               produtoId: item.produtoId,
@@ -547,7 +548,7 @@ if (pedidosDaMesa.length === 0) {
     setMostrarModalEncerrarMesa(false);
 
     try {
-      const pedidosRef = collection(db, "pedidos");
+      const pedidosRef = collection(db, ...L(), "pedidos");
 
       const consultaMesa = query(
         pedidosRef,
@@ -587,7 +588,7 @@ if (pedidosDaMesa.length === 0) {
       for (const documento of resultado.docs) {
         const pedidoDados = documento.data();
 
-        await addDoc(collection(db, "vendasDia"), {
+        await addDoc(collection(db, ...L(), "vendasDia"), {
           origem: "mesa",
           mesa: Number(id), // ✅ CORREÇÃO BUG 3: sempre Number
           titulo: pedidoDados.titulo || `Mesa ${id}`,
@@ -600,7 +601,7 @@ if (pedidosDaMesa.length === 0) {
           criadoEm: serverTimestamp(),
         });
 
-        await addDoc(collection(db, "historicoMesas"), {
+        await addDoc(collection(db, ...L(), "historicoMesas"), {
           origem: "mesa",
           mesa: Number(id), // ✅ CORREÇÃO BUG 3: sempre Number
           titulo: pedidoDados.titulo || `Mesa ${id}`,
@@ -615,11 +616,11 @@ if (pedidosDaMesa.length === 0) {
           criadoEm: serverTimestamp(),
         });
 
-        await deleteDoc(doc(db, "pedidos", documento.id));
+        await deleteDoc(doc(db, ...L(), "pedidos", documento.id));
       }
 
       await setDoc(
-        doc(db, "mesas", String(id)),
+        doc(db, ...L(), "mesas", String(id)),
         {
           numero: Number(id),
           cliente: "",

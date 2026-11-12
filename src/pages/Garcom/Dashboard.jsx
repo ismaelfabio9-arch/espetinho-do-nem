@@ -1,3 +1,4 @@
+import { L } from "../../loja";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -59,10 +60,10 @@ function Dashboard() {
   }
 
   useEffect(() => {
-    const pedidosRef = query(collection(db, "pedidos"), orderBy("salvoEm", "desc"));
-    const vendasRef = collection(db, "vendasDia");
-    const notificacoesRef = collection(db, "notificacoes");
-    const mesasRef = collection(db, "mesas");
+    const pedidosRef = query(collection(db, ...L(), "pedidos"), orderBy("salvoEm", "desc"));
+    const vendasRef = collection(db, ...L(), "vendasDia");
+    const notificacoesRef = collection(db, ...L(), "notificacoes");
+    const mesasRef = collection(db, ...L(), "mesas");
 
     const cancelarMesas = onSnapshot(mesasRef, (snapshot) => {
       const nomes = {};
@@ -161,7 +162,7 @@ function Dashboard() {
 
         if (notificacao.tipo === "pedido" || notificacao.tipo === "garcom") {
           setTimeout(async () => {
-            await deleteDoc(doc(db, "notificacoes", notificacao.idFirebase));
+            await deleteDoc(doc(db, ...L(), "notificacoes", notificacao.idFirebase));
           }, 6000);
         }
 
@@ -209,7 +210,7 @@ function Dashboard() {
           }, 8000);
 
           setTimeout(async () => {
-            await deleteDoc(doc(db, "notificacoes", notificacao.idFirebase));
+            await deleteDoc(doc(db, ...L(), "notificacoes", notificacao.idFirebase));
           }, 8000);
         }
       });
@@ -235,7 +236,7 @@ function Dashboard() {
     if (!modalCliente) return;
 
     await setDoc(
-      doc(db, "mesas", String(modalCliente)),
+      doc(db, ...L(), "mesas", String(modalCliente)),
       {
         numero: modalCliente,
         cliente: nomeCliente.trim(),
@@ -253,7 +254,7 @@ function Dashboard() {
     const numeroMesa = Number(pagamentoAberto.mesa);
 
     try {
-      const pedidosRef = collection(db, "pedidos");
+      const pedidosRef = collection(db, ...L(), "pedidos");
 
       const consultaMesa = query(
         pedidosRef,
@@ -266,7 +267,7 @@ function Dashboard() {
       for (const documento of resultado.docs) {
         const pedidoDados = documento.data();
 
-        await addDoc(collection(db, "vendasDia"), {
+        await addDoc(collection(db, ...L(), "vendasDia"), {
           origem: "mesa",
           mesa: numeroMesa,
           titulo: pedidoDados.titulo || `Mesa ${numeroMesa}`,
@@ -278,7 +279,7 @@ function Dashboard() {
           criadoEm: serverTimestamp(),
         });
 
-        await addDoc(collection(db, "historicoMesas"), {
+        await addDoc(collection(db, ...L(), "historicoMesas"), {
           origem: "mesa",
           mesa: numeroMesa,
           titulo: pedidoDados.titulo || `Mesa ${numeroMesa}`,
@@ -292,11 +293,11 @@ function Dashboard() {
           criadoEm: serverTimestamp(),
         });
 
-        await deleteDoc(doc(db, "pedidos", documento.id));
+        await deleteDoc(doc(db, ...L(), "pedidos", documento.id));
       }
 
       await setDoc(
-        doc(db, "mesas", String(numeroMesa)),
+        doc(db, ...L(), "mesas", String(numeroMesa)),
         {
           numero: numeroMesa,
           cliente: "",
@@ -323,8 +324,8 @@ function Dashboard() {
     const posB = posicoesMesas[numeroB] ?? numeroB - 1;
 
     const batch = writeBatch(db);
-    batch.set(doc(db, "mesas", String(numeroA)), { posicao: posB }, { merge: true });
-    batch.set(doc(db, "mesas", String(numeroB)), { posicao: posA }, { merge: true });
+    batch.set(doc(db, ...L(), "mesas", String(numeroA)), { posicao: posB }, { merge: true });
+    batch.set(doc(db, ...L(), "mesas", String(numeroB)), { posicao: posA }, { merge: true });
     await batch.commit();
   }
 
@@ -447,7 +448,7 @@ function Dashboard() {
               );
 
               if (toast.idFirebase) {
-                await deleteDoc(doc(db, "notificacoes", toast.idFirebase));
+                await deleteDoc(doc(db, ...L(), "notificacoes", toast.idFirebase));
               }
             }}
             style={{ cursor: "pointer" }}

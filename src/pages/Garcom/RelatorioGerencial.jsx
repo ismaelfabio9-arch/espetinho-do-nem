@@ -1,3 +1,4 @@
+import { L } from "../../loja";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
@@ -27,7 +28,7 @@ function RelatorioGerencial() {
 
   useEffect(() => {
     const historicoRef = query(
-      collection(db, "relatorioGerencial"),
+      collection(db, ...L(), "relatorioGerencial"),
       orderBy("criadoEm", "desc")
     );
 

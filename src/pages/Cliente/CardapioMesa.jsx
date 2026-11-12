@@ -1,3 +1,5 @@
+import { L, MULTI, getLoja } from "../../loja";
+import { mesasApi } from "../../tenant";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { db } from "../../firebase";
@@ -58,11 +60,11 @@ function CardapioMesa() {
   }
 
   useEffect(() => {
-    const cancelarCategorias = onSnapshot(collection(db, "categorias"), (snapshot) => {
+    const cancelarCategorias = onSnapshot(collection(db, ...L(), "categorias"), (snapshot) => {
       setCategoriasDocs(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
 
-    const cancelarEstoque = onSnapshot(collection(db, "estoque"), (snapshot) => {
+    const cancelarEstoque = onSnapshot(collection(db, ...L(), "estoque"), (snapshot) => {
       const dados = {};
 
       snapshot.docs.forEach((documento) => {
@@ -79,7 +81,7 @@ function CardapioMesa() {
   }, []);
 
   useEffect(() => {
-    const cancelarProdutos = onSnapshot(collection(db, "produtos"), (snapshot) => {
+    const cancelarProdutos = onSnapshot(collection(db, ...L(), "produtos"), (snapshot) => {
       const lista = snapshot.docs.map((documento) => ({
         id: documento.id,
         ...documento.data(),
@@ -124,7 +126,7 @@ function CardapioMesa() {
   }, [mesa]);
 
   useEffect(() => {
-    const pedidosRef = collection(db, "pedidos");
+    const pedidosRef = collection(db, ...L(), "pedidos");
 
     const consulta = query(
       pedidosRef,
@@ -344,7 +346,7 @@ function CardapioMesa() {
     for (const item of itens) {
       if (!item.produtoId) continue;
 
-      const estoqueRef = doc(db, "estoque", item.produtoId);
+      const estoqueRef = doc(db, ...L(), "estoque", item.produtoId);
       const estoqueSnap = await getDoc(estoqueRef);
 
       if (!estoqueSnap.exists()) continue;
@@ -363,7 +365,7 @@ function CardapioMesa() {
       );
 
       if (novaQuantidade === 0 && quantidadeAtual > 0) {
-        await addDoc(collection(db, "notificacoes"), {
+        await addDoc(collection(db, ...L(), "notificacoes"), {
           tipo: "estoque",
           mensagem: `${item.nome} acabou no estoque`,
           produtoId: item.produtoId,
@@ -384,6 +386,29 @@ function CardapioMesa() {
 
     setEnviando(true);
 
+    // Loja do site da IFTech: o pedido passa pelo servidor, que confere os preços no cardápio.
+    if (MULTI) {
+      try {
+        await mesasApi(
+          "pedido",
+          {
+            loja: getLoja(),
+            mesa: Number(mesa),
+            cliente: nomeCliente || "Cliente",
+            itens: itensSelecionados.map((item) => ({ produtoId: item.produtoId, qtd: Number(item.quantidade || 0) })),
+          },
+          false
+        );
+        setCarrinho({});
+        setMensagem("Pedido enviado com sucesso!");
+        setTimeout(() => setMensagem(""), 3000);
+      } catch (erro) {
+        setMensagem(erro.message || "Erro ao enviar pedido.");
+      }
+      setEnviando(false);
+      return;
+    }
+
     try {
       const clientePedido = nomeCliente || "Cliente";
 
@@ -396,7 +421,7 @@ function CardapioMesa() {
         cliente: clientePedido,
       }));
 
-      const pedidosRef = collection(db, "pedidos");
+      const pedidosRef = collection(db, ...L(), "pedidos");
 
       const consultaMesaAberta = query(
         pedidosRef,
@@ -445,14 +470,14 @@ function CardapioMesa() {
           0
         );
 
-        await updateDoc(doc(db, "pedidos", documentoMesa.id), {
+        await updateDoc(doc(db, ...L(), "pedidos", documentoMesa.id), {
           itens: itensAtualizados,
           total: novoTotal,
           totalItens: novoTotalItens,
           atualizadoEm: new Date().toISOString(),
         });
       } else {
-        await addDoc(collection(db, "pedidos"), {
+        await addDoc(collection(db, ...L(), "pedidos"), {
           mesa: Number(mesa),
           itens: itensNovos,
           total,
@@ -469,7 +494,7 @@ function CardapioMesa() {
 
       await baixarEstoque(itensNovos);
 
-      await addDoc(collection(db, "notificacoes"), {
+      await addDoc(collection(db, ...L(), "notificacoes"), {
         mesa: Number(mesa),
         tipo: "pedido",
         mensagem: `Novo pedido na Mesa ${mesa}`,
@@ -501,8 +526,20 @@ function CardapioMesa() {
   async function chamarGarcom() {
     setEnviando(true);
 
+    if (MULTI) {
+      try {
+        await mesasApi("chamar", { loja: getLoja(), mesa: Number(mesa), tipo: "garcom" }, false);
+        setMensagem("Garcom chamado com sucesso!");
+        setTimeout(() => setMensagem(""), 3000);
+      } catch (erro) {
+        setMensagem(erro.message || "Erro ao chamar garçom.");
+      }
+      setEnviando(false);
+      return;
+    }
+
     try {
-      await addDoc(collection(db, "notificacoes"), {
+      await addDoc(collection(db, ...L(), "notificacoes"), {
         mesa: Number(mesa),
         tipo: "garcom",
         mensagem: `Mesa ${mesa} chamou o garçom`,
@@ -536,8 +573,21 @@ function CardapioMesa() {
     const totalItensConta = pedidoMesaAberto?.totalItens || 0;
     const itensConta = pedidoMesaAberto?.itens || [];
 
+    if (MULTI) {
+      try {
+        await mesasApi("chamar", { loja: getLoja(), mesa: Number(mesa), tipo: "pagamento", formaPagamento }, false);
+        setMensagem(`💳 Total: R$ ${formatarMoeda(totalConta)} • Pagamento: ${formaPagamento} • O garçom já foi notificado.`);
+        setMostrarModalPagamento(false);
+        setFormaPagamento("");
+      } catch (erro) {
+        setMensagem(erro.message || "Erro ao pedir a conta.");
+      }
+      setEnviando(false);
+      return;
+    }
+
     try {
-      await addDoc(collection(db, "notificacoes"), {
+      await addDoc(collection(db, ...L(), "notificacoes"), {
         mesa: Number(mesa),
         tipo: "pagamento",
         mensagem: `Mesa ${mesa} pediu pagamento`,

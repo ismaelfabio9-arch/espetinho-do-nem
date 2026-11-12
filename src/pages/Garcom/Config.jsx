@@ -1,3 +1,5 @@
+import { L, MULTI } from "../../loja";
+import Equipe from "../../components/Equipe";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -39,7 +41,7 @@ function Config() {
     setEncerrando(true);
 
     try {
-      const vendasSnapshot = await getDocs(collection(db, "vendasDia"));
+      const vendasSnapshot = await getDocs(collection(db, ...L(), "vendasDia"));
 
       const vendasDia = vendasSnapshot.docs.map((documento) => ({
         id: documento.id,
@@ -85,19 +87,19 @@ function Config() {
   criadoEm: serverTimestamp(),
 };
 
-await addDoc(collection(db, "historicoDias"), fechamentoDoDia);
+await addDoc(collection(db, ...L(), "historicoDias"), fechamentoDoDia);
 
-await addDoc(collection(db, "relatorioGerencial"), fechamentoDoDia);
+await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
 
       for (const venda of vendasSnapshot.docs) {
-        await deleteDoc(doc(db, "vendasDia", venda.id));
+        await deleteDoc(doc(db, ...L(), "vendasDia", venda.id));
       }
 
-      const estoqueSnapshot = await getDocs(collection(db, "estoque"));
+      const estoqueSnapshot = await getDocs(collection(db, ...L(), "estoque"));
 
       for (const item of estoqueSnapshot.docs) {
         await setDoc(
-          doc(db, "estoque", item.id),
+          doc(db, ...L(), "estoque", item.id),
           {
             quantidade: 0,
             atualizadoEm: new Date().toISOString(),
@@ -106,16 +108,16 @@ await addDoc(collection(db, "relatorioGerencial"), fechamentoDoDia);
         );
       }
 
-      const historicoMesasSnapshot = await getDocs(collection(db, "historicoMesas"));
+      const historicoMesasSnapshot = await getDocs(collection(db, ...L(), "historicoMesas"));
 
       for (const mesa of historicoMesasSnapshot.docs) {
-        await deleteDoc(doc(db, "historicoMesas", mesa.id));
+        await deleteDoc(doc(db, ...L(), "historicoMesas", mesa.id));
       }
 
       // Retorna todas as mesas para a posição visual original.
       // Isso NUNCA altera número da mesa, pedidos, histórico ou produtos —
       // só o campo "posicao" usado para desenhar a grade de mesas.
-      const mesasSnapshot = await getDocs(collection(db, "mesas"));
+      const mesasSnapshot = await getDocs(collection(db, ...L(), "mesas"));
       const batchPosicoes = writeBatch(db);
       let precisaResetarPosicoes = false;
 
@@ -128,7 +130,7 @@ await addDoc(collection(db, "relatorioGerencial"), fechamentoDoDia);
 
         if (dados.posicao !== posicaoOriginal) {
           precisaResetarPosicoes = true;
-          batchPosicoes.update(doc(db, "mesas", mesaDoc.id), {
+          batchPosicoes.update(doc(db, ...L(), "mesas", mesaDoc.id), {
             posicao: posicaoOriginal,
           });
         }
@@ -204,6 +206,8 @@ await addDoc(collection(db, "relatorioGerencial"), fechamentoDoDia);
           </div>
         </div>
       </Link>
+
+      {MULTI && <Equipe />}
 
       <Link to="/config/impressora" style={{ textDecoration: "none" }}>
         <div className="config-card">

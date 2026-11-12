@@ -1,3 +1,4 @@
+import { L } from "../../loja";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -35,7 +36,7 @@ function Estoque() {
   const [erroNomeEstoque, setErroNomeEstoque] = useState("");
 
   useEffect(() => {
-    const cancelarProdutos = onSnapshot(collection(db, "produtos"), (snapshot) => {
+    const cancelarProdutos = onSnapshot(collection(db, ...L(), "produtos"), (snapshot) => {
       const lista = snapshot.docs.map((documento) => ({
         id: documento.id,
         ...documento.data(),
@@ -44,7 +45,7 @@ function Estoque() {
       setProdutos(lista.filter((produto) => produto.ativo !== false));
     });
 
-    const cancelarEstoque = onSnapshot(collection(db, "estoque"), (snapshot) => {
+    const cancelarEstoque = onSnapshot(collection(db, ...L(), "estoque"), (snapshot) => {
       const dados = {};
 
       snapshot.docs.forEach((documento) => {
@@ -101,7 +102,7 @@ async function salvarEstoque(produto) {
       : Number(minimoDigitado);
 
   await setDoc(
-    doc(db, "estoque", produto.id),
+    doc(db, ...L(), "estoque", produto.id),
     {
       produtoId: produto.id,
       nome: produto.nome,
@@ -121,7 +122,7 @@ async function salvarEstoque(produto) {
 
   async function zerarEstoqueProduto(produto) {
     await setDoc(
-      doc(db, "estoque", produto.id),
+      doc(db, ...L(), "estoque", produto.id),
       {
         produtoId: produto.id,
         nome: produto.nome,
@@ -138,10 +139,10 @@ async function salvarEstoque(produto) {
   async function confirmarExcluirProduto() {
     if (!produtoParaExcluir) return;
 
-    await deleteDoc(doc(db, "estoque", produtoParaExcluir.id));
+    await deleteDoc(doc(db, ...L(), "estoque", produtoParaExcluir.id));
 
     await setDoc(
-      doc(db, "produtos", produtoParaExcluir.id),
+      doc(db, ...L(), "produtos", produtoParaExcluir.id),
       {
         ativo: false,
         atualizadoEm: new Date().toISOString(),
@@ -176,13 +177,13 @@ async function salvarEstoque(produto) {
       const batch = writeBatch(db);
 
       batch.set(
-        doc(db, "produtos", produto.id),
+        doc(db, ...L(), "produtos", produto.id),
         { nome: nomeTratado, atualizadoEm: new Date().toISOString() },
         { merge: true }
       );
 
       batch.set(
-        doc(db, "estoque", produto.id),
+        doc(db, ...L(), "estoque", produto.id),
         { nome: nomeTratado, atualizadoEm: new Date().toISOString() },
         { merge: true }
       );
@@ -203,7 +204,7 @@ async function salvarEstoque(produto) {
     const novaQuantidadeCalculada = Math.max(0, atual + valor);
 
     await setDoc(
-      doc(db, "estoque", produto.id),
+      doc(db, ...L(), "estoque", produto.id),
       {
         produtoId: produto.id,
         nome: produto.nome,
@@ -228,7 +229,7 @@ async function salvarEstoque(produto) {
     const produtoId = criarIdProduto(`${categoriaTratada}-${nomeTratado}`);
 
     await setDoc(
-      doc(db, "produtos", produtoId),
+      doc(db, ...L(), "produtos", produtoId),
       {
         nome: nomeTratado,
         categoria: categoriaTratada,
@@ -241,7 +242,7 @@ async function salvarEstoque(produto) {
     );
 
     await setDoc(
-      doc(db, "estoque", produtoId),
+      doc(db, ...L(), "estoque", produtoId),
       {
         produtoId,
         nome: nomeTratado,
