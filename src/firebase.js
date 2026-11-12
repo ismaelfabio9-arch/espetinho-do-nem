@@ -1,6 +1,6 @@
 import { initializeApp } from "firebase/app";
-import { getFirestore } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
+import { getAuth, connectAuthEmulator } from "firebase/auth";
 import { MULTI } from "./loja";
 
 const configLojaUnica = {
@@ -32,3 +32,9 @@ const app = initializeApp(MULTI ? configIftech : configLojaUnica);
 export const auth = getAuth(app);
 
 export const db = getFirestore(app);
+
+// Só nos testes automáticos (REACT_APP_EMULATOR=1): banco e login de mentira, no próprio computador.
+if (process.env.REACT_APP_EMULATOR === "1") {
+  connectFirestoreEmulator(db, "127.0.0.1", 8181);
+  connectAuthEmulator(auth, "http://127.0.0.1:9199", { disableWarnings: true });
+}

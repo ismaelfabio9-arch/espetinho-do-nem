@@ -1,4 +1,5 @@
 import { L } from "../../loja";
+import useNomeLoja from "../../hooks/useNomeLoja";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -34,6 +35,7 @@ import {
 import { db } from "../../firebase";
 
 function Dashboard() {
+  const nomeLoja = useNomeLoja();
   const [faturamentoDia, setFaturamentoDia] = useState(0);
   const [mesas, setMesas] = useState([]);
   const [nomesMesas, setNomesMesas] = useState({});
@@ -511,7 +513,7 @@ function Dashboard() {
 
           <aside className="menu-lateral">
             <div className="menu-lateral-topo">
-              <h2>Espetinho do Nem</h2>
+              <h2>{nomeLoja}</h2>
               <button onClick={() => setMenuAberto(false)}>
                 <X size={24} />
               </button>

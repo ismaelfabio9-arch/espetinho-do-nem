@@ -1,4 +1,5 @@
 import { L, MULTI } from "../../loja";
+import useNomeLoja from "../../hooks/useNomeLoja";
 import Equipe from "../../components/Equipe";
 import { useState } from "react";
 import { Link } from "react-router-dom";
@@ -16,6 +17,7 @@ import { db } from "../../firebase";
 import "../../styles/Garcom/Config.css";
 
 function Config() {
+  const nomeLoja = useNomeLoja();
   const [mensagem, setMensagem] = useState("");
   const [encerrando, setEncerrando] = useState(false);
   const [modalEncerrarDia, setModalEncerrarDia] = useState(false);
@@ -236,7 +238,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
         <div>
           <h2>Aplicativo</h2>
           <p>Aplicativo Oficial da ByteForce.</p>
-          <strong>Espetinho do Nem</strong>
+          <strong>{nomeLoja}</strong>
         </div>
       </div>
 

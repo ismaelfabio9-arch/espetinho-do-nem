@@ -3,7 +3,7 @@
 // Cada loja é um documento mesasLojas/<id> (criado pelo site da IFTech na contratação) com o
 // nome, a lista de e-mails da equipe e se está no ar. Só o servidor da IFTech altera esse
 // documento; os dados da loja ficam em mesasLojas/<id>/<coleção>.
-import { GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
+import { GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithCredential, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
 import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { MULTI, setLoja } from "./loja";
@@ -78,6 +78,11 @@ export async function sair() {
   }
   await signOut(auth);
   window.location.reload();
+}
+
+// Só nos testes automáticos (REACT_APP_EMULATOR=1): entra com uma conta Google de mentira do emulador.
+if (process.env.REACT_APP_EMULATOR === "1") {
+  window.__entrarTeste = (email) => signInWithCredential(auth, GoogleAuthProvider.credential(JSON.stringify({ sub: email, email, email_verified: true })));
 }
 
 /** Liga o login (só no modo várias lojas, e só nas telas da equipe). */

@@ -1,6 +1,6 @@
 // Sistema de Mesas da IFTech: a mesma base serve uma loja só (instalação própria) ou várias
 // lojas criadas pelo site da IFTech (REACT_APP_MULTI=1, em iftechpe.com.br/mesas).
-// Em várias lojas, os dados de cada uma ficam em lojas/<id>/<coleção> no Firebase da IFTech.
+// Em várias lojas, os dados de cada uma ficam em mesasLojas/<id>/<coleção> no Firebase da IFTech.
 export const MULTI = process.env.REACT_APP_MULTI === "1";
 
 let lojaId = null;
@@ -11,11 +11,11 @@ export function getLoja() {
   return lojaId;
 }
 
-/** Prefixo do caminho no Firestore: [] numa loja só; ["lojas", id] em várias lojas. */
+/** Prefixo do caminho no Firestore: [] numa loja só; ["mesasLojas", id] em várias lojas. */
 export function L() {
   if (!MULTI) return [];
   if (!lojaId) throw new Error("Loja não definida");
-  return ["lojas", lojaId];
+  return ["mesasLojas", lojaId];
 }
 
 /** Link do cardápio de uma mesa (é o que vai no QR Code). */

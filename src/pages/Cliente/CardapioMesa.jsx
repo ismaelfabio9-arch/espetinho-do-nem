@@ -1,4 +1,5 @@
 import { L, MULTI, getLoja } from "../../loja";
+import useNomeLoja from "../../hooks/useNomeLoja";
 import { mesasApi } from "../../tenant";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
@@ -20,6 +21,7 @@ import {
 } from "firebase/firestore";
 
 function CardapioMesa() {
+  const nomeLoja = useNomeLoja();
   const { mesa } = useParams();
 
   const [pedidoMesaAberto, setPedidoMesaAberto] = useState(null);
@@ -675,7 +677,7 @@ function CardapioMesa() {
 
       <div className="cardapio-cliente-card">
         <div className="cardapio-header">
-          <span>🍢 Espetinho do Nem</span>
+          <span>🍢 {nomeLoja}</span>
           <h1>Mesa {mesa}</h1>
           <p>Escolha uma categoria para fazer seu pedido.</p>
 

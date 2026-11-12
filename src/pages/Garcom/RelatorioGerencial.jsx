@@ -1,4 +1,5 @@
 import { L } from "../../loja";
+import useNomeLoja from "../../hooks/useNomeLoja";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
@@ -6,6 +7,7 @@ import { db } from "../../firebase";
 import "../../styles/Garcom/RelatorioGerencial.css";
 
 function RelatorioGerencial() {
+  const nomeLoja = useNomeLoja();
   const [historico, setHistorico] = useState([]);
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
@@ -144,7 +146,7 @@ function RelatorioGerencial() {
         <div className="relatorio-cabecalho">
           <div>
             <span>Relatório Gerencial</span>
-            <h1>Espetinho do Nem</h1>
+            <h1>{nomeLoja}</h1>
             <p>Relatório de faturamento e produtos vendidos</p>
           </div>
 
@@ -267,7 +269,7 @@ function RelatorioGerencial() {
         </div>
 
         <div className="relatorio-rodape">
-          <p>Relatório gerado automaticamente pelo sistema Espetinho do Nem.</p>
+          <p>Relatório gerado automaticamente pelo sistema {nomeLoja}.</p>
         </div>
       </div>
     </div>
