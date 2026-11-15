@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import { setLoja } from "../loja";
 import { entrarComGoogle, escolherLoja, getTenant, iniciarLogin, sair, subscribeTenant } from "../tenant";
+import { mostrarBoasVindas } from "../boasVindas";
 
 const caixa = { minHeight: "100dvh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, background: "#f4f5f7", fontFamily: "system-ui, sans-serif" };
 const card = { width: "100%", maxWidth: 380, background: "#fff", borderRadius: 16, padding: 28, boxShadow: "0 6px 24px rgba(0,0,0,.08)", textAlign: "center", color: "#111" };
@@ -14,6 +15,11 @@ export default function LojaGate({ children }) {
     iniciarLogin();
     return subscribeTenant(setT);
   }, []);
+  // Primeira entrada numa loja nova: boas-vindas com o Ifo (uma vez por aparelho).
+  const lojaId = t.status === "ready" ? t.loja?.id : null;
+  useEffect(() => {
+    if (lojaId) mostrarBoasVindas(getTenant().loja);
+  }, [lojaId]);
 
   if (t.status === "ready") return children;
   if (t.status === "loading") return <div style={caixa}><p>Carregando…</p></div>;
