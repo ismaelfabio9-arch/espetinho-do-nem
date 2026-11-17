@@ -1,35 +1,28 @@
 import { seedDemo } from "./seed";
+import { DemoPill } from "./DemoPill";
 
-// Faixa da demonstração: avisa que os dados são de exemplo, que tudo fica só
-// neste aparelho, mostra o cardápio do cliente, deixa sair para a página do sistema e leva
-// para a contratação no site.
+// Controles da demonstração do Sistema de Mesas: botão pequeno no canto (igual ao Delivery).
 export function DemoBanner() {
   function recomecar() {
-    if (!window.confirm("Apagar o que você fez na demonstração e voltar para o restaurante de exemplo do começo?")) return;
+    if (!window.confirm("Apagar o que você fez na demonstração e voltar para o restaurante de exemplo do começo?")) return false;
     seedDemo();
     window.location.hash = "#/";
     window.location.reload();
+    return true;
   }
 
-  const botao = { background: "transparent", color: "#fff", border: "1px solid rgba(255,255,255,.7)", borderRadius: 8, padding: "6px 12px", fontWeight: 600, cursor: "pointer", fontSize: 14, textDecoration: "none", fontFamily: "inherit" };
-
   return (
-    <div role="note" style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "8px 12px", padding: "10px 16px", background: "#1d4ed8", color: "#fff", fontSize: 14, lineHeight: 1.35, fontFamily: "system-ui, sans-serif" }}>
-      <span style={{ flex: "1 1 260px", color: "#fff" }}>
-        <strong style={{ color: "#fff" }}>Demonstração do Sistema de Mesas</strong> — restaurante de almoço e dados de exemplo. Pode testar à vontade: o que você fizer fica só neste aparelho.
-      </span>
-      <a href="#/mesa-cliente/4" target="_blank" rel="noopener" style={botao} title="Abre o cardápio que o cliente vê ao ler o QR Code da mesa 4">
-        Ver como o cliente
-      </a>
-      <button type="button" onClick={recomecar} style={botao}>
-        Recomeçar
-      </button>
-      <a href="/sistemas/espetinho" style={botao}>
-        Sair da demonstração
-      </a>
-      <a href="/ativar/espetinho" style={{ background: "#fff", color: "#1d4ed8", borderRadius: 8, padding: "7px 14px", fontWeight: 700, textDecoration: "none" }}>
-        Quero para o meu restaurante
-      </a>
-    </div>
+    <DemoPill
+      titulo="Demonstração do Sistema de Mesas"
+      intro="Restaurante de almoço com dados de exemplo. Lance pedidos nas mesas e no viagem; o cliente também pode pedir pelo QR Code da mesa."
+      atalhos={[
+        { texto: "Painel do restaurante", href: "#/" },
+        { texto: "Ver como o cliente (QR Code da mesa 4)", href: "#/mesa-cliente/4", novaAba: true },
+      ]}
+      contratar={{ texto: "Quero para o meu restaurante", href: "/ativar/espetinho" }}
+      sair="/sistemas/sistema-de-mesas"
+      onRecomecar={recomecar}
+      distanciaDoFundo={96}
+    />
   );
 }
