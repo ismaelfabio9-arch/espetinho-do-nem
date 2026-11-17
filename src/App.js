@@ -21,6 +21,7 @@ import CardapioMesa from "./pages/Cliente/CardapioMesa";
 import Estoque from "./pages/Garcom/Estoque";
 import QrCodes from "./pages/Garcom/QrCodes";
 import CardapioHoje from "./pages/Garcom/CardapioHoje";
+import VersaoNova from "./components/VersaoNova";
 
 
 function App() {
@@ -34,6 +35,7 @@ function App() {
   return (
     
     <BrowserRouter basename={MULTI ? "/mesas" : undefined}>
+      <VersaoNova />
       <Routes>
         {MULTI && <Route path="/c/:loja/mesa-cliente/:mesa" element={<MesaDaLoja />} />}
         {!MULTI && <Route path="/mesa-cliente/:mesa" element={<CardapioMesa />} />}

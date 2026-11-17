@@ -17,12 +17,17 @@ import { ordenarItensCategoria } from "../../utils/produtosOrdem";
 import PedidoRapido from "../../components/PedidoRapido";
 import MontarPrato from "../../components/MontarPrato";
 import { emojiCategoria, sugestoesBebida, temMontagem } from "../../utils/montagem";
+import { useConfigImpressora } from "../../hooks/useConfigImpressora";
+import { gerarComandaHTML, imprimir } from "../../utils/print";
 
 function Viagem() {
   const [produtos, setProdutos] = useState([]);
   const [categoriasDocs, setCategoriasDocs] = useState([]);
   // Prato com montagem aberto na janela "Montar o prato" (igual às mesas).
   const [montando, setMontando] = useState(null);
+  // Depois de salvar: pergunta se imprime na cozinha (a janela de impressão só abre direito num toque).
+  const [paraImprimir, setParaImprimir] = useState(null); // { itens, total, cliente, numero }
+  const configImpressora = useConfigImpressora();
   const [pedido, setPedido] = useState({});
   const [notificacao, setNotificacao] = useState("");
   const [nomeCliente, setNomeCliente] = useState("");
@@ -201,6 +206,26 @@ function Viagem() {
     }
   }
 
+  function imprimirViagem(p) {
+    const html = gerarComandaHTML({
+      numeroPedido: p.numero,
+      titulo: "PARA VIAGEM",
+      cliente: p.cliente,
+      itens: p.itens,
+      total: p.total,
+      config: configImpressora,
+    });
+    return imprimir(html, configImpressora.larguraPapel);
+  }
+
+  async function confirmarImpressaoCozinha() {
+    const p = paraImprimir;
+    setParaImprimir(null);
+    if (!p) return;
+    const abriu = await imprimirViagem(p);
+    if (!abriu) mostrarNotificacao("O celular bloqueou a janela de impressão. Libere as janelas (pop-ups) do site e tente de novo.");
+  }
+
   async function salvarPedidoViagem() {
     if (itensPedido.length === 0) {
       mostrarNotificacao("Adicione pelo menos 1 item antes de salvar.");
@@ -227,7 +252,7 @@ function Viagem() {
     };
 
     try {
-      await addDoc(collection(db, ...L(), "pedidos"), dadosPedido);
+      const salvo = await addDoc(collection(db, ...L(), "pedidos"), dadosPedido);
 
       // ✅ CORREÇÃO BUG 2: baixa estoque após salvar pedido viagem
       await baixarEstoque(itensPedido);
@@ -247,6 +272,13 @@ function Viagem() {
       setNomeCliente("");
       setNomeClienteInput("");
       mostrarNotificacao("Pedido viagem salvo com sucesso!");
+
+      if (configImpressora.habilitada) {
+        const p = { itens: itensPedido, total, cliente: nomeCliente, numero: salvo.id };
+        // "Imprimir automaticamente" ligado na configuração: tenta direto; se o celular bloquear, pergunta.
+        const impresso = configImpressora.autoImprimirPedido ? await imprimirViagem(p) : false;
+        if (!impresso) setParaImprimir(p);
+      }
     } catch (erro) {
       console.error("Erro ao salvar pedido viagem:", erro);
       mostrarNotificacao("Erro ao salvar no Firebase.");
@@ -293,6 +325,24 @@ function Viagem() {
                 onClick={salvarNomeCliente}
               >
                 Salvar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {paraImprimir && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-icon">🖨️</div>
+            <h2>Pedido viagem salvo</h2>
+            <p>{`Imprimir ${paraImprimir.itens.reduce((s, i) => s + Number(i.qtd || 0), 0)} item(ns) na cozinha?`}</p>
+            <div className="modal-acoes">
+              <button type="button" className="modal-btn cancelar" onClick={() => setParaImprimir(null)}>
+                Agora não
+              </button>
+              <button type="button" className="modal-btn confirmar" onClick={confirmarImpressaoCozinha}>
+                Imprimir na cozinha
               </button>
             </div>
           </div>

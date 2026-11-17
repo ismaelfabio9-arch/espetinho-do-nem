@@ -91,13 +91,13 @@ function escapeHtml(texto) {
 }
 
 /** Documento 1 — Comanda/Pedido (uso interno: cozinha/atendimento). */
-export function gerarComandaHTML({ numeroPedido, mesa, cliente, itens, total, observacoes, config }) {
+export function gerarComandaHTML({ numeroPedido, mesa, titulo, cliente, itens, total, observacoes, config }) {
   const agora = new Date();
   return `
     ${cabecalho(config)}
     <div class="linha-central negrito grande">COMANDA</div>
     ${numeroPedido ? `<div class="linha-central">Pedido #${escapeHtml(numeroPedido)}</div>` : ""}
-    <div class="linha-central negrito">MESA ${escapeHtml(mesa)}</div>
+    <div class="linha-central negrito">${titulo ? escapeHtml(titulo) : `MESA ${escapeHtml(mesa)}`}</div>
     ${cliente ? `<div class="linha-central">Cliente: ${escapeHtml(cliente)}</div>` : ""}
     <div class="separador"></div>
     ${linhasDeItens(itens)}
