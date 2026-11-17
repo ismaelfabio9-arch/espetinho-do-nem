@@ -1,7 +1,7 @@
 // Tela rápida do garçom: busca, categorias numa faixa e os produtos em grade (1 toque = +1;
 // prato com montagem abre a janela "Montar o prato").
 import { useMemo, useState } from "react";
-import { temMontagem } from "../utils/montagem";
+import { ehCategoriaDePrato, temMontagem } from "../utils/montagem";
 import "./PedidoRapido.css";
 
 const moeda = (v) => Number(v || 0).toFixed(2).replace(".", ",");
@@ -9,8 +9,9 @@ const semAcento = (s) => String(s || "").toLowerCase().normalize("NFD").replace(
 
 export default function PedidoRapido({ categorias, contagem, onTocar, emoji }) {
   const [busca, setBusca] = useState("");
-  const [cat, setCat] = useState(categorias[0]?.categoria || "");
-  const atual = categorias.find((c) => c.categoria === cat) || categorias[0];
+  // Sem escolha do garçom, abre nos pratos (a 1ª categoria de prato na ordem da loja).
+  const [cat, setCat] = useState("");
+  const atual = categorias.find((c) => c.categoria === cat) || categorias.find((c) => ehCategoriaDePrato(c.categoria)) || categorias[0];
 
   const itens = useMemo(() => {
     const q = semAcento(busca.trim());
