@@ -1,10 +1,17 @@
+import { L } from "../../loja";
+import useNomeLoja from "../../hooks/useNomeLoja";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { db } from "../../firebase";
 import "../../styles/Garcom/RelatorioGerencial.css";
 
+// Prato montado ("Peito empanado — feijão preto, …") conta no relatório como o prato.
+const nomeProduto = (item) => item.nomeBase || String(item.nome || "").split(" — ")[0];
+
+
 function RelatorioGerencial() {
+  const nomeLoja = useNomeLoja();
   const [historico, setHistorico] = useState([]);
   const [dataInicio, setDataInicio] = useState("");
   const [dataFim, setDataFim] = useState("");
@@ -27,7 +34,7 @@ function RelatorioGerencial() {
 
   useEffect(() => {
     const historicoRef = query(
-      collection(db, "relatorioGerencial"),
+      collection(db, ...L(), "relatorioGerencial"),
       orderBy("criadoEm", "desc")
     );
 
@@ -77,9 +84,9 @@ function RelatorioGerencial() {
       if (venda.origem === "viagem") pedidosViagem++;
 
       (venda.itens || []).forEach((item) => {
-        if (!produtos[item.nome]) {
-          produtos[item.nome] = {
-            nome: item.nome,
+        if (!produtos[nomeProduto(item)]) {
+          produtos[nomeProduto(item)] = {
+            nome: nomeProduto(item),
             preco: Number(item.preco || 0),
             qtd: 0,
             total: 0,
@@ -89,8 +96,8 @@ function RelatorioGerencial() {
         // ✅ CORREÇÃO ALERTA 3: lê qtd ou quantidade para compatibilidade com pedidos antigos
         const qtdItem = Number(item.qtd || item.quantidade || 0);
 
-        produtos[item.nome].qtd += qtdItem;
-        produtos[item.nome].total += Number(item.preco || 0) * qtdItem;
+        produtos[nomeProduto(item)].qtd += qtdItem;
+        produtos[nomeProduto(item)].total += Number(item.preco || 0) * qtdItem;
       });
     });
   });
@@ -143,7 +150,7 @@ function RelatorioGerencial() {
         <div className="relatorio-cabecalho">
           <div>
             <span>Relatório Gerencial</span>
-            <h1>Espetinho do Nem</h1>
+            <h1>{nomeLoja}</h1>
             <p>Relatório de faturamento e produtos vendidos</p>
           </div>
 
@@ -266,7 +273,7 @@ function RelatorioGerencial() {
         </div>
 
         <div className="relatorio-rodape">
-          <p>Relatório gerado automaticamente pelo sistema Espetinho do Nem.</p>
+          <p>Relatório gerado automaticamente pelo sistema {nomeLoja}.</p>
         </div>
       </div>
     </div>

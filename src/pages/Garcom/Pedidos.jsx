@@ -1,3 +1,4 @@
+import { L } from "../../loja";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -65,10 +66,10 @@ function Pedidos() {
   }
 
   useEffect(() => {
-    const pedidosRef = collection(db, "pedidos");
+    const pedidosRef = collection(db, ...L(), "pedidos");
     const consulta = query(pedidosRef, orderBy("salvoEm", "desc"));
 
-    const cancelarMesas = onSnapshot(collection(db, "mesas"), (snapshot) => {
+    const cancelarMesas = onSnapshot(collection(db, ...L(), "mesas"), (snapshot) => {
       const nomes = {};
 
       snapshot.docs.forEach((documento) => {
@@ -105,7 +106,7 @@ function Pedidos() {
   }, []);
 
   async function alterarStatus(id, novoStatus) {
-    const pedidoRef = doc(db, "pedidos", id);
+    const pedidoRef = doc(db, ...L(), "pedidos", id);
 
     await updateDoc(pedidoRef, {
       status: novoStatus,
@@ -128,20 +129,20 @@ function Pedidos() {
       criadoEm: serverTimestamp(),
     };
 
-    await addDoc(collection(db, "vendasDia"), vendaFinalizada);
+    await addDoc(collection(db, ...L(), "vendasDia"), vendaFinalizada);
 
-    await addDoc(collection(db, "historicoMesas"), {
+    await addDoc(collection(db, ...L(), "historicoMesas"), {
       ...vendaFinalizada,
       pedidoOriginalId: pedido.id,
       status: "finalizada",
     });
 
-    await deleteDoc(doc(db, "pedidos", pedido.id));
+    await deleteDoc(doc(db, ...L(), "pedidos", pedido.id));
 
     // ✅ CORREÇÃO ALERTA 1: limpa nome do cliente na mesa após finalizar
     if (pedido.tipo === "mesa" && pedido.mesa) {
       await setDoc(
-        doc(db, "mesas", String(pedido.mesa)),
+        doc(db, ...L(), "mesas", String(pedido.mesa)),
         {
           numero: Number(pedido.mesa),
           cliente: "",

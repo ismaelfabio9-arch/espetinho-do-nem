@@ -1,3 +1,4 @@
+import { L } from "../loja";
 import { doc, writeBatch } from "firebase/firestore";
 
 // Ordena os itens de uma categoria pelo campo "ordem" (posição escolhida
@@ -40,7 +41,7 @@ export async function moverItemCategoria(db, itensOrdenados, indiceAtual, direca
 
   lista.forEach((itemDaLista, indice) => {
     batch.set(
-      doc(db, "produtos", itemDaLista.id),
+      doc(db, ...L(), "produtos", itemDaLista.id),
       { ordem: indice },
       { merge: true }
     );

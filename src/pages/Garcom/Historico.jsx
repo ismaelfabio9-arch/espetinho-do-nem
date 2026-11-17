@@ -1,3 +1,4 @@
+import { L } from "../../loja";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -11,6 +12,10 @@ import {
 import { db } from "../../firebase";
 import "../../styles/Garcom/Historico.css";
 
+// Prato montado ("Peito empanado — feijão preto, …") conta no relatório como o prato.
+const nomeProduto = (item) => item.nomeBase || String(item.nome || "").split(" — ")[0];
+
+
 function Historico() {
   const [historico, setHistorico] = useState([]);
   const [fechamentoAberto, setFechamentoAberto] = useState(null);
@@ -21,7 +26,7 @@ function Historico() {
 
   useEffect(() => {
     const historicoRef = query(
-      collection(db, "historicoDias"),
+      collection(db, ...L(), "historicoDias"),
       orderBy("criadoEm", "desc")
     );
 
@@ -39,7 +44,7 @@ function Historico() {
 
   async function limparHistorico() {
     for (const dia of historico) {
-      await deleteDoc(doc(db, "historicoDias", dia.id));
+      await deleteDoc(doc(db, ...L(), "historicoDias", dia.id));
     }
 
     setFechamentoAberto(null);
@@ -55,16 +60,16 @@ function Historico() {
         const quantidade = Number(item.qtd || item.quantidade || 0);
 totalItens += quantidade;
 
-        if (!produtos[item.nome]) {
-          produtos[item.nome] = {
-            nome: item.nome,
+        if (!produtos[nomeProduto(item)]) {
+          produtos[nomeProduto(item)] = {
+            nome: nomeProduto(item),
             qtd: 0,
             total: 0,
           };
         }
 
-        produtos[item.nome].qtd += quantidade;
-produtos[item.nome].total += Number(item.preco || 0) * quantidade;
+        produtos[nomeProduto(item)].qtd += quantidade;
+produtos[nomeProduto(item)].total += Number(item.preco || 0) * quantidade;
       });
     });
 

@@ -1,3 +1,4 @@
+import { L } from "../../loja";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -37,7 +38,7 @@ function HistoricoMesas() {
 
   useEffect(() => {
     const historicoRef = query(
-      collection(db, "historicoMesas"),
+      collection(db, ...L(), "historicoMesas"),
       orderBy("finalizadoEm", "desc")
     );
 
@@ -55,7 +56,7 @@ function HistoricoMesas() {
 
   async function restaurarMesa(mesa) {
     try {
-      await addDoc(collection(db, "pedidos"), {
+      await addDoc(collection(db, ...L(), "pedidos"), {
         tipo: mesa.origem || "mesa",
         mesa: mesa.mesa || null,
         titulo: mesa.titulo || `Mesa ${mesa.mesa}`,
@@ -68,7 +69,7 @@ function HistoricoMesas() {
         criadoEm: serverTimestamp(),
       });
 
-      await deleteDoc(doc(db, "historicoMesas", mesa.id));
+      await deleteDoc(doc(db, ...L(), "historicoMesas", mesa.id));
 
       mostrarMensagem("Mesa restaurada com sucesso!");
     } catch (erro) {

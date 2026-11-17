@@ -1,3 +1,4 @@
+import { L } from "../../loja";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -25,7 +26,7 @@ function Notificacoes() {
 
   useEffect(() => {
     const notificacoesRef = query(
-      collection(db, "notificacoes"),
+      collection(db, ...L(), "notificacoes"),
       orderBy("horario", "desc")
     );
 
@@ -42,10 +43,10 @@ function Notificacoes() {
   }, []);
 
   async function limparTudo() {
-    const snapshot = await getDocs(collection(db, "notificacoes"));
+    const snapshot = await getDocs(collection(db, ...L(), "notificacoes"));
 
     for (const documento of snapshot.docs) {
-      await deleteDoc(doc(db, "notificacoes", documento.id));
+      await deleteDoc(doc(db, ...L(), "notificacoes", documento.id));
     }
 
     setModalAberto(false);
@@ -71,7 +72,7 @@ function Notificacoes() {
 }
 
   function iconeNotificacao(tipo) {
-  if (tipo === "pedido") return "🍽️";
+  if (tipo === "pedido") return process.env.REACT_APP_MULTI === "1" ? "🍽️" : "🍢";
   if (tipo === "garcom") return "🛎️";
   if (tipo === "pagamento") return "💳";
   if (tipo === "estoque") return "📦";

@@ -1,3 +1,4 @@
+import { L, MULTI } from "../../loja";
 import { useEffect, useMemo, useState, useRef } from "react";
 import {
   collection,
@@ -11,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { Link } from "react-router-dom";
 import { db } from "../../firebase";
-import { produtos as produtosPadrao } from "../../data/produtos";
+import { produtos as produtosEspetinho, produtosAlmoco } from "../../data/produtos";
 import {
   SEM_CATEGORIA,
   migrarCategoriasSeNecessario,
@@ -25,6 +26,7 @@ import {
 import { ordenarItensCategoria } from "../../utils/produtosOrdem";
 import { slugify, formatarMoeda } from "../../utils/texto";
 import "../../styles/Garcom/Produtos.css";
+import { MONTAGEM_ALMOCO, lerMontagem, temMontagem, textoMontagem } from "../../utils/montagem";
 
 function Produtos() {
   const [produtos, setProdutos] = useState([]);
@@ -32,6 +34,8 @@ function Produtos() {
   const [editando, setEditando] = useState(null);
   const [novoPreco, setNovoPreco] = useState("");
   const [editandoNome, setEditandoNome] = useState(null);
+  // Montagem do prato (almoço): o que vem, as escolhas e o que vai a mais.
+  const [montagemAberta, setMontagemAberta] = useState(null);
   const [novoNomeProduto, setNovoNomeProduto] = useState("");
   const [erroNomeProduto, setErroNomeProduto] = useState("");
   const [adicionando, setAdicionando] = useState(false);
@@ -66,7 +70,7 @@ function Produtos() {
       console.error("Erro ao migrar categorias:", erro)
     );
 
-    const cancelarProdutos = onSnapshot(collection(db, "produtos"), (snapshot) => {
+    const cancelarProdutos = onSnapshot(collection(db, ...L(), "produtos"), (snapshot) => {
       const lista = snapshot.docs.map((documento) => ({
         id: documento.id,
         ...documento.data(),
@@ -75,7 +79,7 @@ function Produtos() {
       setProdutos(lista);
     });
 
-    const cancelarCategorias = onSnapshot(collection(db, "categorias"), (snapshot) => {
+    const cancelarCategorias = onSnapshot(collection(db, ...L(), "categorias"), (snapshot) => {
       const lista = snapshot.docs
         .map((documento) => ({ id: documento.id, ...documento.data() }))
         .sort((a, b) => (a.ordem ?? 9999) - (b.ordem ?? 9999));
@@ -95,25 +99,28 @@ function Produtos() {
   }
 
   async function importarProdutosPadrao() {
+    // Lojas da IFTech começam com um cardápio de almoço de exemplo; a loja original mantém o dela.
+    const produtosPadrao = MULTI ? produtosAlmoco : produtosEspetinho;
     for (const categoria of produtosPadrao) {
       for (const item of categoria.itens) {
         const produtoId =
           item.id || criarIdProduto(`${categoria.categoria}-${item.nome}`);
 
         await setDoc(
-          doc(db, "produtos", produtoId),
+          doc(db, ...L(), "produtos", produtoId),
           {
             categoria: categoria.categoria,
             nome: item.nome,
             preco: Number(item.preco),
             ativo: true,
+            ...(item.montagem ? { montagem: item.montagem } : {}),
             criadoEm: serverTimestamp(),
           },
           { merge: true }
         );
 
         await setDoc(
-          doc(db, "estoque", produtoId),
+          doc(db, ...L(), "estoque", produtoId),
           {
             nome: item.nome,
             categoria: categoria.categoria,
@@ -125,6 +132,16 @@ function Produtos() {
       }
     }
 
+    // Loja nova da IFTech: as categorias já nascem na ordem do cardápio (pratos primeiro, sobremesas no fim).
+    if (MULTI && categorias.length === 0) {
+      for (const [ordem, categoria] of produtosPadrao.entries()) {
+        await setDoc(
+          doc(db, ...L(), "categorias", slugify(categoria.categoria) || `categoria-${ordem}`),
+          { nome: categoria.categoria, ordem, ativo: true, criadoEm: serverTimestamp(), atualizadoEm: new Date().toISOString() },
+          { merge: true }
+        );
+      }
+    }
     await migrarCategoriasSeNecessario();
   }
 
@@ -139,7 +156,7 @@ function Produtos() {
     const produtoId = criarIdProduto(`${categoriaTratada}-${nomeTratado}`);
 
     await setDoc(
-      doc(db, "produtos", produtoId),
+      doc(db, ...L(), "produtos", produtoId),
       {
         nome: nomeTratado,
         categoria: categoriaTratada,
@@ -151,7 +168,7 @@ function Produtos() {
     );
 
     await setDoc(
-      doc(db, "estoque", produtoId),
+      doc(db, ...L(), "estoque", produtoId),
       {
         nome: nomeTratado,
         categoria: categoriaTratada,
@@ -182,7 +199,7 @@ function Produtos() {
   }
 
   async function salvarPreco(produto) {
-    await updateDoc(doc(db, "produtos", produto.id), {
+    await updateDoc(doc(db, ...L(), "produtos", produto.id), {
       preco: Number(novoPreco),
       atualizadoEm: new Date().toISOString(),
     });
@@ -214,13 +231,13 @@ function Produtos() {
     try {
       const batch = writeBatch(db);
 
-      batch.update(doc(db, "produtos", produto.id), {
+      batch.update(doc(db, ...L(), "produtos", produto.id), {
         nome: nomeTratado,
         atualizadoEm: new Date().toISOString(),
       });
 
       batch.set(
-        doc(db, "estoque", produto.id),
+        doc(db, ...L(), "estoque", produto.id),
         { nome: nomeTratado, atualizadoEm: new Date().toISOString() },
         { merge: true }
       );
@@ -239,8 +256,8 @@ function Produtos() {
   async function confirmarExcluirProduto() {
     if (!produtoParaExcluir) return;
 
-    await deleteDoc(doc(db, "produtos", produtoParaExcluir.id));
-    await deleteDoc(doc(db, "estoque", produtoParaExcluir.id));
+    await deleteDoc(doc(db, ...L(), "produtos", produtoParaExcluir.id));
+    await deleteDoc(doc(db, ...L(), "estoque", produtoParaExcluir.id));
 
     setProdutoParaExcluir(null);
   }
@@ -370,6 +387,14 @@ function Produtos() {
     await salvarOrdemCategorias(nova);
   }
 
+  async function salvarMontagem() {
+    const m = lerMontagem(montagemAberta);
+    await setDoc(doc(db, ...L(), "produtos", montagemAberta.id), { montagem: m }, { merge: true });
+    setMontagemAberta(null);
+    setMensagemCategoria(m ? "Montagem do prato salva!" : "Montagem removida.");
+    setTimeout(() => setMensagemCategoria(""), 2500);
+  }
+
   const produtosDisponiveisComoDestino = (categoriaAtual) =>
     categorias.filter((c) => c.nome !== categoriaAtual);
 
@@ -387,6 +412,9 @@ function Produtos() {
         </div>
 
         <div style={{ display: "flex", gap: "8px" }}>
+          <Link to="/cardapio-hoje" className="produto-mini-btn" title="Cardápio de hoje" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+            📅
+          </Link>
           <button
             className="produto-mini-btn"
             onClick={() => setGerenciandoCategorias((v) => !v)}
@@ -409,6 +437,34 @@ function Produtos() {
       </div>
 
       {mensagemCategoria && <div className="toast">{mensagemCategoria}</div>}
+
+      {montagemAberta && (
+        <div className="modal-overlay" onClick={() => setMontagemAberta(null)}>
+          <div className="modal-card montagem-card" onClick={(e) => e.stopPropagation()}>
+            <h2>🍽️ {montagemAberta.nome}</h2>
+            <p>Na hora de lançar, o garçom (e o cliente no QR Code) monta o prato com isto. Deixe em branco o que não usar.</p>
+            <label>
+              Vem no prato <small>(separe por vírgula)</small>
+              <input value={montagemAberta.vem} onChange={(e) => setMontagemAberta({ ...montagemAberta, vem: e.target.value })} placeholder="Arroz, Feijão, Salada, Farofa" />
+            </label>
+            <label>
+              Escolhas <small>(uma por linha: Grupo: opção, opção)</small>
+              <textarea rows={3} value={montagemAberta.escolhas} onChange={(e) => setMontagemAberta({ ...montagemAberta, escolhas: e.target.value })} placeholder={"Feijão: Carioca, Preto, Macassar\nSalada: Verdura, Vinagrete"} />
+            </label>
+            <label>
+              A mais, com preço <small>(uma por linha: nome = preço)</small>
+              <textarea rows={3} value={montagemAberta.extras} onChange={(e) => setMontagemAberta({ ...montagemAberta, extras: e.target.value })} placeholder={"Ovo = 2\nBatata frita = 6"} />
+            </label>
+            <button type="button" className="montagem-modelo" onClick={() => setMontagemAberta({ ...montagemAberta, ...textoMontagem(MONTAGEM_ALMOCO) })}>
+              Usar o modelo de almoço
+            </button>
+            <div className="modal-acoes">
+              <button type="button" className="modal-btn cancelar" onClick={() => setMontagemAberta(null)}>Cancelar</button>
+              <button type="button" className="modal-btn confirmar" onClick={salvarMontagem}>Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {gerenciandoCategorias && (
         <div className="pedido-card categorias-painel">
@@ -731,16 +787,20 @@ function Produtos() {
       )}
 
       {produtos.length === 0 && (
-        <button
-          className="btn-verde"
-          style={{
-            width: "100%",
-            marginBottom: "16px",
-          }}
-          onClick={importarProdutosPadrao}
-        >
-          Importar cardápio padrão
-        </button>
+        <div style={{ marginBottom: "16px" }}>
+          <button
+            className="btn-verde"
+            style={{ width: "100%" }}
+            onClick={importarProdutosPadrao}
+          >
+            {MULTI ? "Começar com um cardápio de almoço de exemplo" : "Importar cardápio padrão"}
+          </button>
+          {MULTI && (
+            <p style={{ margin: "8px 2px 0", fontSize: 13, opacity: 0.75 }}>
+              Pratos do dia, PF, acompanhamentos, sucos, refrigerantes, cervejas e sobremesas. Depois é só mudar nomes e preços.
+            </p>
+          )}
+        </div>
       )}
 
       {categoriasExibidas.map((categoria) => (
@@ -828,6 +888,15 @@ function Produtos() {
                       </option>
                     ))}
                   </select>
+                  <button
+                    type="button"
+                    className="produto-montagem-btn"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onClick={() => setMontagemAberta({ id: produto.id, nome: produto.nome, ...textoMontagem(produto.montagem) })}
+                  >
+                    {temMontagem(produto) ? "🍽️ Montagem do prato ✓" : "🍽️ Montagem do prato"}
+                  </button>
                 </div>
 
                 {editando === produto.id ? (

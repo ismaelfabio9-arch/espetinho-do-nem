@@ -59,7 +59,7 @@ function larguraEmPx(larguraPapel) {
 function cabecalho(config) {
   return `
     <div class="linha-central negrito grande">${escapeHtml(
-      config?.nomeEstabelecimento || "Espetinho do Nem"
+      config?.nomeEstabelecimento || (process.env.REACT_APP_MULTI === "1" ? "" : "Espetinho do Nem")
     )}</div>
     ${config?.endereco ? `<div class="linha-central pequeno">${escapeHtml(config.endereco)}</div>` : ""}
     ${config?.telefone ? `<div class="linha-central pequeno">${escapeHtml(config.telefone)}</div>` : ""}

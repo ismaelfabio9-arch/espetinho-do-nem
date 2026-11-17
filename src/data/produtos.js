@@ -1,3 +1,5 @@
+import { MONTAGEM_ALMOCO } from "../utils/montagem";
+
 export const produtos = [
   {
     categoria: "Espetinhos",
@@ -76,4 +78,21 @@ export const produtos = [
       { id: "whisky-dose", nome: "Whisky", preco: 8 },
     ],
   },
+];
+// Lojas criadas pelo site da IFTech: cardápio de exemplo de um restaurante de almoço com bebidas.
+// O dono muda nomes e preços (ou apaga) depois, em Produtos. Os pratos já vêm com a montagem de almoço.
+const M = (itens) => itens.map((i) => ({ ...i, montagem: MONTAGEM_ALMOCO }));
+export const produtosAlmoco = [
+  { categoria: "Pratos do dia", itens: M([
+    { nome: "Frango grelhado", preco: 22 }, { nome: "Bife acebolado", preco: 25 }, { nome: "Peixe frito", preco: 26 },
+    { nome: "Carne de sol com macaxeira", preco: 28 }, { nome: "Strogonoff de frango", preco: 22 }, { nome: "Feijoada", preco: 28 },
+  ]) },
+  { categoria: "Prato feito (PF)", itens: M([{ nome: "PF de frango", preco: 18 }, { nome: "PF de carne", preco: 20 }]) },
+  { categoria: "Acompanhamentos", itens: [
+    { nome: "Arroz", preco: 6 }, { nome: "Feijão", preco: 6 }, { nome: "Farofa", preco: 5 }, { nome: "Salada", preco: 7 }, { nome: "Batata frita", preco: 12 },
+  ] },
+  { categoria: "Sucos", itens: [{ nome: "Suco de laranja", preco: 8 }, { nome: "Suco de maracujá", preco: 8 }, { nome: "Suco de acerola", preco: 8 }, { nome: "Suco de cajá", preco: 8 }] },
+  { categoria: "Refrigerantes e água", itens: [{ nome: "Refrigerante lata", preco: 6 }, { nome: "Refrigerante 1L", preco: 10 }, { nome: "Água mineral", preco: 4 }, { nome: "Água com gás", preco: 5 }] },
+  { categoria: "Cervejas", itens: [{ nome: "Cerveja long neck", preco: 9 }, { nome: "Cerveja lata", preco: 6 }] },
+  { categoria: "Sobremesas", itens: [{ nome: "Pudim", preco: 8 }, { nome: "Mousse de maracujá", preco: 7 }, { nome: "Cocada", preco: 5 }] },
 ];

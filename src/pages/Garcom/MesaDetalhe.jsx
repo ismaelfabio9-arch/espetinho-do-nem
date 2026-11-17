@@ -1,3 +1,4 @@
+import { L, MULTI } from "../../loja";
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -26,6 +27,10 @@ import {
   marcarComoImpresso,
 } from "../../utils/print";
 import "../../styles/Garcom/MesaDetalhe.css";
+import PedidoRapido from "../../components/PedidoRapido";
+import MontarPrato from "../../components/MontarPrato";
+import { MONTAGEM_ALMOCO, emojiCategoria, pratosSemMontagem, sugestoesBebida, temMontagem } from "../../utils/montagem";
+
 
 const FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Débito", "Crédito"];
 
@@ -51,10 +56,13 @@ function MesaDetalhe() {
   const [categoriasDocs, setCategoriasDocs] = useState([]);
   const [etapaEncerrar, setEtapaEncerrar] = useState("opcoes"); // opcoes | pagamento
   const [formaPagamentoEncerrar, setFormaPagamentoEncerrar] = useState("");
+  // Pedido rápido (almoço): prato com montagem aberto na janela, e o modo antigo para organizar.
+  const [montando, setMontando] = useState(null);
+  const [organizarAberto, setOrganizarAberto] = useState(false);
   const configImpressora = useConfigImpressora();
 
   useEffect(() => {
-    const cancelar = onSnapshot(doc(db, "mesas", String(id)), (documento) => {
+    const cancelar = onSnapshot(doc(db, ...L(), "mesas", String(id)), (documento) => {
       if (documento.exists()) {
         const cliente = documento.data().cliente || "";
         setNomeCliente(cliente);
@@ -69,7 +77,7 @@ function MesaDetalhe() {
   }, [id]);
 
   useEffect(() => {
-    const cancelarCategorias = onSnapshot(collection(db, "categorias"), (snapshot) => {
+    const cancelarCategorias = onSnapshot(collection(db, ...L(), "categorias"), (snapshot) => {
       setCategoriasDocs(
         snapshot.docs.map((d) => ({ id: d.id, ...d.data() }))
       );
@@ -79,14 +87,23 @@ function MesaDetalhe() {
   }, []);
 
   useEffect(() => {
-    const cancelar = onSnapshot(collection(db, "produtos"), (snapshot) => {
+    const cancelar = onSnapshot(collection(db, ...L(), "produtos"), (snapshot) => {
       const listaProdutos = snapshot.docs.map((documento) => ({
         id: documento.id,
         ...documento.data(),
       }));
 
+      // Pratos de lojas antigas ainda sem montagem: ganham o modelo de almoço (aqui e no cadastro).
+      if (MULTI) {
+        pratosSemMontagem(listaProdutos).forEach((p) => {
+          p.montagem = MONTAGEM_ALMOCO;
+          setDoc(doc(db, ...L(), "produtos", p.id), { montagem: MONTAGEM_ALMOCO }, { merge: true }).catch(() => {});
+        });
+      }
+
+      // Fora do cardápio de hoje também não aparece para lançar.
       const produtosAtivos = listaProdutos.filter(
-        (produto) => produto.ativo !== false
+        (produto) => produto.ativo !== false && produto.foraHoje !== true
       );
 
       const grupos = produtosAtivos.reduce((resultado, produto) => {
@@ -102,6 +119,7 @@ function MesaDetalhe() {
           nome: produto.nome,
           preco: Number(produto.preco || 0),
           ordem: produto.ordem,
+          montagem: produto.montagem || null,
         });
 
         return resultado;
@@ -120,7 +138,7 @@ function MesaDetalhe() {
   }, [categoriasDocs]);
 
   useEffect(() => {
-    const pedidosRef = collection(db, "pedidos");
+    const pedidosRef = collection(db, ...L(), "pedidos");
 
     const consultaMesa = query(
   pedidosRef,
@@ -260,6 +278,37 @@ if (pedidosDaMesa.length === 0) {
     });
   }
 
+  function tocarItem(item) {
+    if (temMontagem(item)) setMontando(item);
+    else adicionarItem(item);
+  }
+
+  /** Prato montado (e as bebidas escolhidas junto) entram no pedido atual. */
+  function adicionarMontado({ prato, bebidas }) {
+    setPedido((atual) => {
+      const novo = { ...atual };
+      const ja = novo[prato.nome];
+      novo[prato.nome] = { ...prato, qtd: ja ? ja.qtd + 1 : 1 };
+      bebidas.forEach((b) => {
+        const jb = novo[b.nome];
+        novo[b.nome] = { produtoId: b.id, nome: b.nome, preco: b.preco, qtd: jb ? jb.qtd + 1 : 1 };
+      });
+      return novo;
+    });
+    setMontando(null);
+  }
+
+  function ajustarItemPedido(nome, delta) {
+    setPedido((atual) => {
+      const it = atual[nome];
+      if (!it) return atual;
+      const novo = { ...atual };
+      if (it.qtd + delta <= 0) delete novo[nome];
+      else novo[nome] = { ...it, qtd: it.qtd + delta };
+      return novo;
+    });
+  }
+
   function mostrarNotificacao(texto) {
     setNotificacao(texto);
     setTimeout(() => setNotificacao(""), 2500);
@@ -271,7 +320,7 @@ if (pedidosDaMesa.length === 0) {
 
   async function salvarNomeCliente() {
     await setDoc(
-      doc(db, "mesas", String(id)),
+      doc(db, ...L(), "mesas", String(id)),
       {
         numero: Number(id),
         cliente: nomeClienteInput.trim(),
@@ -315,7 +364,7 @@ if (pedidosDaMesa.length === 0) {
     if (novosItens.length === 0) {
       // Se ficou sem itens, apaga todos os pedidos da mesa
       for (const pedidoId of todosPedidosIds) {
-        await deleteDoc(doc(db, "pedidos", pedidoId));
+        await deleteDoc(doc(db, ...L(), "pedidos", pedidoId));
       }
       setMostrarPedidoMesa(false);
       mostrarNotificacao("Pedido da mesa removido.");
@@ -333,7 +382,7 @@ if (pedidosDaMesa.length === 0) {
     );
 
     // Consolida tudo no primeiro pedido
-    await updateDoc(doc(db, "pedidos", pedidoMesaId), {
+    await updateDoc(doc(db, ...L(), "pedidos", pedidoMesaId), {
       itens: novosItens,
       total: novoTotal,
       totalItens: novoTotalItens,
@@ -343,7 +392,7 @@ if (pedidosDaMesa.length === 0) {
     // ✅ CORREÇÃO BUG 4: apaga pedidos extras se houver mais de um
     for (const pedidoId of todosPedidosIds) {
       if (pedidoId !== pedidoMesaId) {
-        await deleteDoc(doc(db, "pedidos", pedidoId));
+        await deleteDoc(doc(db, ...L(), "pedidos", pedidoId));
       }
     }
   }
@@ -377,7 +426,7 @@ if (pedidosDaMesa.length === 0) {
     }
 
     try {
-      const pedidosRef = collection(db, "pedidos");
+      const pedidosRef = collection(db, ...L(), "pedidos");
 
       const consultaMesaAberta = query(
         pedidosRef,
@@ -416,7 +465,7 @@ if (pedidosDaMesa.length === 0) {
           0
         );
 
-        await updateDoc(doc(db, "pedidos", documentoMesa.id), {
+        await updateDoc(doc(db, ...L(), "pedidos", documentoMesa.id), {
           itens: itensNovos,
           total: novoTotal,
           totalItens: novoTotalItens,
@@ -425,7 +474,7 @@ if (pedidosDaMesa.length === 0) {
       } else {
         const idPedido = Date.now();
 
-        await addDoc(collection(db, "pedidos"), {
+        await addDoc(collection(db, ...L(), "pedidos"), {
           idLocal: idPedido,
           tipo: "mesa",
           mesa: Number(id), // ✅ já estava correto aqui
@@ -442,7 +491,7 @@ if (pedidosDaMesa.length === 0) {
       for (const item of itensPedido) {
         if (!item.produtoId) continue;
 
-        const estoqueRef = doc(db, "estoque", item.produtoId);
+        const estoqueRef = doc(db, ...L(), "estoque", item.produtoId);
         const estoqueSnap = await getDoc(estoqueRef);
 
         if (estoqueSnap.exists()) {
@@ -459,7 +508,7 @@ if (pedidosDaMesa.length === 0) {
           );
 
           if (novaQuantidade === 0 && quantidadeAtual > 0) {
-            await addDoc(collection(db, "notificacoes"), {
+            await addDoc(collection(db, ...L(), "notificacoes"), {
               tipo: "estoque",
               mensagem: `${item.nome} acabou no estoque`,
               produtoId: item.produtoId,
@@ -547,7 +596,7 @@ if (pedidosDaMesa.length === 0) {
     setMostrarModalEncerrarMesa(false);
 
     try {
-      const pedidosRef = collection(db, "pedidos");
+      const pedidosRef = collection(db, ...L(), "pedidos");
 
       const consultaMesa = query(
         pedidosRef,
@@ -587,7 +636,7 @@ if (pedidosDaMesa.length === 0) {
       for (const documento of resultado.docs) {
         const pedidoDados = documento.data();
 
-        await addDoc(collection(db, "vendasDia"), {
+        await addDoc(collection(db, ...L(), "vendasDia"), {
           origem: "mesa",
           mesa: Number(id), // ✅ CORREÇÃO BUG 3: sempre Number
           titulo: pedidoDados.titulo || `Mesa ${id}`,
@@ -600,7 +649,7 @@ if (pedidosDaMesa.length === 0) {
           criadoEm: serverTimestamp(),
         });
 
-        await addDoc(collection(db, "historicoMesas"), {
+        await addDoc(collection(db, ...L(), "historicoMesas"), {
           origem: "mesa",
           mesa: Number(id), // ✅ CORREÇÃO BUG 3: sempre Number
           titulo: pedidoDados.titulo || `Mesa ${id}`,
@@ -615,11 +664,11 @@ if (pedidosDaMesa.length === 0) {
           criadoEm: serverTimestamp(),
         });
 
-        await deleteDoc(doc(db, "pedidos", documento.id));
+        await deleteDoc(doc(db, ...L(), "pedidos", documento.id));
       }
 
       await setDoc(
-        doc(db, "mesas", String(id)),
+        doc(db, ...L(), "mesas", String(id)),
         {
           numero: Number(id),
           cliente: "",
@@ -892,17 +941,63 @@ if (pedidosDaMesa.length === 0) {
 
           {itensPedido.map((item) => (
             <div className="resumo-linha" key={item.nome}>
-              <span>
-                {item.qtd}x {item.nome}
+              <span className="resumo-ajuste">
+                <button type="button" onClick={() => ajustarItemPedido(item.nome, -1)} aria-label={`Tirar 1 ${item.nome}`}>−</button>
+                <b>{item.qtd}</b>
+                <button type="button" onClick={() => ajustarItemPedido(item.nome, 1)} aria-label={`Mais 1 ${item.nome}`}>+</button>
               </span>
+              <span className="resumo-nome">{item.nome}</span>
               <strong>R$ {formatarMoeda(item.preco * item.qtd)}</strong>
             </div>
           ))}
         </div>
       )}
 
+      {montando && (
+        <MontarPrato
+          produto={montando}
+          bebidas={sugestoesBebida(produtos)}
+          permitirOutros
+          onAdicionar={adicionarMontado}
+          onFechar={() => setMontando(null)}
+        />
+      )}
+
+      {!organizarAberto && (
+        <>
+          <div className="titulo-secao-linha">
+            <h2 className="titulo-secao">Adicionar pedido</h2>
+            {produtos.length > 0 && (
+              <button type="button" className="btn-organizar-categorias" onClick={() => setOrganizarAberto(true)}>
+                ↕ Organizar
+              </button>
+            )}
+          </div>
+          {produtos.length === 0 ? (
+            <div className="card-principal">
+              <h2>Nenhum produto para hoje</h2>
+              <p>Cadastre em Produtos ou ligue os pratos em Cardápio de hoje.</p>
+            </div>
+          ) : (
+            <PedidoRapido
+              categorias={produtos}
+              emoji={emojiCategoria}
+              contagem={(item) => itensPedido.filter((p) => p.produtoId === item.id).reduce((s, p) => s + p.qtd, 0)}
+              onTocar={tocarItem}
+            />
+          )}
+        </>
+      )}
+
+      {organizarAberto && (<>
       <div className="titulo-secao-linha">
-        <h2 className="titulo-secao">Adicionar pedido</h2>
+        <h2 className="titulo-secao">Organizar o cardápio</h2>
+        <button type="button" className="btn-organizar-categorias ativo" onClick={() => { setOrganizarAberto(false); setOrganizandoCategorias(false); setCategoriaOrganizando(""); }}>
+          ✓ Voltar ao pedido
+        </button>
+      </div>
+      <div className="titulo-secao-linha">
+        <span />
 
         {produtos.length > 1 && (
           <button
@@ -1042,6 +1137,7 @@ if (pedidosDaMesa.length === 0) {
           );
         })
       )}
+      </>)}
 
       {totalItens > 0 && (
         <div className="barra-pedido">

@@ -1,3 +1,6 @@
+import { L, MULTI, getLoja } from "../../loja";
+import useNomeLoja from "../../hooks/useNomeLoja";
+import { mesasApi } from "../../tenant";
 import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { db } from "../../firebase";
@@ -16,12 +19,17 @@ import {
   getDoc,
   setDoc,
 } from "firebase/firestore";
+import MontarPrato from "../../components/MontarPrato";
+import { sugestoesBebida, temMontagem } from "../../utils/montagem";
 
 function CardapioMesa() {
+  const nomeLoja = useNomeLoja();
   const { mesa } = useParams();
 
   const [pedidoMesaAberto, setPedidoMesaAberto] = useState(null);
   const [carrinho, setCarrinho] = useState({});
+  // Prato de almoço aberto na janela "Montar o prato".
+  const [montando, setMontando] = useState(null);
   const [categoriaAberta, setCategoriaAberta] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [mensagem, setMensagem] = useState("");
@@ -63,11 +71,11 @@ function CardapioMesa() {
   }
 
   useEffect(() => {
-    const cancelarCategorias = onSnapshot(collection(db, "categorias"), (snapshot) => {
+    const cancelarCategorias = onSnapshot(collection(db, ...L(), "categorias"), (snapshot) => {
       setCategoriasDocs(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
     });
 
-    const cancelarEstoque = onSnapshot(collection(db, "estoque"), (snapshot) => {
+    const cancelarEstoque = onSnapshot(collection(db, ...L(), "estoque"), (snapshot) => {
       const dados = {};
 
       snapshot.docs.forEach((documento) => {
@@ -84,13 +92,14 @@ function CardapioMesa() {
   }, []);
 
   useEffect(() => {
-    const cancelarProdutos = onSnapshot(collection(db, "produtos"), (snapshot) => {
+    const cancelarProdutos = onSnapshot(collection(db, ...L(), "produtos"), (snapshot) => {
       const lista = snapshot.docs.map((documento) => ({
         id: documento.id,
         ...documento.data(),
       }));
 
-      const produtosAtivos = lista.filter((produto) => produto.ativo !== false);
+      // Fora do cardápio de hoje também não aparece para o cliente.
+      const produtosAtivos = lista.filter((produto) => produto.ativo !== false && produto.foraHoje !== true);
 
       const grupos = produtosAtivos.reduce((resultado, produto) => {
         if (!resultado[produto.categoria]) {
@@ -104,6 +113,7 @@ function CardapioMesa() {
           id: produto.id,
           nome: produto.nome,
           preco: Number(produto.preco || 0),
+          montagem: produto.montagem || null,
         });
 
         return resultado;
@@ -129,7 +139,7 @@ function CardapioMesa() {
   }, [mesa]);
 
   useEffect(() => {
-    const pedidosRef = collection(db, "pedidos");
+    const pedidosRef = collection(db, ...L(), "pedidos");
 
     const consulta = query(
       pedidosRef,
@@ -207,7 +217,39 @@ function CardapioMesa() {
     setMostrarModalNome(false);
   }
 
+  /** Prato montado (e as bebidas escolhidas) entram no carrinho; cada montagem diferente é uma linha. */
+  function adicionarMontado({ prato, bebidas }) {
+    setCarrinho((anterior) => {
+      const novo = { ...anterior };
+      const chave = `m:${prato.nome}`;
+      novo[chave] = { chave, produtoId: prato.produtoId, nome: prato.nome, preco: prato.preco, montagem: prato.montagem, quantidade: (anterior[chave]?.quantidade || 0) + 1 };
+      bebidas.forEach((b) => {
+        novo[b.id] = { chave: b.id, produtoId: b.id, nome: b.nome, preco: b.preco, quantidade: (anterior[b.id]?.quantidade || 0) + 1 };
+      });
+      return novo;
+    });
+    setMontando(null);
+  }
+
+  function ajustarLinha(chave, valor) {
+    setCarrinho((anterior) => {
+      const linha = anterior[chave];
+      if (!linha) return anterior;
+      const copia = { ...anterior };
+      if (linha.quantidade + valor <= 0) delete copia[chave];
+      else copia[chave] = { ...linha, quantidade: linha.quantidade + valor };
+      return copia;
+    });
+  }
+
   function alterarQuantidade(item, valor) {
+    // Prato com montagem: o + abre a janela; o − tira a última montagem desse prato.
+    if (temMontagem(item)) {
+      if (valor > 0) return setMontando(item);
+      const linhas = Object.values(carrinho).filter((l) => l.produtoId === item.id && l.montagem);
+      if (linhas.length) ajustarLinha(linhas[linhas.length - 1].chave, -1);
+      return;
+    }
     setCarrinho((anterior) => {
       const quantidadeAtual = anterior[item.id]?.quantidade || 0;
       const novaQuantidade = quantidadeAtual + valor;
@@ -221,6 +263,7 @@ function CardapioMesa() {
       return {
         ...anterior,
         [item.id]: {
+          chave: item.id,
           produtoId: item.id,
           nome: item.nome,
           preco: item.preco,
@@ -349,7 +392,7 @@ function CardapioMesa() {
     for (const item of itens) {
       if (!item.produtoId) continue;
 
-      const estoqueRef = doc(db, "estoque", item.produtoId);
+      const estoqueRef = doc(db, ...L(), "estoque", item.produtoId);
       const estoqueSnap = await getDoc(estoqueRef);
 
       if (!estoqueSnap.exists()) continue;
@@ -368,7 +411,7 @@ function CardapioMesa() {
       );
 
       if (novaQuantidade === 0 && quantidadeAtual > 0) {
-        await addDoc(collection(db, "notificacoes"), {
+        await addDoc(collection(db, ...L(), "notificacoes"), {
           tipo: "estoque",
           mensagem: `${item.nome} acabou no estoque`,
           produtoId: item.produtoId,
@@ -389,6 +432,29 @@ function CardapioMesa() {
 
     setEnviando(true);
 
+    // Loja do site da IFTech: o pedido passa pelo servidor, que confere os preços no cardápio.
+    if (MULTI) {
+      try {
+        await mesasApi(
+          "pedido",
+          {
+            loja: getLoja(),
+            mesa: Number(mesa),
+            cliente: nomeCliente || "Cliente",
+            itens: itensSelecionados.map((item) => ({ produtoId: item.produtoId, qtd: Number(item.quantidade || 0), ...(item.montagem ? { montagem: item.montagem } : {}) })),
+          },
+          false
+        );
+        setCarrinho({});
+        setMensagem("Pedido enviado com sucesso!");
+        setTimeout(() => setMensagem(""), 3000);
+      } catch (erro) {
+        setMensagem(erro.message || "Erro ao enviar pedido.");
+      }
+      setEnviando(false);
+      return;
+    }
+
     try {
       const clientePedido = nomeCliente || "Cliente";
 
@@ -401,7 +467,7 @@ function CardapioMesa() {
         cliente: clientePedido,
       }));
 
-      const pedidosRef = collection(db, "pedidos");
+      const pedidosRef = collection(db, ...L(), "pedidos");
 
       const consultaMesaAberta = query(
         pedidosRef,
@@ -450,14 +516,14 @@ function CardapioMesa() {
           0
         );
 
-        await updateDoc(doc(db, "pedidos", documentoMesa.id), {
+        await updateDoc(doc(db, ...L(), "pedidos", documentoMesa.id), {
           itens: itensAtualizados,
           total: novoTotal,
           totalItens: novoTotalItens,
           atualizadoEm: new Date().toISOString(),
         });
       } else {
-        await addDoc(collection(db, "pedidos"), {
+        await addDoc(collection(db, ...L(), "pedidos"), {
           mesa: Number(mesa),
           itens: itensNovos,
           total,
@@ -474,7 +540,7 @@ function CardapioMesa() {
 
       await baixarEstoque(itensNovos);
 
-      await addDoc(collection(db, "notificacoes"), {
+      await addDoc(collection(db, ...L(), "notificacoes"), {
         mesa: Number(mesa),
         tipo: "pedido",
         mensagem: `Novo pedido na Mesa ${mesa}`,
@@ -506,8 +572,20 @@ function CardapioMesa() {
   async function chamarGarcom() {
     setEnviando(true);
 
+    if (MULTI) {
+      try {
+        await mesasApi("chamar", { loja: getLoja(), mesa: Number(mesa), tipo: "garcom" }, false);
+        setMensagem("Garcom chamado com sucesso!");
+        setTimeout(() => setMensagem(""), 3000);
+      } catch (erro) {
+        setMensagem(erro.message || "Erro ao chamar garçom.");
+      }
+      setEnviando(false);
+      return;
+    }
+
     try {
-      await addDoc(collection(db, "notificacoes"), {
+      await addDoc(collection(db, ...L(), "notificacoes"), {
         mesa: Number(mesa),
         tipo: "garcom",
         mensagem: `Mesa ${mesa} chamou o garçom`,
@@ -541,8 +619,21 @@ function CardapioMesa() {
     const totalItensConta = pedidoMesaAberto?.totalItens || 0;
     const itensConta = pedidoMesaAberto?.itens || [];
 
+    if (MULTI) {
+      try {
+        await mesasApi("chamar", { loja: getLoja(), mesa: Number(mesa), tipo: "pagamento", formaPagamento }, false);
+        setMensagem(`💳 Total: R$ ${formatarMoeda(totalConta)} • Pagamento: ${formaPagamento} • O garçom já foi notificado.`);
+        setMostrarModalPagamento(false);
+        setFormaPagamento("");
+      } catch (erro) {
+        setMensagem(erro.message || "Erro ao pedir a conta.");
+      }
+      setEnviando(false);
+      return;
+    }
+
     try {
-      await addDoc(collection(db, "notificacoes"), {
+      await addDoc(collection(db, ...L(), "notificacoes"), {
         mesa: Number(mesa),
         tipo: "pagamento",
         mensagem: `Mesa ${mesa} pediu pagamento`,
@@ -630,7 +721,7 @@ function CardapioMesa() {
 
       <div className="cardapio-cliente-card">
         <div className="cardapio-header">
-          <span>🍽️ Espetinho do Nem</span>
+          <span>{process.env.REACT_APP_MULTI === "1" ? "🍽️" : "🍢"} {nomeLoja}</span>
           <h1>Mesa {mesa}</h1>
           <p>Escolha uma categoria para fazer seu pedido.</p>
 
@@ -662,7 +753,7 @@ function CardapioMesa() {
               }`}
               data-categoria-cardapio={categoria.categoria}
               onPointerDown={(evento) => {
-                if (evento.currentTarget.setPointerCapture) {
+                if (evento.pointerType !== "mouse" && evento.currentTarget.setPointerCapture) {
                   evento.currentTarget.setPointerCapture(evento.pointerId);
                 }
                 iniciarArrastoCategoriaTouch(evento, categoria.categoria);
@@ -705,16 +796,20 @@ function CardapioMesa() {
                     return a.nome.localeCompare(b.nome);
                   })
                   .map((item) => {
-                    const quantidade = carrinho[item.id]?.quantidade || 0;
-                    
+                    const quantidade = Object.values(carrinho).filter((l) => l.produtoId === item.id).reduce((s, l) => s + l.quantidade, 0);
+
                     const quantidadeEstoque = Number(estoque[item.id]?.quantidade || 0);
-const esgotado = quantidadeEstoque <= 0;
+                    // Lojas da IFTech: só conta como esgotado o que tem estoque controlado (mínimo definido em Estoque);
+                    // prato de almoço sem controle de estoque nunca aparece esgotado.
+                    const esgotado = MULTI
+                      ? estoque[item.id]?.minimo !== undefined && quantidadeEstoque <= 0
+                      : quantidadeEstoque <= 0;
 
                     return (
                       <div key={item.id} className="cardapio-produto">
                         <div>
                           <strong>{item.nome}</strong>
-                          <p>R$ {formatarMoeda(item.preco)}</p>
+                          <p>R$ {formatarMoeda(item.preco)}{temMontagem(item) ? " · toque no + para montar" : ""}</p>
                           {esgotado && <small className="produto-esgotado">Esgotado</small>}
                         </div>
 
@@ -765,8 +860,9 @@ const esgotado = quantidadeEstoque <= 0;
             <h3>Resumo do pedido</h3>
 
             {itensSelecionados.map((item) => (
-              <div key={item.produtoId} className="cardapio-resumo-item">
+              <div key={item.chave || item.produtoId} className="cardapio-resumo-item">
                 <span>
+                  <button type="button" className="cardapio-resumo-menos" onClick={() => ajustarLinha(item.chave || item.produtoId, -1)} aria-label={`Tirar 1 ${item.nome}`}>−</button>{" "}
                   {item.quantidade}x {item.nome}
                 </span>
                 <strong>
@@ -778,6 +874,10 @@ const esgotado = quantidadeEstoque <= 0;
         )}
 
         {mensagem && <p className="cardapio-mensagem">{mensagem}</p>}
+
+        {montando && (
+          <MontarPrato produto={montando} bebidas={sugestoesBebida(produtos)} onAdicionar={adicionarMontado} onFechar={() => setMontando(null)} />
+        )}
 
         <div className="cardapio-footer">
           <div className="cardapio-total">

@@ -1,3 +1,6 @@
+import { L, MULTI } from "../../loja";
+import useNomeLoja from "../../hooks/useNomeLoja";
+import Equipe from "../../components/Equipe";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -12,8 +15,16 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import "../../styles/Garcom/Config.css";
+import InstallModal from "../../components/InstallApp";
+import { isInstalled } from "../../utils/installPrompt";
+
+// Prato montado ("Peito empanado — feijão preto, …") conta no relatório como o prato.
+const nomeProduto = (item) => item.nomeBase || String(item.nome || "").split(" — ")[0];
+
 
 function Config() {
+  const nomeLoja = useNomeLoja();
+  const [instalarAberto, setInstalarAberto] = useState(false);
   const [mensagem, setMensagem] = useState("");
   const [encerrando, setEncerrando] = useState(false);
   const [modalEncerrarDia, setModalEncerrarDia] = useState(false);
@@ -39,7 +50,7 @@ function Config() {
     setEncerrando(true);
 
     try {
-      const vendasSnapshot = await getDocs(collection(db, "vendasDia"));
+      const vendasSnapshot = await getDocs(collection(db, ...L(), "vendasDia"));
 
       const vendasDia = vendasSnapshot.docs.map((documento) => ({
         id: documento.id,
@@ -60,16 +71,16 @@ function Config() {
 
       vendasDia.forEach((venda) => {
         (venda.itens || []).forEach((item) => {
-          if (!produtosVendidos[item.nome]) {
-            produtosVendidos[item.nome] = {
-              nome: item.nome,
+          if (!produtosVendidos[nomeProduto(item)]) {
+            produtosVendidos[nomeProduto(item)] = {
+              nome: nomeProduto(item),
               qtd: 0,
               total: 0,
             };
           }
 
-          produtosVendidos[item.nome].qtd += Number(item.qtd || 0);
-          produtosVendidos[item.nome].total +=
+          produtosVendidos[nomeProduto(item)].qtd += Number(item.qtd || 0);
+          produtosVendidos[nomeProduto(item)].total +=
             Number(item.preco || 0) * Number(item.qtd || 0);
         });
       });
@@ -85,19 +96,19 @@ function Config() {
   criadoEm: serverTimestamp(),
 };
 
-await addDoc(collection(db, "historicoDias"), fechamentoDoDia);
+await addDoc(collection(db, ...L(), "historicoDias"), fechamentoDoDia);
 
-await addDoc(collection(db, "relatorioGerencial"), fechamentoDoDia);
+await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
 
       for (const venda of vendasSnapshot.docs) {
-        await deleteDoc(doc(db, "vendasDia", venda.id));
+        await deleteDoc(doc(db, ...L(), "vendasDia", venda.id));
       }
 
-      const estoqueSnapshot = await getDocs(collection(db, "estoque"));
+      const estoqueSnapshot = await getDocs(collection(db, ...L(), "estoque"));
 
       for (const item of estoqueSnapshot.docs) {
         await setDoc(
-          doc(db, "estoque", item.id),
+          doc(db, ...L(), "estoque", item.id),
           {
             quantidade: 0,
             atualizadoEm: new Date().toISOString(),
@@ -106,16 +117,16 @@ await addDoc(collection(db, "relatorioGerencial"), fechamentoDoDia);
         );
       }
 
-      const historicoMesasSnapshot = await getDocs(collection(db, "historicoMesas"));
+      const historicoMesasSnapshot = await getDocs(collection(db, ...L(), "historicoMesas"));
 
       for (const mesa of historicoMesasSnapshot.docs) {
-        await deleteDoc(doc(db, "historicoMesas", mesa.id));
+        await deleteDoc(doc(db, ...L(), "historicoMesas", mesa.id));
       }
 
       // Retorna todas as mesas para a posição visual original.
       // Isso NUNCA altera número da mesa, pedidos, histórico ou produtos —
       // só o campo "posicao" usado para desenhar a grade de mesas.
-      const mesasSnapshot = await getDocs(collection(db, "mesas"));
+      const mesasSnapshot = await getDocs(collection(db, ...L(), "mesas"));
       const batchPosicoes = writeBatch(db);
       let precisaResetarPosicoes = false;
 
@@ -128,7 +139,7 @@ await addDoc(collection(db, "relatorioGerencial"), fechamentoDoDia);
 
         if (dados.posicao !== posicaoOriginal) {
           precisaResetarPosicoes = true;
-          batchPosicoes.update(doc(db, "mesas", mesaDoc.id), {
+          batchPosicoes.update(doc(db, ...L(), "mesas", mesaDoc.id), {
             posicao: posicaoOriginal,
           });
         }
@@ -205,6 +216,8 @@ await addDoc(collection(db, "relatorioGerencial"), fechamentoDoDia);
         </div>
       </Link>
 
+      {MULTI && <Equipe />}
+
       <Link to="/config/impressora" style={{ textDecoration: "none" }}>
         <div className="config-card">
           <div className="config-icon">🖨️</div>
@@ -230,11 +243,28 @@ await addDoc(collection(db, "relatorioGerencial"), fechamentoDoDia);
       <div className="config-card">
         <div className="config-icon">📱</div>
         <div>
-          <h2>Aplicativo</h2>
-          <p>Aplicativo Oficial da ByteForce.</p>
-          <strong>Espetinho do Nem</strong>
+          {MULTI ? (
+            <>
+              <h2>Instalar o app</h2>
+              <p>Coloque o sistema na tela de início: abre como um app, num toque. Sistema de Mesas da IFTech.</p>
+              {isInstalled() ? (
+                <strong>Já instalado neste aparelho</strong>
+              ) : (
+                <button className="config-btn" onClick={() => setInstalarAberto(true)}>
+                  Instalar o app
+                </button>
+              )}
+            </>
+          ) : (
+            <>
+              <h2>Aplicativo</h2>
+              <p>Aplicativo Oficial da ByteForce.</p>
+              <strong>{nomeLoja}</strong>
+            </>
+          )}
         </div>
       </div>
+      {instalarAberto && <InstallModal onClose={() => setInstalarAberto(false)} />}
 
       <div className="config-card">
         <div className="config-icon">✅</div>

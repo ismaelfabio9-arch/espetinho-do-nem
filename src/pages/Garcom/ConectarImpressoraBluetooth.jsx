@@ -58,7 +58,7 @@ function ConectarImpressoraBluetooth() {
     try {
       await enviarTesteTexto(
         caracteristicaEncontrada.caracteristica,
-        "TESTE ESPETINHO DO NEM"
+        process.env.REACT_APP_MULTI === "1" ? "TESTE DE IMPRESSORA" : "TESTE ESPETINHO DO NEM"
       );
       setResultadoTeste(
         "Comando enviado sem erro. Confira a impressora: se saiu algo (mesmo que estranho), me avise o que apareceu. Se não saiu nada, esse não é o protocolo certo."

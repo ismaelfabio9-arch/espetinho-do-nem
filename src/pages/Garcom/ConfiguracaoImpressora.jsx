@@ -1,3 +1,4 @@
+import { L } from "../../loja";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
@@ -15,7 +16,7 @@ function ConfiguracaoImpressora() {
   const [mensagem, setMensagem] = useState("");
 
   useEffect(() => {
-    const cancelar = onSnapshot(doc(db, "configuracoes", "impressora"), (snap) => {
+    const cancelar = onSnapshot(doc(db, ...L(), "configuracoes", "impressora"), (snap) => {
       if (snap.exists()) {
         setConfig({ ...CONFIG_IMPRESSORA_PADRAO, ...snap.data() });
       }
@@ -37,7 +38,7 @@ function ConfiguracaoImpressora() {
     setSalvando(true);
     try {
       await setDoc(
-        doc(db, "configuracoes", "impressora"),
+        doc(db, ...L(), "configuracoes", "impressora"),
         {
           ...config,
           atualizadoEm: new Date().toISOString(),
@@ -58,10 +59,10 @@ function ConfiguracaoImpressora() {
       mesa: "1",
       cliente: "",
       itens: [
-        { nome: "Bife acebolado", qtd: 2, preco: 8 },
+        process.env.REACT_APP_MULTI === "1" ? { nome: "Bife acebolado", qtd: 1, preco: 25 } : { nome: "Espetinho de Carne", qtd: 2, preco: 8 },
         { nome: "Coca-Cola", qtd: 1, preco: 6 },
       ],
-      total: 22,
+      total: process.env.REACT_APP_MULTI === "1" ? 31 : 22,
       observacoes: "Impressão de teste do sistema.",
       config,
     });
