@@ -3,6 +3,8 @@
 .rapido-cats::-webkit-scrollbar { display: none; }
 .rapido-cats button { flex: none; border: 1px solid #2a2a2a; background: #171717; color: #e5e7eb; border-radius: 999px; padding: 9px 14px; font-size: 14px; font-weight: 700; cursor: pointer; white-space: nowrap; }
 .rapido-cats button.ativa { background: #16a34a; border-color: #16a34a; color: #fff; }
+/* No computador (mouse) a faixa não arrasta para o lado: as categorias quebram em linhas. */
+@media (hover: hover) and (pointer: fine) { .rapido-cats { flex-wrap: wrap; overflow-x: visible; } }
 .rapido-grade { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 12px; }
 .rapido-item { position: relative; text-align: left; background: #161616; border: 1px solid #262626; color: #f3f4f6; border-radius: 14px; padding: 12px; min-height: 78px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; }
 .rapido-item strong { font-size: 15px; line-height: 1.2; padding-right: 24px; }
