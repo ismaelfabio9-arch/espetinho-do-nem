@@ -20,6 +20,8 @@
 }
 
 .cardapio-cliente-card h1 {
+  /* O cardápio do cliente é sempre escuro: o título "Mesa 4" não segue o tema claro do painel. */
+  color: #fff;
   margin-top: 8px;
   margin-bottom: 4px;
 }

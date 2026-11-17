@@ -92,6 +92,9 @@ body.dark .produto-modal-form input::placeholder { color: #9ca3af !important; }
 .modal-card h2 {
   margin: 10px 0;
   font-size: 24px;
+  /* Os títulos das janelas acompanham a cor da própria janela (escura aqui, clara em MesaDetalhe.css):
+     antes ficavam escuros no fundo escuro ("Encerrar Mesa", "Forma de pagamento"). */
+  color: inherit;
 }
 
 .modal-card p {
