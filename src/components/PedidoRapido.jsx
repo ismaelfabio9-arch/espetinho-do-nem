@@ -7,7 +7,7 @@ import "./PedidoRapido.css";
 const moeda = (v) => Number(v || 0).toFixed(2).replace(".", ",");
 const semAcento = (s) => String(s || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
 
-export default function PedidoRapido({ categorias, contagem, onTocar, emoji }) {
+export default function PedidoRapido({ categorias, contagem, onTocar, emoji, indisponivel }) {
   const [busca, setBusca] = useState("");
   // Sem escolha do garçom, abre nos pratos (a 1ª categoria de prato na ordem da loja).
   const [cat, setCat] = useState("");
@@ -38,12 +38,13 @@ export default function PedidoRapido({ categorias, contagem, onTocar, emoji }) {
         <div className="rapido-grade">
           {itens.map((item) => {
             const n = contagem(item);
+            const off = indisponivel ? indisponivel(item) : false;
             return (
-              <button type="button" key={item.id} className={n ? "rapido-item sel" : "rapido-item"} onClick={() => onTocar(item)}>
+              <button type="button" key={item.id} className={off ? "rapido-item off" : n ? "rapido-item sel" : "rapido-item"} onClick={() => onTocar(item)} disabled={off}>
                 {n > 0 && <span className="rapido-qtd">{n}</span>}
                 <strong>{item.nome}</strong>
                 <span className="rapido-preco">R$ {moeda(item.preco)}</span>
-                {temMontagem(item) && <span className="rapido-montar">montar ›</span>}
+                {off ? <span className="rapido-esgotado">Esgotado</span> : temMontagem(item) && <span className="rapido-montar">montar ›</span>}
               </button>
             );
           })}
