@@ -74,6 +74,11 @@ function Estoque() {
   }
 
   function emojiCategoria(categoria) {
+    if (categoria.includes("Pratos")) return "🍛";
+    if (categoria.includes("Prato feito") || categoria.includes("PF")) return "🍽️";
+    if (categoria.includes("Acompanhamentos")) return "🍚";
+    if (categoria.includes("Sucos")) return "🧃";
+    if (categoria.includes("Sobremesas")) return "🍮";
     if (categoria.includes("Espetinhos")) return "🍢";
     if (categoria.includes("Caldinhos")) return "🥣";
     if (categoria.includes("Refrigerantes")) return "🥤";

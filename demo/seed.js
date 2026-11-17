@@ -1,4 +1,4 @@
-// Bar de exemplo da demonstração. Tudo inventado: cardápio, preços, nomes de
+// Restaurante de almoço de exemplo da demonstração. Tudo inventado: cardápio, preços, nomes de
 // clientes e vendas servem só para mostrar o sistema funcionando.
 import { Timestamp, demoReplaceAll } from "./fakeFirestore";
 
@@ -12,11 +12,13 @@ const slug = (t) =>
 
 // [categoria, [nome, preço, estoque]]
 const CARDAPIO = [
-  ["Espetinhos", [["Carne", 9, 60], ["Frango", 8, 60], ["Linguiça", 8, 45], ["Coração", 8, 40], ["Queijo coalho", 10, 35], ["Pão de alho", 6, 50], ["Frango com bacon", 12, 30]]],
-  ["Caldinhos", [["Feijão", 10, 25], ["Camarão", 13, 20], ["Peixe", 12, 15]]],
-  ["Porções", [["Batata frita", 25, 30], ["Macaxeira frita", 22, 25], ["Calabresa acebolada", 30, 20]]],
-  ["Acompanhamentos", [["Farofa", 5, 40], ["Vinagrete", 5, 40], ["Arroz", 8, 30]]],
-  ["Bebidas", [["Refrigerante lata", 6, 72], ["Água mineral", 4, 48], ["Suco de laranja", 8, 30], ["Cerveja long neck", 9, 96]]],
+  ["Pratos do dia", [["Frango grelhado", 22, 40], ["Bife acebolado", 25, 35], ["Peixe frito", 26, 25], ["Carne de sol com macaxeira", 28, 25], ["Strogonoff de frango", 22, 30], ["Feijoada", 28, 20]]],
+  ["Prato feito (PF)", [["PF de frango", 18, 40], ["PF de carne", 20, 40]]],
+  ["Acompanhamentos", [["Arroz", 6, 50], ["Feijão", 6, 50], ["Farofa", 5, 40], ["Salada", 7, 30], ["Batata frita", 12, 30]]],
+  ["Sucos", [["Suco de laranja", 8, 40], ["Suco de maracujá", 8, 40], ["Suco de acerola", 8, 40], ["Suco de cajá", 8, 30]]],
+  ["Refrigerantes e água", [["Refrigerante lata", 6, 72], ["Refrigerante 1L", 10, 24], ["Água mineral", 4, 48], ["Água com gás", 5, 24]]],
+  ["Cervejas", [["Cerveja long neck", 9, 72], ["Cerveja lata", 6, 72]]],
+  ["Sobremesas", [["Pudim", 8, 20], ["Mousse de maracujá", 7, 20], ["Cocada", 5, 30]]],
 ];
 
 const MESAS = 15;
@@ -56,9 +58,9 @@ export function seedDemo() {
 
   // Mesas abertas agora.
   const abertas = [
-    [2, "Carlos (exemplo)", [item("Carne", 4), item("Frango", 2), item("Farofa", 1), item("Cerveja long neck", 4)], 35],
-    [5, "", [item("Batata frita", 1), item("Refrigerante lata", 3), item("Queijo coalho", 2)], 18],
-    [7, "Ana e amigos (exemplo)", [item("Calabresa acebolada", 1), item("Linguiça", 3), item("Feijão", 2), item("Suco de laranja", 2)], 9],
+    [2, "Carlos (exemplo)", [item("Bife acebolado", 1), item("Frango grelhado", 1), item("Suco de laranja", 2)], 25],
+    [5, "", [item("PF de carne", 3), item("Refrigerante lata", 3), item("Pudim", 1)], 15],
+    [7, "Equipe da obra (exemplo)", [item("Feijoada", 2), item("PF de frango", 2), item("Farofa", 1), item("Suco de maracujá", 4)], 8],
   ];
   abertas.forEach(([mesa, cliente, itens, minAtras], k) => {
     if (cliente) cols.mesas[String(mesa)].cliente = cliente;
@@ -97,7 +99,7 @@ export function seedDemo() {
   // Dias anteriores já encerrados (relatório e histórico).
   for (let d = 7; d >= 1; d--) {
     const dia = new Date(now - d * 86400000);
-    dia.setHours(23, 30, 0, 0);
+    dia.setHours(15, 30, 0, 0); // almoço: fecha o dia à tarde
     const vendas = [];
     const qtd = 6 + Math.floor(r() * 8);
     for (let i = 0; i < qtd; i++) vendas.push(venda(dia.getTime() - (qtd - i) * 20 * 60000, r() < 0.8 ? "mesa" : "viagem", 1 + Math.floor(r() * MESAS)));
@@ -124,7 +126,7 @@ export function seedDemo() {
   }
 
   // Sem impressora na demonstração (evita abrir a janela de impressão a cada pedido).
-  cols.configuracoes.impressora = { habilitada: false, autoImprimirPedido: false, autoImprimirComprovante: false, larguraPapel: "58mm", nomeEstabelecimento: "Bar Modelo (demonstração)", endereco: "Endereço de exemplo, Recife - PE", telefone: "(81) 90000-0000", mensagemRodape: "Obrigado pela preferência!" };
+  cols.configuracoes.impressora = { habilitada: false, autoImprimirPedido: false, autoImprimirComprovante: false, larguraPapel: "58mm", nomeEstabelecimento: "Restaurante Modelo (demonstração)", endereco: "Endereço de exemplo, Recife - PE", telefone: "(81) 90000-0000", mensagemRodape: "Obrigado pela preferência!" };
 
   demoReplaceAll(cols);
 }

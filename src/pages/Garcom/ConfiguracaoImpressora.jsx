@@ -58,7 +58,7 @@ function ConfiguracaoImpressora() {
       mesa: "1",
       cliente: "",
       itens: [
-        { nome: "Espetinho de Carne", qtd: 2, preco: 8 },
+        { nome: "Bife acebolado", qtd: 2, preco: 8 },
         { nome: "Coca-Cola", qtd: 1, preco: 6 },
       ],
       total: 22,

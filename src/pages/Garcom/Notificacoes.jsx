@@ -71,7 +71,7 @@ function Notificacoes() {
 }
 
   function iconeNotificacao(tipo) {
-  if (tipo === "pedido") return "🍢";
+  if (tipo === "pedido") return "🍽️";
   if (tipo === "garcom") return "🛎️";
   if (tipo === "pagamento") return "💳";
   if (tipo === "estoque") return "📦";

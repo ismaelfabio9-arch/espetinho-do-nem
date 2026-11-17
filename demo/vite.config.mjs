@@ -7,7 +7,7 @@ import react from "@vitejs/plugin-react";
 import { fileURLToPath } from "node:url";
 
 const BASE = "/demonstracao/mesas/";
-const NOME_DEMO = "Bar Modelo (demonstração)";
+const NOME_DEMO = "Restaurante Modelo (demonstração)";
 const here = (p) => fileURLToPath(new URL(p, import.meta.url));
 
 function ajustesDemo() {
