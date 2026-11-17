@@ -72,7 +72,7 @@ function Notificacoes() {
 }
 
   function iconeNotificacao(tipo) {
-  if (tipo === "pedido") return "🍢";
+  if (tipo === "pedido") return process.env.REACT_APP_MULTI === "1" ? "🍽️" : "🍢";
   if (tipo === "garcom") return "🛎️";
   if (tipo === "pagamento") return "💳";
   if (tipo === "estoque") return "📦";

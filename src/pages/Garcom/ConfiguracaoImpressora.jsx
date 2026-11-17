@@ -59,10 +59,10 @@ function ConfiguracaoImpressora() {
       mesa: "1",
       cliente: "",
       itens: [
-        { nome: "Espetinho de Carne", qtd: 2, preco: 8 },
+        process.env.REACT_APP_MULTI === "1" ? { nome: "Bife acebolado", qtd: 1, preco: 25 } : { nome: "Espetinho de Carne", qtd: 2, preco: 8 },
         { nome: "Coca-Cola", qtd: 1, preco: 6 },
       ],
-      total: 22,
+      total: process.env.REACT_APP_MULTI === "1" ? 31 : 22,
       observacoes: "Impressão de teste do sistema.",
       config,
     });

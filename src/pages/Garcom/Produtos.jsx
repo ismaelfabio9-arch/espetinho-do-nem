@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { Link } from "react-router-dom";
 import { db } from "../../firebase";
-import { produtos as produtosPadrao } from "../../data/produtos";
+import { produtos as produtosEspetinho, produtosAlmoco } from "../../data/produtos";
 import {
   SEM_CATEGORIA,
   migrarCategoriasSeNecessario,
@@ -96,6 +96,8 @@ function Produtos() {
   }
 
   async function importarProdutosPadrao() {
+    // Lojas da IFTech começam com um cardápio de almoço de exemplo; a loja original mantém o dela.
+    const produtosPadrao = MULTI ? produtosAlmoco : produtosEspetinho;
     for (const categoria of produtosPadrao) {
       for (const item of categoria.itens) {
         const produtoId =
@@ -126,6 +128,16 @@ function Produtos() {
       }
     }
 
+    // Loja nova da IFTech: as categorias já nascem na ordem do cardápio (pratos primeiro, sobremesas no fim).
+    if (MULTI && categorias.length === 0) {
+      for (const [ordem, categoria] of produtosPadrao.entries()) {
+        await setDoc(
+          doc(db, ...L(), "categorias", slugify(categoria.categoria) || `categoria-${ordem}`),
+          { nome: categoria.categoria, ordem, ativo: true, criadoEm: serverTimestamp(), atualizadoEm: new Date().toISOString() },
+          { merge: true }
+        );
+      }
+    }
     await migrarCategoriasSeNecessario();
   }
 
@@ -731,17 +743,21 @@ function Produtos() {
         </div>
       )}
 
-      {!MULTI && produtos.length === 0 && (
-        <button
-          className="btn-verde"
-          style={{
-            width: "100%",
-            marginBottom: "16px",
-          }}
-          onClick={importarProdutosPadrao}
-        >
-          Importar cardápio padrão
-        </button>
+      {produtos.length === 0 && (
+        <div style={{ marginBottom: "16px" }}>
+          <button
+            className="btn-verde"
+            style={{ width: "100%" }}
+            onClick={importarProdutosPadrao}
+          >
+            {MULTI ? "Começar com um cardápio de almoço de exemplo" : "Importar cardápio padrão"}
+          </button>
+          {MULTI && (
+            <p style={{ margin: "8px 2px 0", fontSize: 13, opacity: 0.75 }}>
+              Pratos do dia, PF, acompanhamentos, sucos, refrigerantes, cervejas e sobremesas. Depois é só mudar nomes e preços.
+            </p>
+          )}
+        </div>
       )}
 
       {categoriasExibidas.map((categoria) => (

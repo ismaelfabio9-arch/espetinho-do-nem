@@ -52,6 +52,11 @@ function CardapioMesa() {
   }
 
   function emojiCategoria(categoria) {
+    if (categoria.includes("Pratos")) return "🍛";
+    if (categoria.includes("Prato feito") || categoria.includes("PF")) return "🍽️";
+    if (categoria.includes("Acompanhamentos")) return "🍚";
+    if (categoria.includes("Sucos")) return "🧃";
+    if (categoria.includes("Sobremesas")) return "🍮";
     if (categoria.includes("Espetinhos")) return "🍢";
     if (categoria.includes("Caldinhos")) return "🥣";
     if (categoria.includes("Refrigerantes")) return "🥤";
@@ -677,7 +682,7 @@ function CardapioMesa() {
 
       <div className="cardapio-cliente-card">
         <div className="cardapio-header">
-          <span>🍢 {nomeLoja}</span>
+          <span>{process.env.REACT_APP_MULTI === "1" ? "🍽️" : "🍢"} {nomeLoja}</span>
           <h1>Mesa {mesa}</h1>
           <p>Escolha uma categoria para fazer seu pedido.</p>
 
