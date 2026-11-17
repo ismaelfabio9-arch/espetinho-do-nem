@@ -12,6 +12,10 @@ import {
 import { db } from "../../firebase";
 import "../../styles/Garcom/Historico.css";
 
+// Prato montado ("Peito empanado — feijão preto, …") conta no relatório como o prato.
+const nomeProduto = (item) => item.nomeBase || String(item.nome || "").split(" — ")[0];
+
+
 function Historico() {
   const [historico, setHistorico] = useState([]);
   const [fechamentoAberto, setFechamentoAberto] = useState(null);
@@ -56,16 +60,16 @@ function Historico() {
         const quantidade = Number(item.qtd || item.quantidade || 0);
 totalItens += quantidade;
 
-        if (!produtos[item.nome]) {
-          produtos[item.nome] = {
-            nome: item.nome,
+        if (!produtos[nomeProduto(item)]) {
+          produtos[nomeProduto(item)] = {
+            nome: nomeProduto(item),
             qtd: 0,
             total: 0,
           };
         }
 
-        produtos[item.nome].qtd += quantidade;
-produtos[item.nome].total += Number(item.preco || 0) * quantidade;
+        produtos[nomeProduto(item)].qtd += quantidade;
+produtos[nomeProduto(item)].total += Number(item.preco || 0) * quantidade;
       });
     });
 

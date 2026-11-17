@@ -539,6 +539,11 @@ function Dashboard() {
               Pedido Viagem
             </Link>
 
+            <Link to="/cardapio-hoje" onClick={() => setMenuAberto(false)}>
+              📅
+              <span>Cardápio de hoje</span>
+            </Link>
+
             <Link to="/produtos" onClick={() => setMenuAberto(false)}>
               <Package size={20} />
               Produtos

@@ -20,6 +20,7 @@ import RelatorioGerencial from "./pages/Garcom/RelatorioGerencial";
 import CardapioMesa from "./pages/Cliente/CardapioMesa";
 import Estoque from "./pages/Garcom/Estoque";
 import QrCodes from "./pages/Garcom/QrCodes";
+import CardapioHoje from "./pages/Garcom/CardapioHoje";
 
 
 function App() {
@@ -71,6 +72,7 @@ function TelasEquipe() {
       <Route path="/viagem" element={<Viagem />} />
       <Route path="/produtos" element={<Produtos />} />
       <Route path="/qrcodes" element={<QrCodes />} />
+      <Route path="/cardapio-hoje" element={<CardapioHoje />} />
     </Routes>
   );
 }

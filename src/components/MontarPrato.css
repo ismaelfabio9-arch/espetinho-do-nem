@@ -1,0 +1,22 @@
+.montar-fundo { position: fixed; inset: 0; z-index: 100000; background: rgba(0, 0, 0, 0.6); display: flex; align-items: flex-end; justify-content: center; }
+.montar-folha { width: 100%; max-width: 520px; max-height: 92dvh; overflow-y: auto; background: #141414; color: #f3f4f6; border-radius: 22px 22px 0 0; border-top: 1px solid #2a2a2a; padding: 18px 16px calc(18px + env(safe-area-inset-bottom, 0px)); }
+.montar-topo { display: flex; align-items: baseline; gap: 10px; }
+.montar-topo h2 { flex: 1; margin: 0; font-size: 21px; font-weight: 800; line-height: 1.2; }
+.montar-topo strong { color: #22c55e; font-size: 19px; white-space: nowrap; }
+.montar-fechar { background: none; border: 0; color: #9ca3af; font-size: 22px; padding: 0 2px; cursor: pointer; }
+.montar-grupo { margin: 14px 0 8px; font-size: 12px; font-weight: 800; letter-spacing: 0.08em; color: #9ca3af; }
+.montar-opcoes { display: flex; flex-wrap: wrap; gap: 8px; }
+.montar-op { border: 1.5px solid #2f2f2f; background: transparent; color: #d1d5db; border-radius: 999px; padding: 9px 13px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.montar-op.tem { border-color: #16a34a; background: #123d22; color: #fff; }
+.montar-op.tirou { text-decoration: line-through; color: #6b7280; border-style: dashed; }
+.montar-op.escolhida { border-color: #16a34a; background: #16a34a; color: #fff; }
+.montar-bebidas { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+.montar-bebidas button { background: #171717; border: 1px solid #2a2a2a; color: #f3f4f6; border-radius: 12px; padding: 10px 4px; font-size: 13px; font-weight: 700; cursor: pointer; line-height: 1.2; }
+.montar-bebidas button span { display: block; color: #22c55e; font-size: 12px; margin-top: 3px; }
+.montar-bebidas button.escolhida { border-color: #16a34a; background: #123d22; }
+.montar-adicionar { width: 100%; margin-top: 16px; background: #16a34a; color: #fff; border: 0; border-radius: 14px; padding: 15px; font-size: 17px; font-weight: 800; cursor: pointer; }
+body:not(.dark) .montar-folha { background: #fff; color: #111827; border-top-color: #e5e7eb; }
+body:not(.dark) .montar-op { border-color: #d1d5db; color: #374151; }
+body:not(.dark) .montar-op.tem { background: #dcfce7; color: #14532d; }
+body:not(.dark) .montar-bebidas button { background: #f9fafb; border-color: #e5e7eb; color: #111827; }
+body:not(.dark) .montar-bebidas button.escolhida { background: #dcfce7; }

@@ -467,3 +467,5 @@ body.dark .produto-esgotado {
     font-size: 20px;
   }
 }
+
+.cardapio-resumo-menos { width: 24px; height: 24px; border-radius: 50%; border: 0; background: #e11d48; color: #fff; font-weight: 800; line-height: 1; cursor: pointer; }

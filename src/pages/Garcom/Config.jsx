@@ -18,6 +18,10 @@ import "../../styles/Garcom/Config.css";
 import InstallModal from "../../components/InstallApp";
 import { isInstalled } from "../../utils/installPrompt";
 
+// Prato montado ("Peito empanado — feijão preto, …") conta no relatório como o prato.
+const nomeProduto = (item) => item.nomeBase || String(item.nome || "").split(" — ")[0];
+
+
 function Config() {
   const nomeLoja = useNomeLoja();
   const [instalarAberto, setInstalarAberto] = useState(false);
@@ -67,16 +71,16 @@ function Config() {
 
       vendasDia.forEach((venda) => {
         (venda.itens || []).forEach((item) => {
-          if (!produtosVendidos[item.nome]) {
-            produtosVendidos[item.nome] = {
-              nome: item.nome,
+          if (!produtosVendidos[nomeProduto(item)]) {
+            produtosVendidos[nomeProduto(item)] = {
+              nome: nomeProduto(item),
               qtd: 0,
               total: 0,
             };
           }
 
-          produtosVendidos[item.nome].qtd += Number(item.qtd || 0);
-          produtosVendidos[item.nome].total +=
+          produtosVendidos[nomeProduto(item)].qtd += Number(item.qtd || 0);
+          produtosVendidos[nomeProduto(item)].total +=
             Number(item.preco || 0) * Number(item.qtd || 0);
         });
       });

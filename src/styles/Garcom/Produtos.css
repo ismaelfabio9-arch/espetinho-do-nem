@@ -432,3 +432,11 @@ body.dark .produto-nome-editando input {
   border-color: #374151 !important;
 }
 body.dark .produto-nome-cancelar { background: var(--card-3) !important; color: var(--muted) !important; }
+
+.produto-montagem-btn { margin-top: 6px; align-self: flex-start; border: 1px solid #16a34a; background: transparent; color: #16a34a; border-radius: 999px; padding: 5px 10px; font-size: 12px; font-weight: 700; cursor: pointer; }
+.montagem-card { text-align: left; max-width: 460px; }
+.montagem-card label { display: block; margin-top: 12px; font-weight: 700; font-size: 14px; }
+.montagem-card label small { font-weight: 500; opacity: 0.7; }
+.montagem-card input, .montagem-card textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 6px; padding: 10px; border-radius: 10px; border: 1px solid #d1d5db; font-size: 15px; font-family: inherit; }
+body.dark .montagem-card input, body.dark .montagem-card textarea { background: #111; color: #f3f4f6; border-color: #2f2f2f; }
+.montagem-modelo { margin-top: 12px; background: none; border: 1px dashed #16a34a; color: #16a34a; border-radius: 10px; padding: 9px 12px; font-weight: 700; cursor: pointer; width: 100%; }

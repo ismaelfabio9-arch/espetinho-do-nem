@@ -26,6 +26,7 @@ import {
 import { ordenarItensCategoria } from "../../utils/produtosOrdem";
 import { slugify, formatarMoeda } from "../../utils/texto";
 import "../../styles/Garcom/Produtos.css";
+import { MONTAGEM_ALMOCO, lerMontagem, temMontagem, textoMontagem } from "../../utils/montagem";
 
 function Produtos() {
   const [produtos, setProdutos] = useState([]);
@@ -33,6 +34,8 @@ function Produtos() {
   const [editando, setEditando] = useState(null);
   const [novoPreco, setNovoPreco] = useState("");
   const [editandoNome, setEditandoNome] = useState(null);
+  // Montagem do prato (almoço): o que vem, as escolhas e o que vai a mais.
+  const [montagemAberta, setMontagemAberta] = useState(null);
   const [novoNomeProduto, setNovoNomeProduto] = useState("");
   const [erroNomeProduto, setErroNomeProduto] = useState("");
   const [adicionando, setAdicionando] = useState(false);
@@ -110,6 +113,7 @@ function Produtos() {
             nome: item.nome,
             preco: Number(item.preco),
             ativo: true,
+            ...(item.montagem ? { montagem: item.montagem } : {}),
             criadoEm: serverTimestamp(),
           },
           { merge: true }
@@ -383,6 +387,14 @@ function Produtos() {
     await salvarOrdemCategorias(nova);
   }
 
+  async function salvarMontagem() {
+    const m = lerMontagem(montagemAberta);
+    await setDoc(doc(db, ...L(), "produtos", montagemAberta.id), { montagem: m }, { merge: true });
+    setMontagemAberta(null);
+    setMensagemCategoria(m ? "Montagem do prato salva!" : "Montagem removida.");
+    setTimeout(() => setMensagemCategoria(""), 2500);
+  }
+
   const produtosDisponiveisComoDestino = (categoriaAtual) =>
     categorias.filter((c) => c.nome !== categoriaAtual);
 
@@ -400,6 +412,9 @@ function Produtos() {
         </div>
 
         <div style={{ display: "flex", gap: "8px" }}>
+          <Link to="/cardapio-hoje" className="produto-mini-btn" title="Cardápio de hoje" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
+            📅
+          </Link>
           <button
             className="produto-mini-btn"
             onClick={() => setGerenciandoCategorias((v) => !v)}
@@ -422,6 +437,34 @@ function Produtos() {
       </div>
 
       {mensagemCategoria && <div className="toast">{mensagemCategoria}</div>}
+
+      {montagemAberta && (
+        <div className="modal-overlay" onClick={() => setMontagemAberta(null)}>
+          <div className="modal-card montagem-card" onClick={(e) => e.stopPropagation()}>
+            <h2>🍽️ {montagemAberta.nome}</h2>
+            <p>Na hora de lançar, o garçom (e o cliente no QR Code) monta o prato com isto. Deixe em branco o que não usar.</p>
+            <label>
+              Vem no prato <small>(separe por vírgula)</small>
+              <input value={montagemAberta.vem} onChange={(e) => setMontagemAberta({ ...montagemAberta, vem: e.target.value })} placeholder="Arroz, Feijão, Salada, Farofa" />
+            </label>
+            <label>
+              Escolhas <small>(uma por linha: Grupo: opção, opção)</small>
+              <textarea rows={3} value={montagemAberta.escolhas} onChange={(e) => setMontagemAberta({ ...montagemAberta, escolhas: e.target.value })} placeholder={"Feijão: Carioca, Preto, Macassar\nSalada: Verdura, Vinagrete"} />
+            </label>
+            <label>
+              A mais, com preço <small>(uma por linha: nome = preço)</small>
+              <textarea rows={3} value={montagemAberta.extras} onChange={(e) => setMontagemAberta({ ...montagemAberta, extras: e.target.value })} placeholder={"Ovo = 2\nBatata frita = 6"} />
+            </label>
+            <button type="button" className="montagem-modelo" onClick={() => setMontagemAberta({ ...montagemAberta, ...textoMontagem(MONTAGEM_ALMOCO) })}>
+              Usar o modelo de almoço
+            </button>
+            <div className="modal-acoes">
+              <button type="button" className="modal-btn cancelar" onClick={() => setMontagemAberta(null)}>Cancelar</button>
+              <button type="button" className="modal-btn confirmar" onClick={salvarMontagem}>Salvar</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {gerenciandoCategorias && (
         <div className="pedido-card categorias-painel">
@@ -845,6 +888,15 @@ function Produtos() {
                       </option>
                     ))}
                   </select>
+                  <button
+                    type="button"
+                    className="produto-montagem-btn"
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onTouchStart={(e) => e.stopPropagation()}
+                    onClick={() => setMontagemAberta({ id: produto.id, nome: produto.nome, ...textoMontagem(produto.montagem) })}
+                  >
+                    {temMontagem(produto) ? "🍽️ Montagem do prato ✓" : "🍽️ Montagem do prato"}
+                  </button>
                 </div>
 
                 {editando === produto.id ? (

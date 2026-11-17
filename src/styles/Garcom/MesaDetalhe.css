@@ -929,3 +929,11 @@ body.dark .categoria-reordenar button {
   background: rgba(99, 102, 241, 0.18) !important;
   color: #a5b4fc !important;
 }
+
+/* Pedido atual: tirar ou pôr mais um de cada linha */
+.resumo-ajuste { display: inline-flex; align-items: center; gap: 6px; margin-right: 8px; flex: none; }
+.resumo-ajuste button { width: 28px; height: 28px; border-radius: 50%; border: 0; background: #16a34a; color: #fff; font-size: 17px; font-weight: 800; line-height: 1; cursor: pointer; }
+.resumo-ajuste b { min-width: 16px; text-align: center; }
+.resumo-nome { flex: 1; min-width: 0; }
+.resumo-linha { align-items: center; gap: 8px; }
+body.dark .resumo-linha .resumo-nome, body.dark .resumo-linha .resumo-ajuste b { color: #e5e7eb !important; }

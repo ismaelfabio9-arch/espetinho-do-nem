@@ -1,3 +1,5 @@
+import { MONTAGEM_ALMOCO } from "../utils/montagem";
+
 export const produtos = [
   {
     categoria: "Espetinhos",
@@ -78,13 +80,14 @@ export const produtos = [
   },
 ];
 // Lojas criadas pelo site da IFTech: cardápio de exemplo de um restaurante de almoço com bebidas.
-// O dono muda nomes e preços (ou apaga) depois, em Produtos.
+// O dono muda nomes e preços (ou apaga) depois, em Produtos. Os pratos já vêm com a montagem de almoço.
+const M = (itens) => itens.map((i) => ({ ...i, montagem: MONTAGEM_ALMOCO }));
 export const produtosAlmoco = [
-  { categoria: "Pratos do dia", itens: [
+  { categoria: "Pratos do dia", itens: M([
     { nome: "Frango grelhado", preco: 22 }, { nome: "Bife acebolado", preco: 25 }, { nome: "Peixe frito", preco: 26 },
     { nome: "Carne de sol com macaxeira", preco: 28 }, { nome: "Strogonoff de frango", preco: 22 }, { nome: "Feijoada", preco: 28 },
-  ] },
-  { categoria: "Prato feito (PF)", itens: [{ nome: "PF de frango", preco: 18 }, { nome: "PF de carne", preco: 20 }] },
+  ]) },
+  { categoria: "Prato feito (PF)", itens: M([{ nome: "PF de frango", preco: 18 }, { nome: "PF de carne", preco: 20 }]) },
   { categoria: "Acompanhamentos", itens: [
     { nome: "Arroz", preco: 6 }, { nome: "Feijão", preco: 6 }, { nome: "Farofa", preco: 5 }, { nome: "Salada", preco: 7 }, { nome: "Batata frita", preco: 12 },
   ] },

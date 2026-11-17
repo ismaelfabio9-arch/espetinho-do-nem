@@ -27,6 +27,20 @@ import {
   marcarComoImpresso,
 } from "../../utils/print";
 import "../../styles/Garcom/MesaDetalhe.css";
+import PedidoRapido from "../../components/PedidoRapido";
+import MontarPrato from "../../components/MontarPrato";
+import { sugestoesBebida, temMontagem } from "../../utils/montagem";
+
+function emojiCategoria(categoria) {
+  if (/prato feito|pf/i.test(categoria)) return "🍽️";
+  if (/prato/i.test(categoria)) return "🍛";
+  if (/acompanha/i.test(categoria)) return "🍚";
+  if (/suco/i.test(categoria)) return "🧃";
+  if (/refri|água|agua|bebida/i.test(categoria)) return "🥤";
+  if (/cerveja/i.test(categoria)) return "🍺";
+  if (/sobremesa|doce/i.test(categoria)) return "🍮";
+  return "🍴";
+}
 
 const FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Débito", "Crédito"];
 
@@ -52,6 +66,9 @@ function MesaDetalhe() {
   const [categoriasDocs, setCategoriasDocs] = useState([]);
   const [etapaEncerrar, setEtapaEncerrar] = useState("opcoes"); // opcoes | pagamento
   const [formaPagamentoEncerrar, setFormaPagamentoEncerrar] = useState("");
+  // Pedido rápido (almoço): prato com montagem aberto na janela, e o modo antigo para organizar.
+  const [montando, setMontando] = useState(null);
+  const [organizarAberto, setOrganizarAberto] = useState(false);
   const configImpressora = useConfigImpressora();
 
   useEffect(() => {
@@ -86,8 +103,9 @@ function MesaDetalhe() {
         ...documento.data(),
       }));
 
+      // Fora do cardápio de hoje também não aparece para lançar.
       const produtosAtivos = listaProdutos.filter(
-        (produto) => produto.ativo !== false
+        (produto) => produto.ativo !== false && produto.foraHoje !== true
       );
 
       const grupos = produtosAtivos.reduce((resultado, produto) => {
@@ -103,6 +121,7 @@ function MesaDetalhe() {
           nome: produto.nome,
           preco: Number(produto.preco || 0),
           ordem: produto.ordem,
+          montagem: produto.montagem || null,
         });
 
         return resultado;
@@ -258,6 +277,37 @@ if (pedidosDaMesa.length === 0) {
           qtd: itemAtual.qtd - 1,
         },
       };
+    });
+  }
+
+  function tocarItem(item) {
+    if (temMontagem(item)) setMontando(item);
+    else adicionarItem(item);
+  }
+
+  /** Prato montado (e as bebidas escolhidas junto) entram no pedido atual. */
+  function adicionarMontado({ prato, bebidas }) {
+    setPedido((atual) => {
+      const novo = { ...atual };
+      const ja = novo[prato.nome];
+      novo[prato.nome] = { ...prato, qtd: ja ? ja.qtd + 1 : 1 };
+      bebidas.forEach((b) => {
+        const jb = novo[b.nome];
+        novo[b.nome] = { produtoId: b.id, nome: b.nome, preco: b.preco, qtd: jb ? jb.qtd + 1 : 1 };
+      });
+      return novo;
+    });
+    setMontando(null);
+  }
+
+  function ajustarItemPedido(nome, delta) {
+    setPedido((atual) => {
+      const it = atual[nome];
+      if (!it) return atual;
+      const novo = { ...atual };
+      if (it.qtd + delta <= 0) delete novo[nome];
+      else novo[nome] = { ...it, qtd: it.qtd + delta };
+      return novo;
     });
   }
 
@@ -893,17 +943,62 @@ if (pedidosDaMesa.length === 0) {
 
           {itensPedido.map((item) => (
             <div className="resumo-linha" key={item.nome}>
-              <span>
-                {item.qtd}x {item.nome}
+              <span className="resumo-ajuste">
+                <button type="button" onClick={() => ajustarItemPedido(item.nome, -1)} aria-label={`Tirar 1 ${item.nome}`}>−</button>
+                <b>{item.qtd}</b>
+                <button type="button" onClick={() => ajustarItemPedido(item.nome, 1)} aria-label={`Mais 1 ${item.nome}`}>+</button>
               </span>
+              <span className="resumo-nome">{item.nome}</span>
               <strong>R$ {formatarMoeda(item.preco * item.qtd)}</strong>
             </div>
           ))}
         </div>
       )}
 
+      {montando && (
+        <MontarPrato
+          produto={montando}
+          bebidas={sugestoesBebida(produtos)}
+          onAdicionar={adicionarMontado}
+          onFechar={() => setMontando(null)}
+        />
+      )}
+
+      {!organizarAberto && (
+        <>
+          <div className="titulo-secao-linha">
+            <h2 className="titulo-secao">Adicionar pedido</h2>
+            {produtos.length > 0 && (
+              <button type="button" className="btn-organizar-categorias" onClick={() => setOrganizarAberto(true)}>
+                ↕ Organizar
+              </button>
+            )}
+          </div>
+          {produtos.length === 0 ? (
+            <div className="card-principal">
+              <h2>Nenhum produto para hoje</h2>
+              <p>Cadastre em Produtos ou ligue os pratos em Cardápio de hoje.</p>
+            </div>
+          ) : (
+            <PedidoRapido
+              categorias={produtos}
+              emoji={emojiCategoria}
+              contagem={(item) => itensPedido.filter((p) => p.produtoId === item.id).reduce((s, p) => s + p.qtd, 0)}
+              onTocar={tocarItem}
+            />
+          )}
+        </>
+      )}
+
+      {organizarAberto && (<>
       <div className="titulo-secao-linha">
-        <h2 className="titulo-secao">Adicionar pedido</h2>
+        <h2 className="titulo-secao">Organizar o cardápio</h2>
+        <button type="button" className="btn-organizar-categorias ativo" onClick={() => { setOrganizarAberto(false); setOrganizandoCategorias(false); setCategoriaOrganizando(""); }}>
+          ✓ Voltar ao pedido
+        </button>
+      </div>
+      <div className="titulo-secao-linha">
+        <span />
 
         {produtos.length > 1 && (
           <button
@@ -1043,6 +1138,7 @@ if (pedidosDaMesa.length === 0) {
           );
         })
       )}
+      </>)}
 
       {totalItens > 0 && (
         <div className="barra-pedido">
