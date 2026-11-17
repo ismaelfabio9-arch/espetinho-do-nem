@@ -59,6 +59,10 @@ function MesaDetalhe() {
   // Pedido rápido (almoço): prato com montagem aberto na janela, e o modo antigo para organizar.
   const [montando, setMontando] = useState(null);
   const [organizarAberto, setOrganizarAberto] = useState(false);
+  // Depois de salvar (ou de alterar o pedido em "Ver pedido"): pergunta se imprime na cozinha.
+  // A janela de impressão só abre direito quando nasce de um toque, por isso o botão.
+  const [paraImprimir, setParaImprimir] = useState(null); // { itens, total, alterado }
+  const [alterouPedidoMesa, setAlterouPedidoMesa] = useState(false);
   const configImpressora = useConfigImpressora();
 
   useEffect(() => {
@@ -404,6 +408,7 @@ if (pedidosDaMesa.length === 0) {
         : item
     );
 
+    setAlterouPedidoMesa(true);
     await atualizarPedidoMesa(novosItens);
   }
 
@@ -416,6 +421,7 @@ if (pedidosDaMesa.length === 0) {
       )
       .filter((item) => Number(item.qtd || 0) > 0);
 
+    setAlterouPedidoMesa(true);
     await atualizarPedidoMesa(novosItens);
   }
 
@@ -527,8 +533,10 @@ if (pedidosDaMesa.length === 0) {
       setPedido({});
       mostrarNotificacao("Pedido salvo com sucesso!");
 
-      if (configImpressora.habilitada && configImpressora.autoImprimirPedido) {
-        await imprimirComandaAgora(itensImpressos, totalImpresso);
+      if (configImpressora.habilitada) {
+        // "Imprimir automaticamente" ligado na configuração: tenta direto; se o celular bloquear, pergunta.
+        const impresso = configImpressora.autoImprimirPedido ? await imprimirComandaAgora(itensImpressos, totalImpresso) : false;
+        if (!impresso) setParaImprimir({ itens: itensImpressos, total: totalImpresso, alterado: false });
       }
     } catch (erro) {
       console.error("Erro ao salvar pedido da mesa:", erro);
@@ -536,17 +544,34 @@ if (pedidosDaMesa.length === 0) {
     }
   }
 
-  async function imprimirComandaAgora(itensParaImprimir, totalParaImprimir) {
+  async function imprimirComandaAgora(itensParaImprimir, totalParaImprimir, observacoes) {
     const html = gerarComandaHTML({
       numeroPedido: pedidoMesaId || Date.now(),
       mesa: id,
       cliente: nomeCliente,
       itens: itensParaImprimir,
       total: totalParaImprimir,
+      observacoes,
       config: configImpressora,
     });
 
-    await imprimir(html, configImpressora.larguraPapel);
+    return imprimir(html, configImpressora.larguraPapel);
+  }
+
+  async function confirmarImpressaoCozinha() {
+    const p = paraImprimir;
+    setParaImprimir(null);
+    if (!p) return;
+    const abriu = await imprimirComandaAgora(p.itens, p.total, p.alterado ? "PEDIDO ALTERADO: esta é a comanda completa da mesa." : "");
+    if (!abriu) mostrarNotificacao("O celular bloqueou a janela de impressão. Libere as janelas (pop-ups) do site e tente de novo.");
+  }
+
+  function fecharPedidoMesa() {
+    setMostrarPedidoMesa(false);
+    if (alterouPedidoMesa && configImpressora.habilitada && itensMesa.length > 0) {
+      setParaImprimir({ itens: itensMesa, total: totalMesa, alterado: true });
+    }
+    setAlterouPedidoMesa(false);
   }
 
   async function imprimirComandaManual() {
@@ -869,9 +894,31 @@ if (pedidosDaMesa.length === 0) {
               <button
                 type="button"
                 className="modal-btn cancelar"
-                onClick={() => setMostrarPedidoMesa(false)}
+                onClick={fecharPedidoMesa}
               >
                 Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {paraImprimir && (
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <div className="modal-icon">🖨️</div>
+            <h2>{paraImprimir.alterado ? "Pedido alterado" : "Pedido salvo"}</h2>
+            <p>
+              {paraImprimir.alterado
+                ? "Imprimir a comanda completa da mesa para a cozinha?"
+                : `Imprimir ${paraImprimir.itens.reduce((s, i) => s + Number(i.qtd || 0), 0)} item(ns) na cozinha?`}
+            </p>
+            <div className="modal-acoes">
+              <button type="button" className="modal-btn cancelar" onClick={() => setParaImprimir(null)}>
+                Agora não
+              </button>
+              <button type="button" className="modal-btn confirmar" onClick={confirmarImpressaoCozinha}>
+                Imprimir na cozinha
               </button>
             </div>
           </div>
