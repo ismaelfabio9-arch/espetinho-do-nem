@@ -20,3 +20,18 @@ body:not(.dark) .rapido-item.sel { background: #dcfce7; border-color: #16a34a; }
 body.dark .rapido-item .rapido-preco, .rapido-item .rapido-preco { color: #22c55e !important; }
 body.dark .rapido-item strong { color: #f3f4f6 !important; }
 body.dark .rapido-item .rapido-montar { color: #9ca3af !important; }
+
+/* Item esgotado (cardápio do cliente). */
+.rapido-item.off { opacity: .5; cursor: not-allowed; }
+.rapido-esgotado { color: #f87171 !important; font-size: 12px; font-weight: 800; }
+/* Cardápio do cliente (QR Code): a tela é sempre escura, seja qual for o tema do aparelho. */
+.cardapio-cliente-card .rapido-escuro { margin-top: 16px; }
+.cardapio-cliente-card .rapido-escuro .rapido-busca,
+.cardapio-cliente-card .rapido-escuro .rapido-cats button,
+.cardapio-cliente-card .rapido-escuro .rapido-item { background: #1c1c1c !important; border-color: #2e2e2e !important; color: #f3f4f6 !important; }
+.cardapio-cliente-card .rapido-escuro .rapido-cats button.ativa { background: #16a34a !important; border-color: #16a34a !important; color: #fff !important; }
+.cardapio-cliente-card .rapido-escuro .rapido-item.sel { background: #0f2417 !important; border-color: #16a34a !important; }
+.cardapio-cliente-card .rapido-escuro .rapido-item strong { color: #f3f4f6 !important; }
+.cardapio-cliente-card .rapido-escuro .rapido-montar { color: #9ca3af !important; }
+.cardapio-cliente-card .rapido-escuro .rapido-qtd { color: #fff !important; }
+.cardapio-cliente-card .rapido-escuro .rapido-busca::placeholder { color: #9ca3af; }
