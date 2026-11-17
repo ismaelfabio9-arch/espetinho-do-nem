@@ -19,7 +19,7 @@ export function escolhaPadrao(produto) {
   (m.escolhas || []).forEach((g) => {
     if ((g.opcoes || []).length) escolhas[g.nome] = g.opcoes[0];
   });
-  return { tirar: [], escolhas, extras: [] };
+  return { tirar: [], escolhas, extras: [], outros: [], obs: "" };
 }
 
 const baixa = (s) => String(s || "").trim().toLowerCase();
@@ -39,13 +39,24 @@ export function nomeMontado(produto, escolha) {
   (m.extras || []).forEach((e) => {
     if ((escolha?.extras || []).includes(e.nome)) partes.push(`+ ${baixa(e.nome)}`);
   });
+  // O que o garçom pôs na hora (fora da lista) e a observação livre.
+  (escolha?.outros || []).forEach((o) => partes.push(`+ ${baixa(o.nome)}`));
+  const obs = limparObs(escolha?.obs);
+  if (obs) partes.push(`obs: ${obs}`);
   return partes.length ? `${produto.nome} — ${partes.join(", ")}` : produto.nome;
 }
 
 export function precoMontado(produto, escolha) {
   const m = produto?.montagem || {};
   const extras = (m.extras || []).filter((e) => (escolha?.extras || []).includes(e.nome));
-  return Number(produto.preco || 0) + extras.reduce((s, e) => s + Number(e.preco || 0), 0);
+  const outros = (escolha?.outros || []).reduce((s, o) => s + (Number(o.preco) || 0), 0);
+  return Math.round((Number(produto.preco || 0) + extras.reduce((s, e) => s + Number(e.preco || 0), 0) + outros) * 100) / 100;
+}
+
+/** Observação livre: uma linha curta, sem símbolos estranhos (igual no servidor). */
+export function limparObs(t) {
+  // eslint-disable-next-line no-control-regex
+  return String(t || "").replace(/[\u0000-\u001f<>]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
 }
 
 // ---------- edição em Produtos (texto simples) ----------

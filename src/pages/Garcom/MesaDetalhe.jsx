@@ -967,6 +967,7 @@ if (pedidosDaMesa.length === 0) {
         <MontarPrato
           produto={montando}
           bebidas={sugestoesBebida(produtos)}
+          permitirOutros
           onAdicionar={adicionarMontado}
           onFechar={() => setMontando(null)}
         />

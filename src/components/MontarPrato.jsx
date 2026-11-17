@@ -6,9 +6,23 @@ import "./MontarPrato.css";
 
 const moeda = (v) => Number(v || 0).toFixed(2).replace(".", ",");
 
-export default function MontarPrato({ produto, bebidas = [], onAdicionar, onFechar }) {
+export default function MontarPrato({ produto, bebidas = [], onAdicionar, onFechar, permitirOutros = false }) {
   const [escolha, setEscolha] = useState(() => escolhaPadrao(produto));
   const [bebidasEscolhidas, setBebidasEscolhidas] = useState([]);
+  // "+ Outro" (só o garçom): algo fora da lista, com preço.
+  const [outroAberto, setOutroAberto] = useState(false);
+  const [outroNome, setOutroNome] = useState("");
+  const [outroPreco, setOutroPreco] = useState("");
+
+  function porOutro() {
+    const nome = outroNome.trim().slice(0, 40);
+    if (!nome) return;
+    const preco = Math.max(0, Number(String(outroPreco).replace(",", ".")) || 0);
+    setEscolha((e) => ({ ...e, outros: [...(e.outros || []), { nome, preco }] }));
+    setOutroNome("");
+    setOutroPreco("");
+    setOutroAberto(false);
+  }
   const m = produto.montagem || {};
 
   const alternar = (lista, valor) => (lista.includes(valor) ? lista.filter((x) => x !== valor) : [...lista, valor]);
@@ -66,18 +80,38 @@ export default function MontarPrato({ produto, bebidas = [], onAdicionar, onFech
           </div>
         ))}
 
-        {(m.extras || []).length > 0 && (
+        {((m.extras || []).length > 0 || permitirOutros) && (
           <>
             <div className="montar-grupo">A MAIS</div>
             <div className="montar-opcoes">
-              {m.extras.map((e) => (
+              {(m.extras || []).map((e) => (
                 <button type="button" key={e.nome} className={escolha.extras.includes(e.nome) ? "montar-op escolhida" : "montar-op"} onClick={() => setEscolha({ ...escolha, extras: alternar(escolha.extras, e.nome) })}>
                   + {e.nome} · R$ {moeda(e.preco)}
                 </button>
               ))}
+              {(escolha.outros || []).map((o, i) => (
+                <button type="button" key={`o${i}`} className="montar-op escolhida" title="Toque para tirar" onClick={() => setEscolha({ ...escolha, outros: escolha.outros.filter((_, j) => j !== i) })}>
+                  + {o.nome}{o.preco ? ` · R$ ${moeda(o.preco)}` : ""} ✕
+                </button>
+              ))}
+              {permitirOutros && !outroAberto && (
+                <button type="button" className="montar-op montar-outro" onClick={() => setOutroAberto(true)}>
+                  + Outro
+                </button>
+              )}
             </div>
+            {permitirOutros && outroAberto && (
+              <div className="montar-outro-linha">
+                <input autoFocus placeholder="O quê? Ex.: macarrão" value={outroNome} onChange={(e) => setOutroNome(e.target.value)} maxLength={40} />
+                <input inputMode="decimal" placeholder="R$ 0,00" value={outroPreco} onChange={(e) => setOutroPreco(e.target.value)} />
+                <button type="button" onClick={porOutro}>Pôr</button>
+              </div>
+            )}
           </>
         )}
+
+        <div className="montar-grupo">OBSERVAÇÃO</div>
+        <input className="montar-obs" placeholder="Ex.: pouco sal, trocar arroz por macaxeira" value={escolha.obs || ""} maxLength={60} onChange={(e) => setEscolha({ ...escolha, obs: e.target.value })} />
 
         {bebidas.length > 0 && (
           <>
