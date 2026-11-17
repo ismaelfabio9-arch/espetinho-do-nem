@@ -125,3 +125,15 @@ export const ehCategoriaDePrato = (categoria) => /prato|\bpf\b|executivo|marmita
 export function pratosSemMontagem(lista) {
   return lista.filter((p) => p.montagem === undefined && p.ativo !== false && ehCategoriaDePrato(p.categoria));
 }
+
+/** Emoji da categoria na faixa do pedido rápido. */
+export function emojiCategoria(categoria) {
+  if (/prato feito|pf/i.test(categoria)) return "🍽️";
+  if (/prato/i.test(categoria)) return "🍛";
+  if (/acompanha/i.test(categoria)) return "🍚";
+  if (/suco/i.test(categoria)) return "🧃";
+  if (/refri|água|agua|bebida/i.test(categoria)) return "🥤";
+  if (/cerveja/i.test(categoria)) return "🍺";
+  if (/sobremesa|doce/i.test(categoria)) return "🍮";
+  return "🍴";
+}

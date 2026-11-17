@@ -12,15 +12,29 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import "../../styles/Garcom/MesaDetalhe.css";
+import { ordenarGruposPorCategoria } from "../../utils/categorias";
+import { ordenarItensCategoria } from "../../utils/produtosOrdem";
+import PedidoRapido from "../../components/PedidoRapido";
+import MontarPrato from "../../components/MontarPrato";
+import { emojiCategoria, sugestoesBebida, temMontagem } from "../../utils/montagem";
 
 function Viagem() {
   const [produtos, setProdutos] = useState([]);
-  const [categoriaAberta, setCategoriaAberta] = useState("");
+  const [categoriasDocs, setCategoriasDocs] = useState([]);
+  // Prato com montagem aberto na janela "Montar o prato" (igual às mesas).
+  const [montando, setMontando] = useState(null);
   const [pedido, setPedido] = useState({});
   const [notificacao, setNotificacao] = useState("");
   const [nomeCliente, setNomeCliente] = useState("");
   const [nomeClienteInput, setNomeClienteInput] = useState("");
   const [editandoNomeCliente, setEditandoNomeCliente] = useState(false);
+
+  useEffect(() => {
+    const cancelar = onSnapshot(collection(db, ...L(), "categorias"), (snapshot) => {
+      setCategoriasDocs(snapshot.docs.map((d) => ({ id: d.id, ...d.data() })));
+    });
+    return () => cancelar();
+  }, []);
 
   useEffect(() => {
     const cancelar = onSnapshot(collection(db, ...L(), "produtos"), (snapshot) => {
@@ -30,7 +44,7 @@ function Viagem() {
       }));
 
       const produtosAtivos = listaProdutos.filter(
-        (produto) => produto.ativo !== false
+        (produto) => produto.ativo !== false && produto.foraHoje !== true
       );
 
       const grupos = produtosAtivos.reduce((resultado, produto) => {
@@ -45,6 +59,8 @@ function Viagem() {
           id: produto.id,
           nome: produto.nome,
           preco: Number(produto.preco || 0),
+          ordem: produto.ordem,
+          montagem: produto.montagem || null,
         });
 
         return resultado;
@@ -53,23 +69,44 @@ function Viagem() {
       const listaCategorias = Object.values(grupos);
 
       listaCategorias.forEach((categoria) => {
-        categoria.itens.sort((a, b) => {
-          if (a.preco !== b.preco) {
-            return a.preco - b.preco;
-          }
-
-          return a.nome.localeCompare(b.nome);
-        });
+        categoria.itens = ordenarItensCategoria(categoria.itens);
       });
 
-      setProdutos(listaCategorias);
+      setProdutos(ordenarGruposPorCategoria(listaCategorias, categoriasDocs));
     });
 
     return () => cancelar();
-  }, []);
+  }, [categoriasDocs]);
 
-  function alternarCategoria(nomeCategoria) {
-    setCategoriaAberta(categoriaAberta === nomeCategoria ? "" : nomeCategoria);
+  function tocarItem(item) {
+    if (temMontagem(item)) setMontando(item);
+    else adicionarItem(item);
+  }
+
+  /** Prato montado (e as bebidas escolhidas junto) entram no pedido. */
+  function adicionarMontado({ prato, bebidas }) {
+    setPedido((atual) => {
+      const novo = { ...atual };
+      const ja = novo[prato.nome];
+      novo[prato.nome] = { ...prato, qtd: ja ? ja.qtd + 1 : 1 };
+      bebidas.forEach((b) => {
+        const jb = novo[b.nome];
+        novo[b.nome] = { produtoId: b.id, nome: b.nome, preco: b.preco, qtd: jb ? jb.qtd + 1 : 1 };
+      });
+      return novo;
+    });
+    setMontando(null);
+  }
+
+  function ajustarItemPedido(nome, delta) {
+    setPedido((atual) => {
+      const it = atual[nome];
+      if (!it) return atual;
+      const novo = { ...atual };
+      if (it.qtd + delta <= 0) delete novo[nome];
+      else novo[nome] = { ...it, qtd: it.qtd + delta };
+      return novo;
+    });
   }
 
   function adicionarItem(item) {
@@ -83,28 +120,6 @@ function Viagem() {
           nome: item.nome,
           preco: item.preco,
           qtd: itemAtual ? itemAtual.qtd + 1 : 1,
-        },
-      };
-    });
-  }
-
-  function removerItem(item) {
-    setPedido((pedidoAtual) => {
-      const itemAtual = pedidoAtual[item.nome];
-
-      if (!itemAtual) return pedidoAtual;
-
-      if (itemAtual.qtd === 1) {
-        const novoPedido = { ...pedidoAtual };
-        delete novoPedido[item.nome];
-        return novoPedido;
-      }
-
-      return {
-        ...pedidoAtual,
-        [item.nome]: {
-          ...itemAtual,
-          qtd: itemAtual.qtd - 1,
         },
       };
     });
@@ -331,9 +346,9 @@ function Viagem() {
               <strong>R$ {formatarMoeda(item.preco * item.qtd)}</strong>
 
               <div className="contador resumo-contador">
-                <button onClick={() => removerItem(item)}>-</button>
+                <button onClick={() => ajustarItemPedido(item.nome, -1)}>-</button>
                 <span>{item.qtd}</span>
-                <button onClick={() => adicionarItem(item)}>+</button>
+                <button onClick={() => ajustarItemPedido(item.nome, 1)}>+</button>
               </div>
             </div>
           ))}
@@ -342,46 +357,28 @@ function Viagem() {
 
       <h2 className="titulo-secao">Adicionar pedido</h2>
 
+      {montando && (
+        <MontarPrato
+          produto={montando}
+          bebidas={sugestoesBebida(produtos)}
+          permitirOutros
+          onAdicionar={adicionarMontado}
+          onFechar={() => setMontando(null)}
+        />
+      )}
+
       {produtos.length === 0 ? (
         <div className="card-principal">
-          <h2>Nenhum produto cadastrado</h2>
-          <p>Importe o cardápio na tela Produtos.</p>
+          <h2>Nenhum produto para hoje</h2>
+          <p>Cadastre em Produtos ou ligue os pratos em Cardápio de hoje.</p>
         </div>
       ) : (
-        produtos.map((categoria) => (
-          <section className="categoria-bloco" key={categoria.categoria}>
-            <div
-              className="categoria-header"
-              onClick={() => alternarCategoria(categoria.categoria)}
-            >
-              <h3>{categoria.categoria}</h3>
-              <span>{categoriaAberta === categoria.categoria ? "▲" : "▼"}</span>
-            </div>
-
-            {categoriaAberta === categoria.categoria && (
-              <div className="produtos-grid">
-                {categoria.itens.map((item) => {
-                  const quantidade = pedido[item.nome]?.qtd || 0;
-
-                  return (
-                    <div className="produto-card" key={item.id}>
-                      <div className="produto-info">
-                        <strong>{item.nome}</strong>
-                        <span>R$ {formatarMoeda(item.preco)}</span>
-                      </div>
-
-                      <div className="contador">
-                        <button onClick={() => removerItem(item)}>-</button>
-                        <span>{quantidade}</span>
-                        <button onClick={() => adicionarItem(item)}>+</button>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
-        ))
+        <PedidoRapido
+          categorias={produtos}
+          emoji={emojiCategoria}
+          contagem={(item) => itensPedido.filter((p) => p.produtoId === item.id).reduce((s, p) => s + p.qtd, 0)}
+          onTocar={tocarItem}
+        />
       )}
 
       {totalItens > 0 && (

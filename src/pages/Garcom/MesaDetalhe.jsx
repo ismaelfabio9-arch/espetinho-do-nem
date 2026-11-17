@@ -29,18 +29,8 @@ import {
 import "../../styles/Garcom/MesaDetalhe.css";
 import PedidoRapido from "../../components/PedidoRapido";
 import MontarPrato from "../../components/MontarPrato";
-import { MONTAGEM_ALMOCO, pratosSemMontagem, sugestoesBebida, temMontagem } from "../../utils/montagem";
+import { MONTAGEM_ALMOCO, emojiCategoria, pratosSemMontagem, sugestoesBebida, temMontagem } from "../../utils/montagem";
 
-function emojiCategoria(categoria) {
-  if (/prato feito|pf/i.test(categoria)) return "🍽️";
-  if (/prato/i.test(categoria)) return "🍛";
-  if (/acompanha/i.test(categoria)) return "🍚";
-  if (/suco/i.test(categoria)) return "🧃";
-  if (/refri|água|agua|bebida/i.test(categoria)) return "🥤";
-  if (/cerveja/i.test(categoria)) return "🍺";
-  if (/sobremesa|doce/i.test(categoria)) return "🍮";
-  return "🍴";
-}
 
 const FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Débito", "Crédito"];
 
