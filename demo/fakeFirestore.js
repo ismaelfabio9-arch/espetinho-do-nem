@@ -4,7 +4,8 @@
 // query/where/orderBy, onSnapshot, getDoc(s), addDoc, setDoc (merge),
 // updateDoc, deleteDoc, writeBatch e serverTimestamp.
 
-export const STORAGE_KEY = "iftech_demo_mesas_v1";
+// v2: pratos com "montar o prato" (pedido rápido do almoço); quem já abriu recebe o exemplo novo.
+export const STORAGE_KEY = "iftech_demo_mesas_v2";
 
 class Timestamp {
   constructor(ms) {

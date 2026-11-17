@@ -1,6 +1,7 @@
 // Restaurante de almoço de exemplo da demonstração. Tudo inventado: cardápio, preços, nomes de
 // clientes e vendas servem só para mostrar o sistema funcionando.
 import { Timestamp, demoReplaceAll } from "./fakeFirestore";
+import { MONTAGEM_ALMOCO, ehCategoriaDePrato } from "../src/utils/montagem";
 
 const slug = (t) =>
   String(t)
@@ -41,7 +42,7 @@ export function seedDemo() {
     cols.categorias[slug(categoria)] = { nome: categoria, ordem: ordemCat, ativo: true, criadoEm: new Timestamp(now), atualizadoEm: iso(now) };
     itens.forEach(([nome, preco, qtd], ordem) => {
       const id = slug(`${categoria}-${nome}`);
-      cols.produtos[id] = { categoria, nome, preco, ativo: true, ordem, criadoEm: new Timestamp(now) };
+      cols.produtos[id] = { categoria, nome, preco, ativo: true, ordem, criadoEm: new Timestamp(now), ...(ehCategoriaDePrato(categoria) ? { montagem: MONTAGEM_ALMOCO } : {}) };
       cols.estoque[id] = { nome, categoria, quantidade: qtd, atualizadoEm: iso(now) };
       itensPorNome[nome] = { produtoId: id, nome, preco };
     });
