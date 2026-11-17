@@ -102,3 +102,15 @@ export const MONTAGEM_ALMOCO = {
     { nome: "Batata frita", preco: 6 },
   ],
 };
+
+/** Categoria de prato de almoço ("Pratos do dia", "Prato feito (PF)", "Executivos"…). */
+export const ehCategoriaDePrato = (categoria) => /prato|\bpf\b|executivo|marmita|refei/i.test(String(categoria || ""));
+
+/**
+ * Lojas que já existiam antes da montagem: os pratos sem montagem nenhuma (campo ainda não existe)
+ * ganham o modelo de almoço. Quem tirou a montagem de propósito tem o campo como null e não é mexido.
+ * Devolve os produtos que precisam ser gravados.
+ */
+export function pratosSemMontagem(lista) {
+  return lista.filter((p) => p.montagem === undefined && p.ativo !== false && ehCategoriaDePrato(p.categoria));
+}

@@ -15,3 +15,6 @@
 body:not(.dark) .rapido-busca, body:not(.dark) .rapido-cats button, body:not(.dark) .rapido-item { background: #fff; border-color: #e5e7eb; color: #111827; }
 body:not(.dark) .rapido-cats button.ativa { background: #16a34a; color: #fff; }
 body:not(.dark) .rapido-item.sel { background: #dcfce7; border-color: #16a34a; }
+body.dark .rapido-item .rapido-preco, .rapido-item .rapido-preco { color: #22c55e !important; }
+body.dark .rapido-item strong { color: #f3f4f6 !important; }
+body.dark .rapido-item .rapido-montar { color: #9ca3af !important; }

@@ -1,4 +1,4 @@
-import { L } from "../../loja";
+import { L, MULTI } from "../../loja";
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
@@ -29,7 +29,7 @@ import {
 import "../../styles/Garcom/MesaDetalhe.css";
 import PedidoRapido from "../../components/PedidoRapido";
 import MontarPrato from "../../components/MontarPrato";
-import { sugestoesBebida, temMontagem } from "../../utils/montagem";
+import { MONTAGEM_ALMOCO, pratosSemMontagem, sugestoesBebida, temMontagem } from "../../utils/montagem";
 
 function emojiCategoria(categoria) {
   if (/prato feito|pf/i.test(categoria)) return "🍽️";
@@ -102,6 +102,14 @@ function MesaDetalhe() {
         id: documento.id,
         ...documento.data(),
       }));
+
+      // Pratos de lojas antigas ainda sem montagem: ganham o modelo de almoço (aqui e no cadastro).
+      if (MULTI) {
+        pratosSemMontagem(listaProdutos).forEach((p) => {
+          p.montagem = MONTAGEM_ALMOCO;
+          setDoc(doc(db, ...L(), "produtos", p.id), { montagem: MONTAGEM_ALMOCO }, { merge: true }).catch(() => {});
+        });
+      }
 
       // Fora do cardápio de hoje também não aparece para lançar.
       const produtosAtivos = listaProdutos.filter(
