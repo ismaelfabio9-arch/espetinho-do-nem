@@ -22,6 +22,7 @@ import Estoque from "./pages/Garcom/Estoque";
 import QrCodes from "./pages/Garcom/QrCodes";
 import CardapioHoje from "./pages/Garcom/CardapioHoje";
 import VersaoNova from "./components/VersaoNova";
+import { useRecurso } from "./recursos";
 
 
 function App() {
@@ -55,11 +56,24 @@ function MesaDaLoja() {
   );
 }
 
+/** Tela de uma função que a IFTech desligou só nesta loja. */
+function SeLigado({ recurso, children }) {
+  const ligado = useRecurso(recurso);
+  if (ligado) return children;
+  return (
+    <div className="container" style={{ padding: 24 }}>
+      <a href="./" className="voltar">← Voltar</a>
+      <h1 style={{ marginTop: 16 }}>Função desligada</h1>
+      <p>Esta função está desligada na sua loja. Para ligar de novo, fale com a IFTech.</p>
+    </div>
+  );
+}
+
 /** Telas do garçom e do dono. */
 function TelasEquipe() {
   return (
     <Routes>
-      <Route path="/estoque" element={<Estoque />} />
+      <Route path="/estoque" element={<SeLigado recurso="estoque"><Estoque /></SeLigado>} />
       <Route path="/" element={<Dashboard />} />
       <Route path="/pedidos" element={<Pedidos />} />
       <Route path="/mesas" element={<Mesas />} />
@@ -71,7 +85,7 @@ function TelasEquipe() {
       <Route path="/historico-mesas" element={<HistoricoMesas />} />
       <Route path="/relatorio" element={<RelatorioGerencial />} />
       <Route path="/mesa/:id" element={<MesaDetalhe />} />
-      <Route path="/viagem" element={<Viagem />} />
+      <Route path="/viagem" element={<SeLigado recurso="viagem"><Viagem /></SeLigado>} />
       <Route path="/produtos" element={<Produtos />} />
       <Route path="/qrcodes" element={<QrCodes />} />
       <Route path="/cardapio-hoje" element={<CardapioHoje />} />

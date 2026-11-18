@@ -18,6 +18,7 @@ import PedidoRapido from "../../components/PedidoRapido";
 import MontarPrato from "../../components/MontarPrato";
 import { emojiCategoria, sugestoesBebida, temMontagem } from "../../utils/montagem";
 import { useConfigImpressora } from "../../hooks/useConfigImpressora";
+import { useRecurso } from "../../recursos";
 import { gerarComandaHTML, imprimir } from "../../utils/print";
 
 function Viagem() {
@@ -28,6 +29,8 @@ function Viagem() {
   // Depois de salvar: pergunta se imprime na cozinha (a janela de impressão só abre direito num toque).
   const [paraImprimir, setParaImprimir] = useState(null); // { itens, total, cliente, numero }
   const configImpressora = useConfigImpressora();
+  const montarLigado = useRecurso("montar-prato");
+  const imprimirLigado = useRecurso("imprimir-cozinha");
   const [pedido, setPedido] = useState({});
   const [notificacao, setNotificacao] = useState("");
   const [nomeCliente, setNomeCliente] = useState("");
@@ -84,7 +87,7 @@ function Viagem() {
   }, [categoriasDocs]);
 
   function tocarItem(item) {
-    if (temMontagem(item)) setMontando(item);
+    if (montarLigado && temMontagem(item)) setMontando(item);
     else adicionarItem(item);
   }
 
@@ -273,7 +276,7 @@ function Viagem() {
       setNomeClienteInput("");
       mostrarNotificacao("Pedido viagem salvo com sucesso!");
 
-      if (configImpressora.habilitada) {
+      if (configImpressora.habilitada && imprimirLigado) {
         const p = { itens: itensPedido, total, cliente: nomeCliente, numero: salvo.id };
         // "Imprimir automaticamente" ligado na configuração: tenta direto; se o celular bloquear, pergunta.
         const impresso = configImpressora.autoImprimirPedido ? await imprimirViagem(p) : false;
@@ -426,6 +429,7 @@ function Viagem() {
         <PedidoRapido
           categorias={produtos}
           emoji={emojiCategoria}
+          montar={montarLigado}
           contagem={(item) => itensPedido.filter((p) => p.produtoId === item.id).reduce((s, p) => s + p.qtd, 0)}
           onTocar={tocarItem}
         />
