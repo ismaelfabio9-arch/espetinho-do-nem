@@ -17,6 +17,7 @@ import { db } from "../../firebase";
 import "../../styles/Garcom/Config.css";
 import InstallModal from "../../components/InstallApp";
 import { isInstalled } from "../../utils/installPrompt";
+import { useRecurso } from "../../recursos";
 
 // Prato montado ("Peito empanado — feijão preto, …") conta no relatório como o prato.
 const nomeProduto = (item) => item.nomeBase || String(item.nome || "").split(" — ")[0];
@@ -167,6 +168,9 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
     }
   }
 
+  // Recurso ligado pela IFTech só nesta loja (Admin → Contratações).
+  const novidadesEmTeste = useRecurso("beta");
+
   return (
     <div className="container">
       {mensagem && <div className="toast">{mensagem}</div>}
@@ -182,6 +186,12 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
           <p>Gerencie opções básicas do aplicativo.</p>
         </div>
       </div>
+
+      {novidadesEmTeste && (
+        <p className="config-beta" style={{ margin: "0 0 14px", padding: "10px 14px", borderRadius: 12, background: "#dcfce7", color: "#14532d", fontWeight: 700, fontSize: 14 }}>
+          ✨ Sua loja recebe as novidades em teste antes das outras.
+        </p>
+      )}
 
       <Link to="/historico" style={{ textDecoration: "none" }}>
         <div className="config-card">
