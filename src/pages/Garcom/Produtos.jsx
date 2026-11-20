@@ -1,4 +1,8 @@
-import { L, MULTI } from "../../loja";
+import { L } from "../../loja";
+
+// Lojas da IFTech (e a demonstração do site): categorias prontas, cardápios de exemplo e tipo nas categorias.
+// A loja original do espetinho continua com o cardápio dela.
+const LOJA_IFTECH = process.env.REACT_APP_MULTI === "1";
 import { useEffect, useMemo, useState, useRef } from "react";
 import {
   collection,
@@ -138,7 +142,7 @@ function Produtos() {
         novos++;
       }
       // Loja da IFTech: a categoria entra no fim da lista, já com o tipo dos produtos novos.
-      if (MULTI) {
+      if (LOJA_IFTECH) {
         const existente = categorias.find((c) => c.nome.toLowerCase() === categoria.categoria.toLowerCase());
         if (existente) {
           if (categoria.tipo && !existente.tipo) await setDoc(doc(db, ...L(), "categorias", existente.id), { tipo: categoria.tipo }, { merge: true });
@@ -156,7 +160,7 @@ function Produtos() {
 
   async function importarProdutosPadrao(exemploId) {
     // Lojas da IFTech escolhem um cardápio de exemplo pelo tipo de negócio; a loja original mantém o dela.
-    if (MULTI) {
+    if (LOJA_IFTECH) {
       const ex = CARDAPIOS_EXEMPLO.find((c) => c.id === exemploId) || CARDAPIOS_EXEMPLO[0];
       await gravarCategorias(ex.categorias.map((id) => CATEGORIAS_PRONTAS.find((c) => c.id === id)).filter(Boolean));
     } else {
@@ -464,7 +468,7 @@ function Produtos() {
           <Link to="/cardapio-hoje" className="produto-mini-btn" title="Cardápio de hoje" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
             📅
           </Link>
-          {MULTI && (
+          {LOJA_IFTECH && (
             <button className="produto-mini-btn" onClick={() => setProntasAbertas(true)} title="Categoria pronta (picolés, tapiocas, açaí…)">
               🧩
             </button>
@@ -921,7 +925,7 @@ function Produtos() {
 
       {produtos.length === 0 && (
         <div style={{ marginBottom: "16px" }}>
-          {MULTI ? (
+          {LOJA_IFTECH ? (
             <>
               <p style={{ margin: "0 2px 8px", fontWeight: 700 }}>Começar com um cardápio de exemplo. O que a loja vende?</p>
               <div className="prontas-grade">
