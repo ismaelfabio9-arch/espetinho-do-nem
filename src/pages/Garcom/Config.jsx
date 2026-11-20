@@ -1,6 +1,7 @@
 import { L, MULTI } from "../../loja";
 import useNomeLoja from "../../hooks/useNomeLoja";
 import Equipe from "../../components/Equipe";
+import TaxasMaquininha from "../../components/TaxasMaquininha";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -17,13 +18,14 @@ import { db } from "../../firebase";
 import "../../styles/Garcom/Config.css";
 import InstallModal from "../../components/InstallApp";
 import { isInstalled } from "../../utils/installPrompt";
-import { useRecurso } from "../../recursos";
+import { planoQueLibera, useRecurso } from "../../recursos";
 
 // Prato montado ("Peito empanado — feijão preto, …") conta no relatório como o prato.
 const nomeProduto = (item) => item.nomeBase || String(item.nome || "").split(" — ")[0];
 
 
 function Config() {
+  const relatoriosLigado = useRecurso("relatorios");
   const nomeLoja = useNomeLoja();
   const [instalarAberto, setInstalarAberto] = useState(false);
   const [mensagem, setMensagem] = useState("");
@@ -221,12 +223,14 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
           <div>
             <h2>Relatório Gerencial</h2>
             <p>Faturamento por período, produtos vendidos e PDF.</p>
-            <strong>Abrir relatório</strong>
+            <strong>{relatoriosLigado ? "Abrir relatório" : planoQueLibera("relatorios") ? `Disponível no plano ${planoQueLibera("relatorios")}` : "Função desligada"}</strong>
           </div>
         </div>
       </Link>
 
       {MULTI && <Equipe />}
+
+      <TaxasMaquininha />
 
       <Link to="/config/impressora" style={{ textDecoration: "none" }}>
         <div className="config-card">

@@ -22,7 +22,7 @@ import Estoque from "./pages/Garcom/Estoque";
 import QrCodes from "./pages/Garcom/QrCodes";
 import CardapioHoje from "./pages/Garcom/CardapioHoje";
 import VersaoNova from "./components/VersaoNova";
-import { useRecurso } from "./recursos";
+import { planoQueLibera, useRecurso } from "./recursos";
 
 
 function App() {
@@ -60,11 +60,21 @@ function MesaDaLoja() {
 function SeLigado({ recurso, children }) {
   const ligado = useRecurso(recurso);
   if (ligado) return children;
+  const plano = planoQueLibera(recurso);
   return (
     <div className="container" style={{ padding: 24 }}>
       <a href="./" className="voltar">← Voltar</a>
-      <h1 style={{ marginTop: 16 }}>Função desligada</h1>
-      <p>Esta função está desligada na sua loja. Para ligar de novo, fale com a IFTech.</p>
+      {plano ? (
+        <>
+          <h1 style={{ marginTop: 16 }}>Função do plano {plano}</h1>
+          <p>Esta função não faz parte do seu plano. Para usar, mude para o plano {plano}: fale com a IFTech pelo WhatsApp (81) 99245-8934.</p>
+        </>
+      ) : (
+        <>
+          <h1 style={{ marginTop: 16 }}>Função desligada</h1>
+          <p>Esta função está desligada na sua loja. Para ligar de novo, fale com a IFTech.</p>
+        </>
+      )}
     </div>
   );
 }
@@ -83,7 +93,7 @@ function TelasEquipe() {
       <Route path="/notificacoes" element={<Notificacoes />} />
       <Route path="/historico" element={<Historico />} />
       <Route path="/historico-mesas" element={<HistoricoMesas />} />
-      <Route path="/relatorio" element={<RelatorioGerencial />} />
+      <Route path="/relatorio" element={<SeLigado recurso="relatorios"><RelatorioGerencial /></SeLigado>} />
       <Route path="/mesa/:id" element={<MesaDetalhe />} />
       <Route path="/viagem" element={<SeLigado recurso="viagem"><Viagem /></SeLigado>} />
       <Route path="/produtos" element={<Produtos />} />

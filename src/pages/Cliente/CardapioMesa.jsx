@@ -23,6 +23,7 @@ import MontarPrato from "../../components/MontarPrato";
 import { sugestoesBebida, abreEscolha } from "../../utils/montagem";
 import PedidoRapido from "../../components/PedidoRapido";
 import { useRecurso } from "../../recursos";
+import { repassaAlguma, useTaxas } from "../../utils/taxas";
 
 function CardapioMesa() {
   const nomeLoja = useNomeLoja();
@@ -47,6 +48,8 @@ function CardapioMesa() {
   const garcomLigado = useRecurso("chamar-garcom");
   const contaLigada = useRecurso("pedir-conta");
   const montarLigado = useRecurso("montar-prato");
+  // Aviso da taxa da maquininha repassada ao cliente (Configurações → Taxas da maquininha).
+  const taxas = useTaxas();
   const estoqueLigado = useRecurso("estoque");
   const [estoque, setEstoque] = useState({});
   const [categoriasDocs, setCategoriasDocs] = useState([]);
@@ -635,6 +638,12 @@ function CardapioMesa() {
           <span>{process.env.REACT_APP_MULTI === "1" ? "🍽️" : "🍢"} {nomeLoja}</span>
           <h1>Mesa {mesa}</h1>
           <p>{pedidoLigado ? "Toque no prato ou na bebida para pedir." : "Veja o cardápio. Para pedir, chame o garçom."}</p>
+          {repassaAlguma(taxas) && (
+            <p className="aviso-taxa-cartao">
+              💳 Pagamento no cartão tem acréscimo da taxa da maquininha
+              {[taxas.passarDebito && taxas.debito ? `débito ${String(taxas.debito).replace(".", ",")}%` : "", taxas.passarCredito && taxas.credito ? `crédito ${String(taxas.credito).replace(".", ",")}%` : ""].filter(Boolean).join(", ").replace(/^/, ": ")}. Pix e dinheiro sem acréscimo.
+            </p>
+          )}
 
           {garcomLigado && (
             <button

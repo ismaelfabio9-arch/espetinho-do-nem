@@ -115,7 +115,7 @@ export function gerarComandaHTML({ numeroPedido, mesa, titulo, cliente, itens, t
 }
 
 /** Documento 2 — Comprovante de consumo (entregue ao cliente). */
-export function gerarComprovanteHTML({ mesa, cliente, itens, total, formaPagamento, config }) {
+export function gerarComprovanteHTML({ mesa, cliente, itens, total, formaPagamento, config, taxaCartao = 0, taxaPct = 0 }) {
   const agora = new Date();
   return `
     ${cabecalho(config)}
@@ -125,9 +125,15 @@ export function gerarComprovanteHTML({ mesa, cliente, itens, total, formaPagamen
     <div class="separador"></div>
     ${linhasDeItens(itens)}
     <div class="separador"></div>
+    ${
+      taxaCartao > 0
+        ? `<div class="linha-item"><span>Subtotal</span><span>R$ ${formatarMoeda(total)}</span></div>
+    <div class="linha-item"><span>Taxa do cartão (${String(taxaPct).replace(".", ",")}%)</span><span>R$ ${formatarMoeda(taxaCartao)}</span></div>`
+        : ""
+    }
     <div class="linha-item negrito grande">
       <span>TOTAL</span>
-      <span>R$ ${formatarMoeda(total)}</span>
+      <span>R$ ${formatarMoeda(total + taxaCartao)}</span>
     </div>
     ${formaPagamento ? `<div class="linha-central">Pagamento: ${escapeHtml(formaPagamento)}</div>` : ""}
     <div class="separador"></div>

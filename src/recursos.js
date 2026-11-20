@@ -1,6 +1,9 @@
 // Recursos por loja (Central da Loja no Admin da IFTech). Todas as lojas rodam o mesmo sistema;
 // o que muda de uma loja para outra fica em mesasLojas/<id>/configuracoes/recursos:
-//   { recursos: { "qr-pedido": false, "beta": true, ... } }
+//   { plano: "basico" | "completo" | "premium", recursos: { "qr-pedido": false, "beta": true, ... } }
+// - "plano" vem do plano contratado no site (o servidor da IFTech grava): o plano menor desliga
+//   algumas funções. Sem "plano" (lojas antigas, loja única): tudo como antes.
+// - "recursos" é o que a IFTech ligou ou desligou à mão só nesta loja e vale mais que o plano.
 // - Funções que já existem começam LIGADAS (padrao: true): a IFTech desliga só na loja que pediu.
 // - Funções novas pedidas por um cliente começam DESLIGADAS (padrao: false): liga só para quem pediu.
 // O cliente da mesa também lê esse documento (sem dados pessoais). Uso numa tela:
@@ -21,8 +24,18 @@ export const RECURSOS = {
   estoque: true,
   viagem: true,
   "imprimir-cozinha": true,
+  relatorios: true,
   beta: false,
 };
+
+/** O que cada plano NÃO tem. Mesma lista no site (iftech: src/lib/mesas-planos.ts). */
+export const PLANO_DESLIGA = {
+  basico: ["viagem", "estoque", "relatorios", "qr-pedido", "chamar-garcom", "pedir-conta"],
+  completo: ["qr-pedido", "chamar-garcom", "pedir-conta"],
+  premium: [],
+};
+export const NOME_PLANO = { basico: "Básico", completo: "Completo", premium: "Premium" };
+let planoAtual = null;
 
 let atual = {};
 let lojaAtual = null;
@@ -38,6 +51,7 @@ function acompanhar() {
     doc(db, "mesasLojas", id, "configuracoes", "recursos"),
     (s) => {
       atual = (s.exists() && s.data().recursos) || {};
+      planoAtual = (s.exists() && PLANO_DESLIGA[s.data().plano] && s.data().plano) || null;
       ouvintes.forEach((fn) => fn());
     },
     () => {}
@@ -49,6 +63,7 @@ export function temRecurso(nome) {
   if (!MULTI) return padrao;
   acompanhar();
   if (typeof atual[nome] === "boolean") return atual[nome];
+  if (planoAtual && PLANO_DESLIGA[planoAtual].includes(nome)) return false;
   // Primeiros recursos foram gravados no cadastro da loja (mesasLojas/<id>.recursos).
   const antigo = getTenant().loja?.recursos?.[nome];
   return typeof antigo === "boolean" ? antigo : padrao;
@@ -67,4 +82,12 @@ export function useRecurso(nome) {
     };
   }, [nome]);
   return ligado;
+}
+
+/** Desligada por causa do plano? Devolve o nome do menor plano que tem a função (ex.: "Completo"); senão null. */
+export function planoQueLibera(nome) {
+  if (!MULTI || temRecurso(nome) || typeof atual[nome] === "boolean" || !planoAtual || !PLANO_DESLIGA[planoAtual].includes(nome)) return null;
+  const ordem = ["basico", "completo", "premium"];
+  const p = ordem.find((k) => ordem.indexOf(k) > ordem.indexOf(planoAtual) && !PLANO_DESLIGA[k].includes(nome));
+  return p ? NOME_PLANO[p] : null;
 }
