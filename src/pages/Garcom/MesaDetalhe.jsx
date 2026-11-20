@@ -29,6 +29,7 @@ import {
 import "../../styles/Garcom/MesaDetalhe.css";
 import PedidoRapido from "../../components/PedidoRapido";
 import MontarPrato from "../../components/MontarPrato";
+import PratoNoPedido from "../../components/PratoNoPedido";
 import { totalNoCartao, useTaxas } from "../../utils/taxas";
 import { useRecurso } from "../../recursos";
 import { MONTAGEM_ALMOCO, emojiCategoria, pratosSemMontagem, sugestoesBebida, abreEscolha } from "../../utils/montagem";
@@ -62,6 +63,9 @@ function MesaDetalhe() {
   const taxas = useTaxas();
   // Pedido rápido (almoço): prato com montagem aberto na janela, e o modo antigo para organizar.
   const [montando, setMontando] = useState(null);
+  // Prato que já está no pedido atual: pergunta se edita ou acrescenta mais um.
+  const [perguntar, setPerguntar] = useState(null);
+  const [editando, setEditando] = useState(null); // nome da linha do pedido que está sendo editada
   const [organizarAberto, setOrganizarAberto] = useState(false);
   // Depois de salvar (ou de alterar o pedido em "Ver pedido"): pergunta se imprime na cozinha.
   // A janela de impressão só abre direito quando nasce de um toque, por isso o botão.
@@ -290,17 +294,38 @@ if (pedidosDaMesa.length === 0) {
     });
   }
 
+  const linhasDoProduto = (id) =>
+    Object.values(pedido)
+      .filter((l) => l.produtoId === id && l.montagem)
+      .map((l) => ({ ...l, chave: l.nome, quantidade: l.qtd }));
+  const produtoPorId = (id) => produtos.flatMap((g) => g.itens || []).find((i) => i.id === id);
+
+  function editarLinha(l) {
+    const item = produtoPorId(l.produtoId);
+    if (!item) return;
+    setPerguntar(null);
+    setEditando(l.nome);
+    setMontando(item);
+  }
+
   function tocarItem(item) {
-    if (abreEscolha(item, montarLigado)) setMontando(item);
-    else adicionarItem(item);
+    if (abreEscolha(item, montarLigado)) {
+      if (linhasDoProduto(item.id).length) return setPerguntar(item);
+      setEditando(null);
+      setMontando(item);
+    } else adicionarItem(item);
   }
 
   /** Prato montado (e as bebidas escolhidas junto) entram no pedido atual. */
   function adicionarMontado({ prato, bebidas }) {
     setPedido((atual) => {
       const novo = { ...atual };
+      // Editando: a linha antiga sai e a nova fica com a mesma quantidade.
+      const antiga = editando ? atual[editando] : null;
+      if (antiga) delete novo[editando];
       const ja = novo[prato.nome];
-      novo[prato.nome] = { ...prato, qtd: ja ? ja.qtd + 1 : 1 };
+      const qtd = antiga ? antiga.qtd : 1;
+      novo[prato.nome] = { ...prato, qtd: ja ? ja.qtd + qtd : qtd };
       bebidas.forEach((b) => {
         const jb = novo[b.nome];
         novo[b.nome] = { produtoId: b.id, nome: b.nome, preco: b.preco, qtd: jb ? jb.qtd + 1 : 1 };
@@ -308,6 +333,7 @@ if (pedidosDaMesa.length === 0) {
       return novo;
     });
     setMontando(null);
+    setEditando(null);
   }
 
   function ajustarItemPedido(nome, delta) {
@@ -1029,7 +1055,14 @@ if (pedidosDaMesa.length === 0) {
                 <b>{item.qtd}</b>
                 <button type="button" onClick={() => ajustarItemPedido(item.nome, 1)} aria-label={`Mais 1 ${item.nome}`}>+</button>
               </span>
-              <span className="resumo-nome">{item.nome}</span>
+              <span className="resumo-nome">
+                {item.nome}
+                {item.montagem && produtoPorId(item.produtoId) && (
+                  <button type="button" className="resumo-editar" onClick={() => editarLinha(item)}>
+                    ✏️ Editar
+                  </button>
+                )}
+              </span>
               <strong>R$ {formatarMoeda(item.preco * item.qtd)}</strong>
             </div>
           ))}
@@ -1038,11 +1071,25 @@ if (pedidosDaMesa.length === 0) {
 
       {montando && (
         <MontarPrato
+          key={editando || "novo"}
           produto={montando}
-          bebidas={sugestoesBebida(produtos)}
+          bebidas={editando ? [] : sugestoesBebida(produtos)}
           permitirOutros
+          inicial={editando ? pedido[editando]?.montagem : null}
+          textoBotao={editando ? "Salvar alteração" : "Adicionar"}
           onAdicionar={adicionarMontado}
-          onFechar={() => setMontando(null)}
+          onFechar={() => { setMontando(null); setEditando(null); }}
+        />
+      )}
+
+      {perguntar && (
+        <PratoNoPedido
+          produto={perguntar}
+          linhas={linhasDoProduto(perguntar.id)}
+          onEditar={editarLinha}
+          onMaisUm={() => { setEditando(null); setMontando(perguntar); setPerguntar(null); }}
+          onFechar={() => setPerguntar(null)}
+          noPedido="neste pedido"
         />
       )}
 
