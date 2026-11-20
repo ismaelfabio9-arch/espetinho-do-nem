@@ -20,7 +20,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import MontarPrato from "../../components/MontarPrato";
-import { sugestoesBebida, temMontagem } from "../../utils/montagem";
+import { sugestoesBebida, abreEscolha } from "../../utils/montagem";
 import PedidoRapido from "../../components/PedidoRapido";
 import { useRecurso } from "../../recursos";
 
@@ -114,6 +114,7 @@ function CardapioMesa() {
           nome: produto.nome,
           preco: Number(produto.preco || 0),
           montagem: produto.montagem || null,
+          tipo: produto.tipo || null,
         });
 
         return resultado;
@@ -244,7 +245,7 @@ function CardapioMesa() {
 
   function alterarQuantidade(item, valor) {
     // Prato com montagem: o + abre a janela; o − tira a última montagem desse prato.
-    if (montarLigado && temMontagem(item)) {
+    if (abreEscolha(item, montarLigado)) {
       if (valor > 0) return setMontando(item);
       const linhas = Object.values(carrinho).filter((l) => l.produtoId === item.id && l.montagem);
       if (linhas.length) ajustarLinha(linhas[linhas.length - 1].chave, -1);

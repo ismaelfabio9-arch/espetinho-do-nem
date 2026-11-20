@@ -16,7 +16,7 @@ import { ordenarGruposPorCategoria } from "../../utils/categorias";
 import { ordenarItensCategoria } from "../../utils/produtosOrdem";
 import PedidoRapido from "../../components/PedidoRapido";
 import MontarPrato from "../../components/MontarPrato";
-import { emojiCategoria, sugestoesBebida, temMontagem } from "../../utils/montagem";
+import { emojiCategoria, sugestoesBebida, abreEscolha } from "../../utils/montagem";
 import { useConfigImpressora } from "../../hooks/useConfigImpressora";
 import { useRecurso } from "../../recursos";
 import { gerarComandaHTML, imprimir } from "../../utils/print";
@@ -69,6 +69,7 @@ function Viagem() {
           preco: Number(produto.preco || 0),
           ordem: produto.ordem,
           montagem: produto.montagem || null,
+          tipo: produto.tipo || null,
         });
 
         return resultado;
@@ -87,7 +88,7 @@ function Viagem() {
   }, [categoriasDocs]);
 
   function tocarItem(item) {
-    if (montarLigado && temMontagem(item)) setMontando(item);
+    if (abreEscolha(item, montarLigado)) setMontando(item);
     else adicionarItem(item);
   }
 

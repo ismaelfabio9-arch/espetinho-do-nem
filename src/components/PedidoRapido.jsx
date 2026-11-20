@@ -1,7 +1,7 @@
 // Tela rápida do garçom: busca, categorias numa faixa e os produtos em grade (1 toque = +1;
 // prato com montagem abre a janela "Montar o prato").
 import { useMemo, useState } from "react";
-import { ehCategoriaDePrato, temMontagem } from "../utils/montagem";
+import { abreEscolha, ehCategoriaDePrato, tipoDe } from "../utils/montagem";
 import "./PedidoRapido.css";
 
 const moeda = (v) => Number(v || 0).toFixed(2).replace(".", ",");
@@ -44,7 +44,7 @@ export default function PedidoRapido({ categorias, contagem, onTocar, emoji, ind
                 {n > 0 && <span className="rapido-qtd">{n}</span>}
                 <strong>{item.nome}</strong>
                 <span className="rapido-preco">R$ {moeda(item.preco)}</span>
-                {off ? <span className="rapido-esgotado">Esgotado</span> : montar && temMontagem(item) && <span className="rapido-montar">montar ›</span>}
+                {off ? <span className="rapido-esgotado">Esgotado</span> : abreEscolha(item, montar) && <span className="rapido-montar">{{ prato: "montar", sabor: "sabor", recheio: "escolher" }[tipoDe(item)] || "escolher"} ›</span>}
               </button>
             );
           })}

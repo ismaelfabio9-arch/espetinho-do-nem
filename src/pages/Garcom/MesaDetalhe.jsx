@@ -30,7 +30,7 @@ import "../../styles/Garcom/MesaDetalhe.css";
 import PedidoRapido from "../../components/PedidoRapido";
 import MontarPrato from "../../components/MontarPrato";
 import { useRecurso } from "../../recursos";
-import { MONTAGEM_ALMOCO, emojiCategoria, pratosSemMontagem, sugestoesBebida, temMontagem } from "../../utils/montagem";
+import { MONTAGEM_ALMOCO, emojiCategoria, pratosSemMontagem, sugestoesBebida, abreEscolha } from "../../utils/montagem";
 
 
 const FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Débito", "Crédito"];
@@ -128,6 +128,7 @@ function MesaDetalhe() {
           preco: Number(produto.preco || 0),
           ordem: produto.ordem,
           montagem: produto.montagem || null,
+          tipo: produto.tipo || null,
         });
 
         return resultado;
@@ -287,7 +288,7 @@ if (pedidosDaMesa.length === 0) {
   }
 
   function tocarItem(item) {
-    if (montarLigado && temMontagem(item)) setMontando(item);
+    if (abreEscolha(item, montarLigado)) setMontando(item);
     else adicionarItem(item);
   }
 
