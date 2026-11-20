@@ -28,3 +28,8 @@ body:not(.dark) .montar-bebidas button.escolhida { background: #dcfce7; }
 .montar-outro-linha button { background: #16a34a; color: #fff; border: 0; border-radius: 10px; padding: 0 14px; font-weight: 800; cursor: pointer; }
 .montar-obs { width: 100%; box-sizing: border-box; }
 body:not(.dark) .montar-outro-linha input, body:not(.dark) .montar-obs { background: #fff; border-color: #d1d5db; color: #111827; }
+/* Prato que já está no pedido: editar ou acrescentar mais um */
+.prato-no-pedido-dica { margin: 4px 0 12px; color: #9ca3af; font-size: 14px; }
+.prato-no-pedido-op { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; margin-bottom: 8px; padding: 12px 14px; border-radius: 12px; border: 1px solid #2f2f2f; background: transparent; color: #f3f4f6; text-align: left; font: inherit; cursor: pointer; }
+.prato-no-pedido-op strong { font-size: 15px; }
+.prato-no-pedido-op span { font-size: 13px; color: #9ca3af; overflow-wrap: anywhere; }

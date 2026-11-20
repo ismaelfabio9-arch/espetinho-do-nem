@@ -20,6 +20,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import MontarPrato from "../../components/MontarPrato";
+import PratoNoPedido from "../../components/PratoNoPedido";
 import { sugestoesBebida, abreEscolha } from "../../utils/montagem";
 import PedidoRapido from "../../components/PedidoRapido";
 import { useRecurso } from "../../recursos";
@@ -33,6 +34,9 @@ function CardapioMesa() {
   const [carrinho, setCarrinho] = useState({});
   // Prato de almoço aberto na janela "Montar o prato".
   const [montando, setMontando] = useState(null);
+  // Prato que já está no pedido: pergunta se edita (esqueceu o feijão) ou acrescenta mais um.
+  const [perguntar, setPerguntar] = useState(null);
+  const [editando, setEditando] = useState(null); // chave da linha do pedido que está sendo editada
   const [enviando, setEnviando] = useState(false);
   const [mensagem, setMensagem] = useState("");
 
@@ -226,13 +230,28 @@ function CardapioMesa() {
     setCarrinho((anterior) => {
       const novo = { ...anterior };
       const chave = `m:${prato.nome}`;
-      novo[chave] = { chave, produtoId: prato.produtoId, nome: prato.nome, preco: prato.preco, montagem: prato.montagem, quantidade: (anterior[chave]?.quantidade || 0) + 1 };
+      // Editando: a linha antiga sai e a nova fica com a mesma quantidade.
+      const antiga = editando ? anterior[editando] : null;
+      if (antiga) delete novo[editando];
+      novo[chave] = { chave, produtoId: prato.produtoId, nome: prato.nome, preco: prato.preco, montagem: prato.montagem, quantidade: (novo[chave]?.quantidade || 0) + (antiga ? antiga.quantidade : 1) };
       bebidas.forEach((b) => {
         novo[b.id] = { chave: b.id, produtoId: b.id, nome: b.nome, preco: b.preco, quantidade: (anterior[b.id]?.quantidade || 0) + 1 };
       });
       return novo;
     });
     setMontando(null);
+    setEditando(null);
+  }
+
+  const linhasDoProduto = (id) => Object.values(carrinho).filter((l) => l.produtoId === id && l.montagem);
+  const produtoPorId = (id) => produtos.flatMap((g) => g.itens || []).find((i) => i.id === id);
+
+  function editarLinha(l) {
+    const item = produtoPorId(l.produtoId);
+    if (!item) return;
+    setPerguntar(null);
+    setEditando(l.chave);
+    setMontando(item);
   }
 
   function ajustarLinha(chave, valor) {
@@ -249,7 +268,11 @@ function CardapioMesa() {
   function alterarQuantidade(item, valor) {
     // Prato com montagem: o + abre a janela; o − tira a última montagem desse prato.
     if (abreEscolha(item, montarLigado)) {
-      if (valor > 0) return setMontando(item);
+      if (valor > 0) {
+        if (linhasDoProduto(item.id).length) return setPerguntar(item);
+        setEditando(null);
+        return setMontando(item);
+      }
       const linhas = Object.values(carrinho).filter((l) => l.produtoId === item.id && l.montagem);
       if (linhas.length) ajustarLinha(linhas[linhas.length - 1].chave, -1);
       return;
@@ -708,6 +731,11 @@ function CardapioMesa() {
                 <span>
                   <button type="button" className="cardapio-resumo-menos" onClick={() => ajustarLinha(item.chave || item.produtoId, -1)} aria-label={`Tirar 1 ${item.nome}`}>−</button>{" "}
                   {item.quantidade}x {item.nome}
+                  {item.montagem && produtoPorId(item.produtoId) && (
+                    <button type="button" className="cardapio-resumo-editar" onClick={() => editarLinha(item)}>
+                      ✏️ Editar
+                    </button>
+                  )}
                 </span>
                 <strong>
                   R$ {formatarMoeda(item.preco * item.quantidade)}
@@ -720,7 +748,25 @@ function CardapioMesa() {
         {mensagem && <p className="cardapio-mensagem">{mensagem}</p>}
 
         {montando && (
-          <MontarPrato produto={montando} bebidas={sugestoesBebida(produtos)} onAdicionar={adicionarMontado} onFechar={() => setMontando(null)} />
+          <MontarPrato
+            key={editando || "novo"}
+            produto={montando}
+            bebidas={editando ? [] : sugestoesBebida(produtos)}
+            inicial={editando ? carrinho[editando]?.montagem : null}
+            textoBotao={editando ? "Salvar alteração" : "Adicionar"}
+            onAdicionar={adicionarMontado}
+            onFechar={() => { setMontando(null); setEditando(null); }}
+          />
+        )}
+
+        {perguntar && (
+          <PratoNoPedido
+            produto={perguntar}
+            linhas={linhasDoProduto(perguntar.id)}
+            onEditar={editarLinha}
+            onMaisUm={() => { setEditando(null); setMontando(perguntar); setPerguntar(null); }}
+            onFechar={() => setPerguntar(null)}
+          />
         )}
 
         <div className="cardapio-footer">
