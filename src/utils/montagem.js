@@ -23,6 +23,26 @@ export function escolhaPadrao(produto) {
 }
 
 const baixa = (s) => String(s || "").trim().toLowerCase();
+const semAcento = (s) => baixa(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+/**
+ * Tirou do prato o item que dá nome à escolha (tirou "Salada" → some a escolha "Salada"; tirou
+ * "Feijão" → some "Feijão"): a escolha não vale mais, nem no nome nem no preço (igual no servidor).
+ */
+export function grupoCortado(grupo, tirar) {
+  const g = semAcento(grupo?.nome);
+  return !!g && (tirar || []).some((v) => semAcento(v) === g);
+}
+
+/** A escolha sem as opções dos grupos cortados (é o que vai para o pedido). */
+export function limparEscolha(produto, escolha) {
+  const m = produto?.montagem || {};
+  const escolhas = { ...(escolha?.escolhas || {}) };
+  (m.escolhas || []).forEach((g) => {
+    if (grupoCortado(g, escolha?.tirar)) delete escolhas[g.nome];
+  });
+  return { ...escolha, escolhas };
+}
 
 /** "Peito empanado — feijão preto, salada verdura, sem farofa, + ovo" (igual no servidor). */
 export function nomeMontado(produto, escolha) {
@@ -30,7 +50,7 @@ export function nomeMontado(produto, escolha) {
   const partes = [];
   (m.escolhas || []).forEach((g) => {
     const op = escolha?.escolhas?.[g.nome];
-    if (!op) return;
+    if (!op || grupoCortado(g, escolha?.tirar)) return;
     partes.push(baixa(op).includes(baixa(g.nome)) ? baixa(op) : `${baixa(g.nome)} ${baixa(op)}`);
   });
   (m.vem || []).forEach((v) => {
@@ -56,7 +76,7 @@ export function precoMontado(produto, escolha) {
   const m = produto?.montagem || {};
   const extras = (m.extras || []).filter((e) => (escolha?.extras || []).includes(e.nome));
   const outros = (escolha?.outros || []).reduce((s, o) => s + (Number(o.preco) || 0), 0);
-  const opcoes = (m.escolhas || []).reduce((s, g) => s + precoOpcao(g, escolha?.escolhas?.[g.nome]), 0);
+  const opcoes = (m.escolhas || []).reduce((s, g) => s + (grupoCortado(g, escolha?.tirar) ? 0 : precoOpcao(g, escolha?.escolhas?.[g.nome])), 0);
   return Math.round((Number(produto.preco || 0) + extras.reduce((s, e) => s + Number(e.preco || 0), 0) + outros + opcoes) * 100) / 100;
 }
 

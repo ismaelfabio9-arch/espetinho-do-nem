@@ -34,3 +34,9 @@ body.dark .online { --o-bg: #0b0b0b; --o-card: #151515; --o-txt: #f3f4f6; --o-mu
 .online-feito-icone { font-size: 44px; }
 .online-feito p { margin: 0; color: var(--o-mut); }
 .online-feito-total { color: var(--o-txt) !important; }
+/* Prato que já está no pedido: editar ou acrescentar mais um */
+.online-pergunta-dica { margin: 0 0 12px; color: var(--o-mut, #6b7280); font-size: 14px; }
+.online-pergunta-op { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; margin-bottom: 8px; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--o-borda, #e5e7eb); background: transparent; color: inherit; text-align: left; font: inherit; cursor: pointer; }
+.online-pergunta-op strong { font-size: 15px; }
+.online-pergunta-op span { font-size: 13px; color: var(--o-mut, #6b7280); overflow-wrap: anywhere; }
+.online-editar { display: block; margin-top: 4px; padding: 0; border: 0; background: none; color: var(--o-verde, #16a34a); font-weight: 700; font-size: 13px; cursor: pointer; }

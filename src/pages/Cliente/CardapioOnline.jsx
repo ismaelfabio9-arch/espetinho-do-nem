@@ -39,6 +39,9 @@ export default function CardapioOnline() {
   const [estoque, setEstoque] = useState({});
   const [carrinho, setCarrinho] = useState({});
   const [montando, setMontando] = useState(null);
+  // Prato que já está no pedido: pergunta se edita (esqueceu o feijão) ou acrescenta mais um.
+  const [perguntar, setPerguntar] = useState(null);
+  const [editando, setEditando] = useState(null); // chave da linha do pedido que está sendo editada
   const [etapa, setEtapa] = useState("cardapio");
   const g = lerGuardado();
   const [form, setForm] = useState({ modo: "entrega", cliente: g.cliente || "", telefone: g.telefone || "", endereco: g.endereco || "", referencia: g.referencia || "", pagamento: "", troco: "", obs: "" });
@@ -87,19 +90,39 @@ export default function CardapioOnline() {
   }, [linhas]);
   const esgotado = (item) => estoqueLigado && estoque[item.id]?.minimo !== undefined && Number(estoque[item.id]?.quantidade || 0) <= 0;
 
+  const produtoPorId = (id) => produtos.flatMap((g) => g.itens).find((i) => i.id === id);
+  const linhasDoProduto = (id) => linhas.filter((l) => l.produtoId === id && l.montagem);
+
+  function editarLinha(l) {
+    const item = produtoPorId(l.produtoId);
+    if (!item) return;
+    setPerguntar(null);
+    setEditando(l.chave);
+    setMontando(item);
+  }
+
   function adicionar(item) {
-    if (abreEscolha(item, montarLigado)) return setMontando(item);
+    if (abreEscolha(item, montarLigado)) {
+      if (linhasDoProduto(item.id).length) return setPerguntar(item);
+      setEditando(null);
+      return setMontando(item);
+    }
     setCarrinho((c) => ({ ...c, [item.id]: { chave: item.id, produtoId: item.id, nome: item.nome, preco: item.preco, quantidade: (c[item.id]?.quantidade || 0) + 1 } }));
   }
   function adicionarMontado({ prato, bebidas }) {
     setCarrinho((c) => {
       const novo = { ...c };
       const chave = `m:${prato.nome}`;
-      novo[chave] = { chave, produtoId: prato.produtoId, nome: prato.nome, preco: prato.preco, montagem: prato.montagem, quantidade: (c[chave]?.quantidade || 0) + 1 };
+      // Editando: a linha antiga sai e a nova fica com a mesma quantidade.
+      const antiga = editando ? c[editando] : null;
+      if (antiga) delete novo[editando];
+      const qtd = antiga ? antiga.quantidade : 1;
+      novo[chave] = { chave, produtoId: prato.produtoId, nome: prato.nome, preco: prato.preco, montagem: prato.montagem, quantidade: (novo[chave]?.quantidade || 0) + qtd };
       bebidas.forEach((b) => (novo[b.id] = { chave: b.id, produtoId: b.id, nome: b.nome, preco: b.preco, quantidade: (c[b.id]?.quantidade || 0) + 1 }));
       return novo;
     });
     setMontando(null);
+    setEditando(null);
   }
   function ajustar(chave, d) {
     setCarrinho((c) => {
@@ -191,7 +214,14 @@ export default function CardapioOnline() {
           <ul className="online-itens">
             {linhas.map((l) => (
               <li key={l.chave}>
-                <span className="online-item-nome">{l.nome}</span>
+                <span className="online-item-nome">
+                  {l.nome}
+                  {l.montagem && produtoPorId(l.produtoId) && (
+                    <button type="button" className="online-editar" onClick={() => editarLinha(l)}>
+                      ✏️ Editar
+                    </button>
+                  )}
+                </span>
                 <span className="online-qtd">
                   <button type="button" onClick={() => ajustar(l.chave, -1)} aria-label={`Tirar 1 ${l.nome}`}>−</button>
                   {l.quantidade}
@@ -287,7 +317,37 @@ export default function CardapioOnline() {
           )}
         </>
       )}
-      {montando && <MontarPrato produto={montando} onAdicionar={adicionarMontado} onFechar={() => setMontando(null)} />}
+      {perguntar && (
+        <div className="montar-fundo" onClick={() => setPerguntar(null)}>
+          <div className="montar-folha online-pergunta" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`${perguntar.nome} já está no pedido`}>
+            <div className="montar-topo">
+              <h2>{perguntar.nome} já está no seu pedido</h2>
+              <button type="button" className="montar-fechar" onClick={() => setPerguntar(null)} aria-label="Fechar" data-fechar>✕</button>
+            </div>
+            <p className="online-pergunta-dica">Esqueceu alguma coisa? Edite o prato. Ou acrescente mais um.</p>
+            {linhasDoProduto(perguntar.id).map((l) => (
+              <button type="button" key={l.chave} className="online-pergunta-op" onClick={() => editarLinha(l)}>
+                <strong>✏️ Editar{l.quantidade > 1 ? ` (${l.quantidade}x)` : ""}</strong>
+                <span>{l.nome.replace(`${perguntar.nome} — `, "")}</span>
+              </button>
+            ))}
+            <button type="button" className="montar-adicionar" onClick={() => { setEditando(null); setMontando(perguntar); setPerguntar(null); }}>
+              + Acrescentar mais um
+            </button>
+          </div>
+        </div>
+      )}
+
+      {montando && (
+        <MontarPrato
+          key={editando || "novo"}
+          produto={montando}
+          inicial={editando ? carrinho[editando]?.montagem : null}
+          textoBotao={editando ? "Salvar alteração" : "Adicionar"}
+          onAdicionar={adicionarMontado}
+          onFechar={() => { setMontando(null); setEditando(null); }}
+        />
+      )}
     </div>
   );
 }
