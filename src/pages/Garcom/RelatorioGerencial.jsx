@@ -5,9 +5,7 @@ import { Link } from "react-router-dom";
 import { collection, onSnapshot, query, orderBy } from "firebase/firestore";
 import { db } from "../../firebase";
 import "../../styles/Garcom/RelatorioGerencial.css";
-
-// Prato montado ("Peito empanado — feijão preto, …") conta no relatório como o prato.
-const nomeProduto = (item) => item.nomeBase || String(item.nome || "").split(" — ")[0];
+import { TIPOS_VENDA, nomeProduto, qtdItem, resumir, tipoVenda } from "../../utils/tipoVenda";
 
 
 function RelatorioGerencial() {
@@ -67,12 +65,12 @@ function RelatorioGerencial() {
     return true;
   });
 
+  // Tudo junto (o único lugar do sistema que soma mesas, balcão e entregas).
   const produtos = {};
   let totalVendido = 0;
   let totalPedidos = 0;
   let totalItens = 0;
-  let pedidosMesa = 0;
-  let pedidosViagem = 0;
+  const vendasPorTipo = { mesa: [], balcao: [], entrega: [] };
 
   diasFiltrados.forEach((dia) => {
     totalVendido += Number(dia.totalVendido || 0);
@@ -80,27 +78,24 @@ function RelatorioGerencial() {
     totalItens += Number(dia.totalItens || 0);
 
     (dia.vendasDia || []).forEach((venda) => {
-      if (venda.origem === "mesa") pedidosMesa++;
-      if (venda.origem === "viagem") pedidosViagem++;
+      const tipo = tipoVenda(venda);
+      vendasPorTipo[tipo].push(venda);
 
       (venda.itens || []).forEach((item) => {
-        if (!produtos[nomeProduto(item)]) {
-          produtos[nomeProduto(item)] = {
-            nome: nomeProduto(item),
-            preco: Number(item.preco || 0),
-            qtd: 0,
-            total: 0,
-          };
+        const nome = nomeProduto(item);
+        if (!produtos[nome]) {
+          produtos[nome] = { nome, preco: Number(item.preco || 0), qtd: 0, total: 0, mesa: 0, balcao: 0, entrega: 0 };
         }
-
-        // ✅ CORREÇÃO ALERTA 3: lê qtd ou quantidade para compatibilidade com pedidos antigos
-        const qtdItem = Number(item.qtd || item.quantidade || 0);
-
-        produtos[nomeProduto(item)].qtd += qtdItem;
-        produtos[nomeProduto(item)].total += Number(item.preco || 0) * qtdItem;
+        // lê qtd ou quantidade para compatibilidade com pedidos antigos
+        const q = qtdItem(item);
+        produtos[nome].qtd += q;
+        produtos[nome][tipo] += q;
+        produtos[nome].total += Number(item.preco || 0) * q;
       });
     });
   });
+
+  const porTipo = TIPOS_VENDA.map((t) => ({ ...t, ...resumir(vendasPorTipo[t.id]) }));
 
   const listaProdutos = Object.values(produtos).sort((a, b) => b.total - a.total);
   const listaPorQuantidade = [...listaProdutos].sort((a, b) => b.qtd - a.qtd);
@@ -151,7 +146,7 @@ function RelatorioGerencial() {
           <div>
             <span>Relatório Gerencial</span>
             <h1>{nomeLoja}</h1>
-            <p>Relatório de faturamento e produtos vendidos</p>
+            <p>Mesas, balcão e entregas: faturamento e produtos vendidos</p>
           </div>
 
           <div className="relatorio-emissao">
@@ -225,19 +220,47 @@ function RelatorioGerencial() {
         </div>
 
         <div className="relatorio-secao">
-          <h2>Resumo por tipo de pedido</h2>
+          <h2>Por tipo de pedido</h2>
 
-          <div className="relatorio-tipo-grid">
-            <div>
-              <span>Pedidos de mesa</span>
-              <strong>{pedidosMesa}</strong>
-            </div>
-
-            <div>
-              <span>Pedidos viagem</span>
-              <strong>{pedidosViagem}</strong>
-            </div>
+          <div className="relatorio-tabela-wrapper">
+            <table className="relatorio-tabela relatorio-tabela-numeros">
+              <thead>
+                <tr>
+                  <th>Tipo</th>
+                  <th>Pedidos</th>
+                  <th>Itens</th>
+                  <th>Ticket médio</th>
+                  <th>Faturamento</th>
+                  <th>%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {porTipo.map((t) => (
+                  <tr key={t.id}>
+                    <td>{t.rotulo}</td>
+                    <td>{t.pedidos}</td>
+                    <td>{t.itens}</td>
+                    <td>R$ {formatarMoeda(t.ticket)}</td>
+                    <td>R$ {formatarMoeda(t.total)}</td>
+                    <td>{totalVendido > 0 ? Math.round((t.total / totalVendido) * 100) : 0}%</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>Total</td>
+                  <td>{totalPedidos}</td>
+                  <td>{totalItens}</td>
+                  <td>R$ {formatarMoeda(ticketMedio)}</td>
+                  <td>R$ {formatarMoeda(totalVendido)}</td>
+                  <td>{totalVendido > 0 ? "100%" : "0%"}</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
+          {porTipo[2].taxaEntrega > 0 && (
+            <p className="relatorio-nota">Nas entregas, R$ {formatarMoeda(porTipo[2].taxaEntrega)} são taxas de entrega (já somadas no faturamento).</p>
+          )}
         </div>
 
         <div className="relatorio-secao">
@@ -247,11 +270,14 @@ function RelatorioGerencial() {
             <p>Nenhum produto encontrado nesse período.</p>
           ) : (
             <div className="relatorio-tabela-wrapper">
-              <table className="relatorio-tabela">
+              <table className="relatorio-tabela relatorio-tabela-numeros">
                 <thead>
                   <tr>
                     <th>Produto</th>
                     <th>Preço</th>
+                    <th>Mesas</th>
+                    <th>Balcão</th>
+                    <th>Entregas</th>
                     <th>Qtd</th>
                     <th>Total</th>
                   </tr>
@@ -262,6 +288,9 @@ function RelatorioGerencial() {
                     <tr key={produto.nome}>
                       <td>{produto.nome}</td>
                       <td>R$ {formatarMoeda(produto.preco)}</td>
+                      <td>{produto.mesa || "–"}</td>
+                      <td>{produto.balcao || "–"}</td>
+                      <td>{produto.entrega || "–"}</td>
                       <td>{produto.qtd}</td>
                       <td>R$ {formatarMoeda(produto.total)}</td>
                     </tr>

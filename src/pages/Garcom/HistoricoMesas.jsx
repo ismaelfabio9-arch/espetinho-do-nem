@@ -13,14 +13,14 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import "../../styles/Garcom/Pedidos.css";
+import "../../styles/Garcom/Historico.css";
+import AbasTipo from "../../components/AbasTipo";
+import { TIPOS_VENDA, contarPorTipo, moeda, qtdItem, resumir, tipoVenda } from "../../utils/tipoVenda";
 
 function HistoricoMesas() {
   const [historico, setHistorico] = useState([]);
   const [mensagem, setMensagem] = useState("");
-
-  function formatarMoeda(valor) {
-    return Number(valor).toFixed(2).replace(".", ",");
-  }
+  const [tipo, setTipo] = useState("mesa");
 
   function formatarData(data) {
     if (!data) return "";
@@ -78,6 +78,10 @@ function HistoricoMesas() {
     }
   }
 
+  const lista = historico.filter((v) => tipoVenda(v) === tipo);
+  const resumo = resumir(lista);
+  const nomeTipo = TIPOS_VENDA.find((t) => t.id === tipo).nome;
+
   return (
     <div className="container">
       {mensagem && <div className="toast">{mensagem}</div>}
@@ -88,56 +92,64 @@ function HistoricoMesas() {
 
       <div className="pedidos-header">
         <div>
-          <span>Mesas finalizadas</span>
-          <h1>Histórico de Mesas</h1>
-          <p>Consulte mesas finalizadas e pedidos encerrados.</p>
+          <span>Pedidos finalizados</span>
+          <h1>Histórico de pedidos</h1>
+          <p>Mesas, balcão e entregas separados. Tudo junto só no Relatório Gerencial.</p>
         </div>
       </div>
 
-      {historico.length === 0 ? (
+      <AbasTipo tipo={tipo} onTroca={setTipo} contagem={contarPorTipo(historico)} />
+
+      <div className="hist-resumo">
+        <div><span>Pedidos</span><strong>{resumo.pedidos}</strong></div>
+        <div><span>Itens</span><strong>{resumo.itens}</strong></div>
+        <div><span>Total</span><strong>R$ {moeda(resumo.total)}</strong></div>
+      </div>
+
+      {lista.length === 0 ? (
         <div className="card-principal">
-          <h2>Nenhuma mesa finalizada</h2>
-          <p>Quando finalizar uma mesa, ela aparecerá aqui.</p>
+          <h2>Nenhum pedido de {nomeTipo.toLowerCase()}</h2>
+          <p>Os pedidos finalizados de hoje aparecem aqui até o fechamento do dia.</p>
         </div>
       ) : (
         <div className="lista-pedidos">
-          {historico.map((mesa) => (
+          {lista.map((mesa) => (
             <div key={mesa.id} className="pedido-card">
-              <div className="pedido-topo">
+              <div className="hist-topo">
                 <div>
                   <span className="pedido-tipo">
-                    {mesa.origem === "mesa" ? `Mesa ${mesa.mesa}` : "Viagem"}
+                    {tipo === "mesa" ? `Mesa ${mesa.mesa}` : tipo === "entrega" ? (mesa.modo === "retirada" ? "🏪 Retirada" : "🛵 Entrega") : "🛍️ Balcão"}
                   </span>
-
                   <h3>{mesa.titulo}</h3>
-
-                  <span>{formatarData(mesa.finalizadoEm)}</span>
+                  <small>{formatarData(mesa.finalizadoEm)}</small>
                 </div>
-
-                <strong className="status-entregue">
-                  R$ {formatarMoeda(mesa.total)}
-                </strong>
+                <strong>R$ {moeda(mesa.total)}</strong>
               </div>
 
-              <div className="pedido-itens">
-                {(mesa.itens || []).map((item) => (
-                  <p key={item.nome}>
-                    {item.qtd}x {item.nome}
-                  </p>
+              <div className="hist-itens">
+                {(mesa.itens || []).map((item, i) => (
+                  <div key={`${item.nome}-${i}`} className="hist-linha">
+                    <span className="hist-qtd">{qtdItem(item)}x</span>
+                    <span className="hist-nome">{item.nome}</span>
+                    <span className="hist-valor">R$ {moeda(Number(item.preco || 0) * qtdItem(item))}</span>
+                  </div>
                 ))}
+                {Number(mesa.taxaEntrega || 0) > 0 && (
+                  <div className="hist-linha">
+                    <span className="hist-qtd"></span>
+                    <span className="hist-nome">Taxa de entrega</span>
+                    <span className="hist-valor">R$ {moeda(mesa.taxaEntrega)}</span>
+                  </div>
+                )}
               </div>
 
-              <div className="pedido-total">
-                <span>Total de itens</span>
-                <strong>{mesa.totalItens || 0}</strong>
+              <div className="hist-linha hist-rodape">
+                <span className="hist-qtd">{mesa.totalItens || 0}</span>
+                <span className="hist-nome">{mesa.formaPagamento ? `itens · ${mesa.formaPagamento}` : "itens"}</span>
+                <span className="hist-valor">R$ {moeda(mesa.total)}</span>
               </div>
 
-              <div className="pedido-total">
-                <span>Total da mesa</span>
-                <strong>R$ {formatarMoeda(mesa.total)}</strong>
-              </div>
-
-              {mesa.origem === "mesa" && (
+              {tipo === "mesa" && (
                 <button
                   className="btn-verde"
                   style={{
