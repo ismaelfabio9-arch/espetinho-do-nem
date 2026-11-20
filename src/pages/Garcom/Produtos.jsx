@@ -1,8 +1,4 @@
 import { L } from "../../loja";
-
-// Lojas da IFTech (e a demonstração do site): categorias prontas, cardápios de exemplo e tipo nas categorias.
-// A loja original do espetinho continua com o cardápio dela.
-const LOJA_IFTECH = process.env.REACT_APP_MULTI === "1";
 import { useEffect, useMemo, useState, useRef } from "react";
 import {
   collection,
@@ -31,6 +27,11 @@ import { ordenarItensCategoria } from "../../utils/produtosOrdem";
 import { slugify, formatarMoeda } from "../../utils/texto";
 import "../../styles/Garcom/Produtos.css";
 import { MODELOS, TIPOS, lerMontagem, temMontagem, textoMontagem, tipoDe, tipoInfo, tipoPelaCategoria } from "../../utils/montagem";
+
+
+// Lojas da IFTech (e a demonstração do site): categorias prontas, cardápios de exemplo e tipo nas categorias.
+// A loja original do espetinho continua com o cardápio dela.
+const LOJA_IFTECH = process.env.REACT_APP_MULTI === "1";
 
 function Produtos() {
   const [produtos, setProdutos] = useState([]);
