@@ -1,13 +1,17 @@
 // Janela "Montar o prato": o que vem no prato (toque para tirar), as escolhas, o que vai a mais
 // e a bebida em um toque. Usada pelo garçom (MesaDetalhe) e pelo cliente no QR Code da mesa.
 import { useState } from "react";
-import { escolhaPadrao, nomeMontado, precoMontado, precoOpcao, tipoDe, tipoInfo } from "../utils/montagem";
+import { escolhaPadrao, grupoCortado, limparEscolha, nomeMontado, precoMontado, precoOpcao, tipoDe, tipoInfo } from "../utils/montagem";
 import "./MontarPrato.css";
 
 const moeda = (v) => Number(v || 0).toFixed(2).replace(".", ",");
 
-export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicionar, onFechar, permitirOutros = false }) {
-  const [escolha, setEscolha] = useState(() => escolhaPadrao(produto));
+// inicial: a escolha de um prato que já está no pedido (para editar); textoBotao troca o "Adicionar".
+export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicionar, onFechar, permitirOutros = false, inicial = null, textoBotao = "Adicionar" }) {
+  const [escolha, setEscolha] = useState(() => {
+    const base = escolhaPadrao(produto);
+    return inicial ? { ...base, ...inicial, escolhas: { ...base.escolhas, ...(inicial.escolhas || {}) }, tirar: inicial.tirar || [], extras: inicial.extras || [], outros: inicial.outros || [] } : base;
+  });
   const [bebidasEscolhidas, setBebidasEscolhidas] = useState([]);
   // "+ Outro" (só o garçom): algo fora da lista, com preço.
   const [outroAberto, setOutroAberto] = useState(false);
@@ -32,14 +36,26 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
   const precoPrato = precoMontado(produto, escolha);
   const total = precoPrato + bebidas.filter((b) => bebidasEscolhidas.includes(b.id)).reduce((s, b) => s + Number(b.preco || 0), 0);
 
+  // Tirar/voltar um item do prato: a escolha com o mesmo nome some junto (e volta com a 1ª opção).
+  function alternarVem(v) {
+    const tirar = alternar(escolha.tirar, v);
+    const escolhas = { ...escolha.escolhas };
+    (m.escolhas || []).forEach((g) => {
+      if (grupoCortado(g, tirar)) delete escolhas[g.nome];
+      else if (!escolhas[g.nome] && (g.opcoes || []).length) escolhas[g.nome] = g.opcoes[0];
+    });
+    setEscolha({ ...escolha, tirar, escolhas });
+  }
+
   function adicionar() {
+    const final = limparEscolha(produto, escolha);
     onAdicionar({
       prato: {
         produtoId: produto.id,
-        nome: nomeMontado(produto, escolha),
+        nome: nomeMontado(produto, final),
         nomeBase: produto.nome,
         preco: precoPrato,
-        montagem: escolha,
+        montagem: final,
       },
       bebidas: bebidas.filter((b) => bebidasEscolhidas.includes(b.id)),
     });
@@ -61,7 +77,7 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
               {m.vem.map((v) => {
                 const tirou = escolha.tirar.includes(v);
                 return (
-                  <button type="button" key={v} className={tirou ? "montar-op tirou" : "montar-op tem"} onClick={() => setEscolha({ ...escolha, tirar: alternar(escolha.tirar, v) })}>
+                  <button type="button" key={v} className={tirou ? "montar-op tirou" : "montar-op tem"} onClick={() => alternarVem(v)}>
                     {tirou ? v : `✓ ${v}`}
                   </button>
                 );
@@ -70,7 +86,7 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
           </>
         )}
 
-        {(m.escolhas || []).map((g) => (
+        {(m.escolhas || []).filter((g) => !grupoCortado(g, escolha.tirar)).map((g) => (
           <div key={g.nome}>
             <div className="montar-grupo">{g.nome.toUpperCase()}</div>
             <div className="montar-opcoes">
@@ -132,7 +148,7 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
         )}
 
         <button type="button" className="montar-adicionar" onClick={adicionar}>
-          Adicionar · R$ {moeda(total)}
+          {textoBotao} · R$ {moeda(total)}
         </button>
       </div>
     </div>
