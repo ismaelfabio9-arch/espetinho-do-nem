@@ -471,3 +471,6 @@ body.dark .produto-esgotado {
 }
 
 .cardapio-resumo-menos { width: 24px; height: 24px; border-radius: 50%; border: 0; background: #e11d48; color: #fff; font-weight: 800; line-height: 1; cursor: pointer; }
+
+/* Aviso da taxa da maquininha repassada ao cliente */
+.aviso-taxa-cartao { margin-top: 6px; font-size: 13px; opacity: 0.85; }

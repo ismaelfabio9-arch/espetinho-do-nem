@@ -29,6 +29,7 @@ import {
 import "../../styles/Garcom/MesaDetalhe.css";
 import PedidoRapido from "../../components/PedidoRapido";
 import MontarPrato from "../../components/MontarPrato";
+import { totalNoCartao, useTaxas } from "../../utils/taxas";
 import { useRecurso } from "../../recursos";
 import { MONTAGEM_ALMOCO, emojiCategoria, pratosSemMontagem, sugestoesBebida, abreEscolha } from "../../utils/montagem";
 
@@ -57,6 +58,8 @@ function MesaDetalhe() {
   const [categoriasDocs, setCategoriasDocs] = useState([]);
   const [etapaEncerrar, setEtapaEncerrar] = useState("opcoes"); // opcoes | pagamento
   const [formaPagamentoEncerrar, setFormaPagamentoEncerrar] = useState("");
+  // Taxas da maquininha (Configurações): o valor no cartão já vem calculado para o garçom.
+  const taxas = useTaxas();
   // Pedido rápido (almoço): prato com montagem aberto na janela, e o modo antigo para organizar.
   const [montando, setMontando] = useState(null);
   const [organizarAberto, setOrganizarAberto] = useState(false);
@@ -636,6 +639,11 @@ if (pedidosDaMesa.length === 0) {
 
       const resultado = await getDocs(consultaMesa);
 
+      // Taxa da maquininha repassada ao cliente (só débito/crédito com "passar para o cliente").
+      const totalTodos = resultado.docs.reduce((s, d) => s + (d.data().itens || []).reduce((t, i) => t + Number(i.preco || 0) * Number(i.qtd || i.quantidade || 0), 0), 0);
+      const cartao = totalNoCartao(totalTodos, taxas, formaPagamento);
+      let taxaPendente = cartao.taxa;
+
       // Emite o comprovante do cliente ANTES de apagar os pedidos abertos,
       // já que os documentos de "pedidos" são a fonte dos itens/total.
       if (emitirComprovante) {
@@ -656,6 +664,8 @@ if (pedidosDaMesa.length === 0) {
           total: totalComprovante,
           formaPagamento,
           config: configImpressora,
+          taxaCartao: cartao.taxa,
+          taxaPct: cartao.taxaPct,
         });
 
         if (configImpressora.habilitada) {
@@ -665,6 +675,9 @@ if (pedidosDaMesa.length === 0) {
 
       for (const documento of resultado.docs) {
         const pedidoDados = documento.data();
+        // A taxa do cartão vai inteira no primeiro registro da mesa (fora do total dos itens).
+        const taxaDoc = taxaPendente;
+        taxaPendente = 0;
 
         await addDoc(collection(db, ...L(), "vendasDia"), {
           origem: "mesa",
@@ -674,6 +687,7 @@ if (pedidosDaMesa.length === 0) {
           total: pedidoDados.total || 0,
           totalItens: pedidoDados.totalItens || 0,
           formaPagamento: formaPagamento || "",
+          ...(taxaDoc ? { taxaCartao: taxaDoc, taxaCartaoPct: cartao.taxaPct } : {}),
           comprovanteEmitido: Boolean(emitirComprovante),
           finalizadoEm: new Date().toISOString(),
           criadoEm: serverTimestamp(),
@@ -687,6 +701,7 @@ if (pedidosDaMesa.length === 0) {
           total: pedidoDados.total || 0,
           totalItens: pedidoDados.totalItens || 0,
           formaPagamento: formaPagamento || "",
+          ...(taxaDoc ? { taxaCartao: taxaDoc, taxaCartaoPct: cartao.taxaPct } : {}),
           comprovanteEmitido: Boolean(emitirComprovante),
           finalizadoEm: new Date().toISOString(),
           pedidoOriginalId: documento.id,
@@ -771,6 +786,13 @@ if (pedidosDaMesa.length === 0) {
               Total: <strong>R$ {formatarMoeda(totalGeralMesa)}</strong>
             </p>
 
+            {(totalNoCartao(totalGeralMesa, taxas, "Débito").taxa > 0 || totalNoCartao(totalGeralMesa, taxas, "Crédito").taxa > 0) && (
+              <p className="modal-cartao">
+                No cartão: débito <strong>R$ {formatarMoeda(totalNoCartao(totalGeralMesa, taxas, "Débito").total)}</strong> · crédito{" "}
+                <strong>R$ {formatarMoeda(totalNoCartao(totalGeralMesa, taxas, "Crédito").total)}</strong>
+              </p>
+            )}
+
             <p className="modal-aviso">
               O nome do cliente também será removido da mesa.
             </p>
@@ -830,6 +852,14 @@ if (pedidosDaMesa.length === 0) {
                 </button>
               ))}
             </div>
+
+            {totalNoCartao(totalGeralMesa, taxas, formaPagamentoEncerrar).taxa > 0 && (
+              <p className="modal-cartao">
+                Taxa do cartão ({String(totalNoCartao(totalGeralMesa, taxas, formaPagamentoEncerrar).taxaPct).replace(".", ",")}%): + R$ {formatarMoeda(totalNoCartao(totalGeralMesa, taxas, formaPagamentoEncerrar).taxa)}
+                <br />
+                Cobrar na maquininha: <strong>R$ {formatarMoeda(totalNoCartao(totalGeralMesa, taxas, formaPagamentoEncerrar).total)}</strong>
+              </p>
+            )}
 
             <div className="modal-acoes">
               <button

@@ -937,3 +937,6 @@ body.dark .categoria-reordenar button {
 .resumo-nome { flex: 1; min-width: 0; }
 .resumo-linha { align-items: center; gap: 8px; }
 body.dark .resumo-linha .resumo-nome, body.dark .resumo-linha .resumo-ajuste b { color: #e5e7eb !important; }
+
+/* Valor no cartão com a taxa da maquininha repassada (Configurações → Taxas da maquininha) */
+.modal-cartao { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; background: rgba(22, 163, 74, 0.12); font-size: 14px; line-height: 1.5; }

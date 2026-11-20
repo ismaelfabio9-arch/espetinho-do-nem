@@ -56,3 +56,17 @@ body.dark .config-card {
 body.dark .config-header span { color: var(--green) !important; }
 body.dark .config-card strong { color: var(--green) !important; }
 body.dark .config-icon { background: var(--card-3) !important; }
+/* Taxas da maquininha */
+.taxas-card { align-items: flex-start; }
+.taxas-editar { margin-top: 4px; border: 1px solid #16a34a; background: transparent; color: #16a34a; border-radius: 999px; padding: 6px 12px; font-weight: 700; cursor: pointer; }
+.taxas-form { margin-top: 8px; display: flex; flex-direction: column; gap: 10px; }
+.taxas-linha { display: flex; flex-wrap: wrap; gap: 10px; align-items: flex-end; }
+.taxas-linha label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; }
+.taxas-linha input[inputmode] { width: 110px; padding: 9px; border-radius: 10px; border: 1px solid #d1d5db; font-size: 15px; }
+.taxas-linha .taxas-passar { flex-direction: row; align-items: center; gap: 6px; font-weight: 600; padding-bottom: 8px; }
+.taxas-ajuda { font-size: 12px !important; line-height: 1.4; }
+.taxas-botoes { display: flex; gap: 8px; }
+.taxas-botoes button { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid #d1d5db; background: transparent; font-weight: 700; cursor: pointer; color: inherit; }
+.taxas-msg { display: block; margin-top: 6px; color: #16a34a; font-size: 13px; }
+body.dark .taxas-linha input[inputmode] { background: #111; color: #f3f4f6; border-color: #2f2f2f; }
+.taxas-botoes button.btn-verde { background: #16a34a; border-color: #16a34a; color: #fff; }
