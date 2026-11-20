@@ -18,6 +18,11 @@ export function L() {
   return ["mesasLojas", lojaId];
 }
 
+/** Link do cardápio online da loja (pedido de casa, plano Premium). Só nas lojas da IFTech. */
+export function cardapioOnlineUrl() {
+  return MULTI ? `${window.location.origin}/mesas/c/${lojaId}/cardapio` : null;
+}
+
 /** Link do cardápio de uma mesa (é o que vai no QR Code). */
 export function mesaUrl(numero) {
   const origem = window.location.origin;

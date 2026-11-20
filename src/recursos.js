@@ -25,6 +25,8 @@ export const RECURSOS = {
   viagem: true,
   "imprimir-cozinha": true,
   relatorios: true,
+  // Cardápio online (pedido de casa): função nova, só o plano Premium liga.
+  "pedido-online": false,
   beta: false,
 };
 
@@ -34,6 +36,8 @@ export const PLANO_DESLIGA = {
   completo: ["qr-pedido", "chamar-garcom", "pedir-conta"],
   premium: [],
 };
+/** Funções novas que só o plano liga (sem plano, ficam desligadas). */
+export const PLANO_LIGA = { basico: [], completo: [], premium: ["pedido-online"] };
 export const NOME_PLANO = { basico: "Básico", completo: "Completo", premium: "Premium" };
 let planoAtual = null;
 
@@ -63,6 +67,7 @@ export function temRecurso(nome) {
   if (!MULTI) return padrao;
   acompanhar();
   if (typeof atual[nome] === "boolean") return atual[nome];
+  if (planoAtual && PLANO_LIGA[planoAtual].includes(nome)) return true;
   if (planoAtual && PLANO_DESLIGA[planoAtual].includes(nome)) return false;
   // Primeiros recursos foram gravados no cadastro da loja (mesasLojas/<id>.recursos).
   const antigo = getTenant().loja?.recursos?.[nome];
@@ -86,8 +91,10 @@ export function useRecurso(nome) {
 
 /** Desligada por causa do plano? Devolve o nome do menor plano que tem a função (ex.: "Completo"); senão null. */
 export function planoQueLibera(nome) {
-  if (!MULTI || temRecurso(nome) || typeof atual[nome] === "boolean" || !planoAtual || !PLANO_DESLIGA[planoAtual].includes(nome)) return null;
+  if (!MULTI || temRecurso(nome) || typeof atual[nome] === "boolean" || !planoAtual) return null;
   const ordem = ["basico", "completo", "premium"];
-  const p = ordem.find((k) => ordem.indexOf(k) > ordem.indexOf(planoAtual) && !PLANO_DESLIGA[k].includes(nome));
+  const tem = (k) => PLANO_LIGA[k].includes(nome) || (!PLANO_DESLIGA[k].includes(nome) && RECURSOS[nome] !== false);
+  if (tem(planoAtual)) return null;
+  const p = ordem.find((k) => ordem.indexOf(k) > ordem.indexOf(planoAtual) && tem(k));
   return p ? NOME_PLANO[p] : null;
 }

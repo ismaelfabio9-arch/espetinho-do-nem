@@ -116,3 +116,8 @@ body.dark .pedido-item-linha strong { color: var(--green) !important; }
 body.dark .status-novo     { background: #1e3a5f !important; color: #93c5fd !important; }
 body.dark .status-preparo  { background: #422006 !important; color: #fcd34d !important; }
 body.dark .status-entregue { background: var(--green-bg) !important; color: #86efac !important; }
+/* Pedido do cardápio online (entrega ou retirada) */
+.pedido-tipo-entrega { background: rgba(22, 163, 74, 0.15) !important; color: #16a34a !important; }
+.pedido-entrega { margin: 10px 0; padding: 10px 12px; border-radius: 12px; background: rgba(22, 163, 74, 0.08); font-size: 14px; display: flex; flex-direction: column; gap: 4px; }
+.pedido-entrega p { margin: 0; overflow-wrap: anywhere; }
+.pedido-entrega a { color: #16a34a; font-weight: 700; }

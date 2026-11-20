@@ -2,6 +2,7 @@ import { L, MULTI } from "../../loja";
 import useNomeLoja from "../../hooks/useNomeLoja";
 import Equipe from "../../components/Equipe";
 import TaxasMaquininha from "../../components/TaxasMaquininha";
+import CardapioOnlineConfig from "../../components/CardapioOnlineConfig";
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -231,6 +232,8 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
       {MULTI && <Equipe />}
 
       <TaxasMaquininha />
+
+      <CardapioOnlineConfig />
 
       <Link to="/config/impressora" style={{ textDecoration: "none" }}>
         <div className="config-card">

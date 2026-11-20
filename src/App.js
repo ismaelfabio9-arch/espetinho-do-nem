@@ -1,3 +1,4 @@
+import CardapioOnline from "./pages/Cliente/CardapioOnline";
 import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
 import { MULTI } from "./loja";
 import LojaGate, { LojaDoEndereco } from "./components/LojaGate";
@@ -39,6 +40,7 @@ function App() {
       <VersaoNova />
       <Routes>
         {MULTI && <Route path="/c/:loja/mesa-cliente/:mesa" element={<MesaDaLoja />} />}
+        {MULTI && <Route path="/c/:loja/cardapio" element={<CardapioDaLoja />} />}
         {!MULTI && <Route path="/mesa-cliente/:mesa" element={<CardapioMesa />} />}
         <Route path="/*" element={MULTI ? <LojaGate><TelasEquipe /></LojaGate> : <TelasEquipe />} />
       </Routes>
@@ -52,6 +54,16 @@ function MesaDaLoja() {
   return (
     <LojaDoEndereco id={loja}>
       <CardapioMesa />
+    </LojaDoEndereco>
+  );
+}
+
+/** Cardápio online da loja (pedido de casa, plano Premium; sem login). */
+function CardapioDaLoja() {
+  const { loja } = useParams();
+  return (
+    <LojaDoEndereco id={loja}>
+      <CardapioOnline />
     </LojaDoEndereco>
   );
 }

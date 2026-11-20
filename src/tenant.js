@@ -124,6 +124,6 @@ export async function mesasApi(nome, corpo, comLogin = true) {
   }
   const res = await fetch(`/mesas/api/${nome}`, { method: "POST", headers, body: JSON.stringify(corpo || {}) });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.error || "Não foi possível agora. Tente de novo.");
+  if (!res.ok) throw Object.assign(new Error(data.error || "Não foi possível agora. Tente de novo."), { field: data.field || "" });
   return data;
 }
