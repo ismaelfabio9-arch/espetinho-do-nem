@@ -201,7 +201,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
           <div className="config-icon">📋</div>
           <div>
             <h2>Histórico dos dias</h2>
-            <p>Ver fechamentos salvos.</p>
+            <p>Fechamentos de cada dia, separados em mesas, balcão e entregas.</p>
             <strong>Abrir histórico</strong>
           </div>
         </div>
@@ -211,9 +211,9 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
         <div className="config-card">
           <div className="config-icon">🍽️</div>
           <div>
-            <h2>Histórico de mesas</h2>
-            <p>Ver mesas e pedidos finalizados.</p>
-            <strong>Abrir histórico de mesas</strong>
+            <h2>Histórico de pedidos</h2>
+            <p>Pedidos finalizados hoje: mesas, balcão e entregas separados.</p>
+            <strong>Abrir histórico de pedidos</strong>
           </div>
         </div>
       </Link>
@@ -223,7 +223,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
           <div className="config-icon">📈</div>
           <div>
             <h2>Relatório Gerencial</h2>
-            <p>Faturamento por período, produtos vendidos e PDF.</p>
+            <p>Tudo junto: mesas, balcão e entregas por período, produtos vendidos e PDF.</p>
             <strong>{relatoriosLigado ? "Abrir relatório" : planoQueLibera("relatorios") ? `Disponível no plano ${planoQueLibera("relatorios")}` : "Função desligada"}</strong>
           </div>
         </div>

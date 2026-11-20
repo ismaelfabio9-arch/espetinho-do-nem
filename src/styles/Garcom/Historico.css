@@ -78,3 +78,24 @@ body.dark .historico-mesas-card {
 body.dark .historico-mesas-itens {
   border-top: 1px solid var(--border) !important;
 }
+/* ── Históricos separados por tipo: resumo e linhas alinhadas ── */
+.hist-resumo { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 14px; }
+.hist-resumo > div { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); min-width: 0; }
+.hist-resumo span { display: block; font-size: 12px; color: var(--muted); }
+.hist-resumo strong { display: block; margin-top: 2px; font-size: 16px; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hist-resumo-dia { margin: 12px 0 0; }
+.hist-resumo-dia > div { background: var(--card-2); }
+.hist-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; width: 100%; }
+.hist-topo-botao { padding: 0; border: none; background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.hist-topo h3 { margin: 4px 0 2px; color: var(--text); }
+.hist-topo small { font-size: 12px; color: var(--muted); }
+.hist-topo > strong { flex-shrink: 0; font-size: 17px; color: var(--green); font-variant-numeric: tabular-nums; }
+.hist-itens { margin-top: 12px; padding-top: 8px; border-top: 1px solid var(--border); }
+.hist-linha { display: grid; grid-template-columns: 38px minmax(0, 1fr) auto; align-items: baseline; gap: 8px; padding: 5px 0; font-size: 14px; color: var(--text); }
+.hist-qtd { color: var(--muted); font-variant-numeric: tabular-nums; }
+.hist-nome { min-width: 0; overflow-wrap: anywhere; }
+.hist-valor { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.hist-rodape { margin-top: 6px; padding-top: 10px; border-top: 1px solid var(--border); font-weight: 700; }
+.hist-ver { margin-top: 10px; padding: 0; border: none; background: none; color: var(--green); font-weight: 700; font-size: 14px; cursor: pointer; }
+.pedido-card .hist-linha .hist-nome, .pedido-card .hist-linha .hist-valor { color: var(--text) !important; }
+.pedido-card .hist-linha .hist-qtd { color: var(--muted) !important; }

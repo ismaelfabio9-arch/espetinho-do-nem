@@ -161,3 +161,26 @@ body.dark .relatorio-tabela-wrapper { border: 1px solid var(--border) !important
 body.dark .relatorio-tabela th  { background: #101010 !important; color: #f0f0f0 !important; }
 body.dark .relatorio-tabela td,
 body.dark .relatorio-tabela th  { border-bottom: 1px solid var(--border) !important; }
+/* ── Tabelas alinhadas: números à direita, mesma largura de dígito ── */
+.relatorio-tabela-numeros th,
+.relatorio-tabela-numeros td { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.relatorio-tabela-numeros th:not(:first-child),
+.relatorio-tabela-numeros td:not(:first-child) { text-align: right; }
+.relatorio-tabela-numeros td:first-child { white-space: normal; min-width: 140px; }
+.relatorio-tabela-numeros tfoot td { font-weight: 800; background: #f3f4f6; border-bottom: none; }
+.relatorio-tabela tbody tr:nth-child(even) td { background: #fafafa; }
+.relatorio-nota { margin: 10px 2px 0; font-size: 13px; color: #6b7280; }
+.relatorio-resumo-card strong { font-variant-numeric: tabular-nums; }
+@media (max-width: 700px) {
+  .relatorio-resumo-grid { grid-template-columns: 1fr 1fr; }
+  .relatorio-resumo-card strong { font-size: 18px; }
+  .relatorio-tabela th, .relatorio-tabela td { padding: 10px; font-size: 13px; }
+}
+body.dark .relatorio-tabela-numeros tfoot td { background: #0f0f0f !important; color: var(--text) !important; }
+body.dark .relatorio-tabela tbody tr:nth-child(even) td { background: #141414 !important; }
+body.dark .relatorio-tabela th { background: #0f0f0f !important; color: var(--muted) !important; }
+body.dark .relatorio-nota { color: var(--muted) !important; }
+@media print {
+  .relatorio-tabela-wrapper { overflow: visible; }
+  .relatorio-tabela th, .relatorio-tabela td { padding: 6px 8px; font-size: 11px; }
+}

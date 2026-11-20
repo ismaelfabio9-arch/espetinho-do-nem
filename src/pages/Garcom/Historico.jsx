@@ -12,17 +12,15 @@ import {
 import { db } from "../../firebase";
 import "../../styles/Garcom/Historico.css";
 
-// Prato montado ("Peito empanado — feijão preto, …") conta no relatório como o prato.
-const nomeProduto = (item) => item.nomeBase || String(item.nome || "").split(" — ")[0];
+import "../../styles/Garcom/Pedidos.css";
+import AbasTipo from "../../components/AbasTipo";
+import { TIPOS_VENDA, contarPorTipo, moeda, resumir, tipoVenda } from "../../utils/tipoVenda";
 
 
 function Historico() {
   const [historico, setHistorico] = useState([]);
   const [fechamentoAberto, setFechamentoAberto] = useState(null);
-
-  function formatarMoeda(valor) {
-    return Number(valor).toFixed(2).replace(".", ",");
-  }
+  const [tipo, setTipo] = useState("mesa");
 
   useEffect(() => {
     const historicoRef = query(
@@ -50,34 +48,15 @@ function Historico() {
     setFechamentoAberto(null);
   }
 
-  function montarRelatorio(dia) {
-    const vendas = dia.vendasDia || [];
-    const produtos = {};
-    let totalItens = 0;
-
-    vendas.forEach((venda) => {
-      (venda.itens || []).forEach((item) => {
-        const quantidade = Number(item.qtd || item.quantidade || 0);
-totalItens += quantidade;
-
-        if (!produtos[nomeProduto(item)]) {
-          produtos[nomeProduto(item)] = {
-            nome: nomeProduto(item),
-            qtd: 0,
-            total: 0,
-          };
-        }
-
-        produtos[nomeProduto(item)].qtd += quantidade;
-produtos[nomeProduto(item)].total += Number(item.preco || 0) * quantidade;
-      });
-    });
-
-    return {
-      totalItens,
-      produtos: Object.values(produtos).sort((a, b) => b.qtd - a.qtd),
-    };
-  }
+  const dias = historico
+    .map((dia) => ({ dia, resumo: resumir((dia.vendasDia || []).filter((v) => tipoVenda(v) === tipo)) }))
+    .filter((x) => x.resumo.pedidos > 0);
+  const contagem = { mesa: 0, balcao: 0, entrega: 0 };
+  historico.forEach((dia) => {
+    const c = contarPorTipo(dia.vendasDia || []);
+    Object.keys(c).forEach((k) => (contagem[k] += c[k] > 0 ? 1 : 0));
+  });
+  const nomeTipo = TIPOS_VENDA.find((t) => t.id === tipo).nome;
 
   return (
     <div className="container">
@@ -88,8 +67,8 @@ produtos[nomeProduto(item)].total += Number(item.preco || 0) * quantidade;
       <div className="pedidos-header">
         <div>
           <span>Fechamentos</span>
-          <h1>Histórico</h1>
-          <p>Resumo dos dias encerrados.</p>
+          <h1>Histórico dos dias</h1>
+          <p>Cada dia encerrado, separado em mesas, balcão e entregas. Tudo junto só no Relatório Gerencial.</p>
         </div>
       </div>
 
@@ -108,72 +87,61 @@ produtos[nomeProduto(item)].total += Number(item.preco || 0) * quantidade;
         </button>
       )}
 
-      {historico.length === 0 ? (
+      <AbasTipo tipo={tipo} onTroca={(t) => { setTipo(t); setFechamentoAberto(null); }} contagem={contagem} />
+
+      {dias.length === 0 ? (
         <div className="card-principal">
-          <h2>Nenhum fechamento</h2>
-          <p>Quando encerrar o dia, o relatório aparecerá aqui.</p>
+          <h2>{historico.length ? `Nenhum dia com ${nomeTipo.toLowerCase()}` : "Nenhum fechamento"}</h2>
+          <p>{historico.length ? "Os dias com vendas deste tipo aparecem aqui." : "Quando encerrar o dia, o relatório aparecerá aqui."}</p>
         </div>
       ) : (
         <div className="lista-pedidos">
-          {historico.map((dia) => {
-            const relatorio = montarRelatorio(dia);
+          {dias.map(({ dia, resumo }) => {
             const aberto = fechamentoAberto === dia.id;
 
             return (
               <div key={dia.id} className="pedido-card">
-                <div
-                  className="pedido-topo"
-                  onClick={() =>
-                    setFechamentoAberto(aberto ? null : dia.id)
-                  }
-                  style={{ cursor: "pointer" }}
+                <button
+                  type="button"
+                  className="hist-topo hist-topo-botao"
+                  onClick={() => setFechamentoAberto(aberto ? null : dia.id)}
+                  aria-expanded={aberto}
                 >
                   <div>
-                    <span className="pedido-tipo">Fechamento</span>
+                    <span className="pedido-tipo">{nomeTipo}</span>
                     <h3>{dia.data}</h3>
-                    <span>Encerrado às {dia.horario}</span>
+                    <small>Encerrado às {dia.horario}</small>
                   </div>
+                  <strong>R$ {moeda(resumo.total)}</strong>
+                </button>
 
-                  <strong className="status-entregue">
-                    R$ {formatarMoeda(dia.totalVendido)}
-                  </strong>
+                <div className="hist-resumo hist-resumo-dia">
+                  <div><span>Pedidos</span><strong>{resumo.pedidos}</strong></div>
+                  <div><span>Itens</span><strong>{resumo.itens}</strong></div>
+                  <div><span>Ticket médio</span><strong>R$ {moeda(resumo.ticket)}</strong></div>
                 </div>
-
-                <div className="pedido-total">
-                  <span>Total de pedidos</span>
-                  <strong>{dia.totalPedidos || 0}</strong>
-                </div>
-
-                <div className="pedido-total">
-                  <span>Total de itens</span>
-                  <strong>{dia.totalItens || relatorio.totalItens}</strong>
-                </div>
-
-                <div className="pedido-total">
-                  <span>Total vendido</span>
-                  <strong>R$ {formatarMoeda(dia.totalVendido)}</strong>
-                </div>
-
-                {aberto && (
-                  <div className="pedido-itens" style={{ marginTop: "14px" }}>
-                    <strong>Produtos vendidos</strong>
-
-                    {relatorio.produtos.length === 0 ? (
-                      <p>Nenhum produto registrado.</p>
-                    ) : (
-                      relatorio.produtos.map((produto) => (
-                        <div key={produto.nome} className="pedido-total">
-                          <span>
-                            {produto.qtd}x {produto.nome}
-                          </span>
-
-                          <strong>
-                            R$ {formatarMoeda(produto.total)}
-                          </strong>
-                        </div>
-                      ))
-                    )}
+                {tipo === "entrega" && resumo.taxaEntrega > 0 && (
+                  <div className="hist-linha hist-rodape">
+                    <span className="hist-qtd"></span>
+                    <span className="hist-nome">Taxas de entrega (já no total)</span>
+                    <span className="hist-valor">R$ {moeda(resumo.taxaEntrega)}</span>
                   </div>
+                )}
+
+                {aberto ? (
+                  <div className="hist-itens">
+                    {resumo.produtos.map((produto) => (
+                      <div key={produto.nome} className="hist-linha">
+                        <span className="hist-qtd">{produto.qtd}x</span>
+                        <span className="hist-nome">{produto.nome}</span>
+                        <span className="hist-valor">R$ {moeda(produto.total)}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <button type="button" className="hist-ver" onClick={() => setFechamentoAberto(dia.id)}>
+                    Ver produtos vendidos ›
+                  </button>
                 )}
               </div>
             );
