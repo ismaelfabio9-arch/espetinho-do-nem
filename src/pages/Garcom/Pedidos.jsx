@@ -1,5 +1,6 @@
 import { L } from "../../loja";
 import { useEffect, useState } from "react";
+
 import { Link } from "react-router-dom";
 import {
   collection,
@@ -18,11 +19,29 @@ import "../../styles/Garcom/Pedidos.css";
 import { useConfigImpressora } from "../../hooks/useConfigImpressora";
 import { gerarComandaHTML, imprimir } from "../../utils/print";
 
+// Painel: separa os pedidos em Mesas, Balcão (viagem) e Entregas. No computador, uma coluna para cada.
+const GRUPOS = [
+  { id: "mesa", rotulo: "🍽️ Mesas" },
+  { id: "balcao", rotulo: "🛍️ Balcão" },
+  { id: "entrega", rotulo: "🛵 Entregas" },
+];
+const grupoDe = (p) => (p.tipo === "mesa" ? "mesa" : p.tipo === "entrega" ? "entrega" : "balcao");
+const largo = () => typeof window !== "undefined" && window.matchMedia?.("(min-width: 1000px)").matches;
+
 function Pedidos() {
   const configImpressora = useConfigImpressora();
   const [pedidos, setPedidos] = useState([]);
   const [nomesMesas, setNomesMesas] = useState({});
   const [busca, setBusca] = useState("");
+  const [filtro, setFiltro] = useState("todos");
+  const [pc, setPc] = useState(largo);
+  useEffect(() => {
+    const m = window.matchMedia?.("(min-width: 1000px)");
+    if (!m) return;
+    const f = () => setPc(m.matches);
+    m.addEventListener?.("change", f);
+    return () => m.removeEventListener?.("change", f);
+  }, []);
 
   function formatarMoeda(valor) {
     return Number(valor).toFixed(2).replace(".", ",");
@@ -183,7 +202,10 @@ function Pedidos() {
     return "status-novo";
   }
 
+  const contagem = pedidos.reduce((c, p) => ({ ...c, [grupoDe(p)]: (c[grupoDe(p)] || 0) + 1 }), {});
+
   const pedidosFiltrados = pedidos.filter((pedido) => {
+    if (filtro !== "todos" && grupoDe(pedido) !== filtro) return false;
     const termo = busca.toLowerCase().trim();
 
     if (!termo) return true;
@@ -201,8 +223,114 @@ function Pedidos() {
     );
   });
 
+  const cartao = (pedido) => (
+    <div key={pedido.id} className="pedido-card">
+      <div className="pedido-topo">
+        <div>
+          <span className={`pedido-tipo ${pedido.tipo === "entrega" ? "pedido-tipo-entrega" : ""}`}>
+            {pedido.tipo === "mesa" ? "🍽️ Mesa" : pedido.tipo === "entrega" ? `${pedido.modo === "retirada" ? "🏪 Retirada" : "🛵 Entrega"} · ${pedido.origem === "manual" ? "telefone" : "site"}` : "🛍️ Balcão / viagem"}
+          </span>
+
+          <h3>{tituloPedido(pedido)}</h3>
+
+          <span>
+            {pedido.totalItens} itens • R$ {formatarMoeda(pedido.total)}
+          </span>
+
+          {pedido.salvoEm && (
+            <small className="pedido-horario">
+              Criado às {formatarHora(pedido.salvoEm)}
+            </small>
+          )}
+        </div>
+
+        <strong className={classeStatus(pedido.status)}>
+          {pedido.status}
+        </strong>
+      </div>
+
+      <div className="pedido-itens">
+        {ordenarItensPorPreco(pedido.itens).map((item) => (
+          <div className="pedido-item-linha" key={item.nome}>
+            <span>
+              {Number(item.qtd || item.quantidade || 0)}x {item.nome}
+            </span>
+
+            <strong>
+              R${" "}
+              {formatarMoeda(
+                Number(item.preco || 0) * Number(item.qtd || item.quantidade || 0)
+              )}
+            </strong>
+          </div>
+        ))}
+      </div>
+
+      {pedido.tipo === "entrega" && (
+        <div className="pedido-entrega">
+          <p>
+            <strong>{pedido.cliente}</strong> ·{" "}
+            <a href={`https://wa.me/${String(pedido.telefone || "").length <= 11 ? "55" : ""}${pedido.telefone}`} target="_blank" rel="noreferrer">
+              WhatsApp {pedido.telefone}
+            </a>
+          </p>
+          {pedido.modo === "entrega" && (
+            <p>
+              📍 {pedido.endereco}
+              {pedido.referencia ? ` (ref.: ${pedido.referencia})` : ""}
+            </p>
+          )}
+          <p>
+            💰 Paga na {pedido.modo === "entrega" ? "entrega" : "retirada"}: <strong>{pedido.pagamento}</strong>
+            {pedido.troco ? ` · troco para R$ ${formatarMoeda(pedido.troco)}` : ""}
+          </p>
+          {pedido.obs && <p>📝 {pedido.obs}</p>}
+          {pedido.taxaEntrega > 0 && (
+            <p>
+              Itens R$ {formatarMoeda(pedido.subtotal)} + entrega R$ {formatarMoeda(pedido.taxaEntrega)}
+            </p>
+          )}
+        </div>
+      )}
+
+      <div className="pedido-total">
+        <span>Total</span>
+        <strong>R$ {formatarMoeda(pedido.total)}</strong>
+      </div>
+
+      <div className="pedido-acoes">
+        <button
+          className="btn-verde"
+          onClick={() => alterarStatus(pedido.id, "Em preparo")}
+        >
+          Em preparo
+        </button>
+
+        <button
+          className="btn-cinza"
+          onClick={() => alterarStatus(pedido.id, "Entregue")}
+        >
+          Entregue
+        </button>
+
+        {pedido.tipo === "entrega" && (
+          <button className="btn-cinza" onClick={() => void imprimirEntrega(pedido)}>
+            🖨️ Imprimir
+          </button>
+        )}
+
+        <button
+          className="btn-remover"
+          onClick={() => removerPedido(pedido)}
+        >
+          Finalizar
+        </button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="container">
+    <div className="container pedidos-pagina">
       <Link to="/" className="voltar">
         ← Voltar
       </Link>
@@ -211,8 +339,26 @@ function Pedidos() {
         <div>
           <span>Atendimento</span>
           <h1>Pedidos</h1>
-          <p>Pedidos de mesas, viagem e do cardápio online em andamento.</p>
+          <p>Mesas, balcão e entregas em andamento, numa tela só.</p>
         </div>
+        <Link to="/novo" className="pedidos-novo" data-atalho="F2">
+          + Novo pedido
+        </Link>
+      </div>
+
+      <div className="pedidos-filtros" role="tablist" aria-label="Tipo de pedido">
+        {[{ id: "todos", rotulo: "Todos" }, ...GRUPOS].map((g) => (
+          <button
+            key={g.id}
+            type="button"
+            role="tab"
+            aria-selected={filtro === g.id}
+            className={filtro === g.id ? "ativo" : ""}
+            onClick={() => setFiltro(g.id)}
+          >
+            {g.rotulo} <small>{g.id === "todos" ? pedidos.length : contagem[g.id] || 0}</small>
+          </button>
+        ))}
       </div>
 
       <input
@@ -225,117 +371,25 @@ function Pedidos() {
 
       {pedidosFiltrados.length === 0 ? (
         <div className="card-principal">
-          <h2>Nenhum pedido encontrado</h2>
-          <p>Tente buscar por mesa, cliente, viagem, item ou status.</p>
+          <h2>Nenhum pedido aberto</h2>
+          <p>{busca.trim() ? "Tente buscar por mesa, cliente, item ou status." : "Os pedidos de mesa, balcão e entrega aparecem aqui."}</p>
+        </div>
+      ) : pc && filtro === "todos" ? (
+        <div className="pedidos-colunas">
+          {GRUPOS.map((g) => {
+            const lista = pedidosFiltrados.filter((p) => grupoDe(p) === g.id);
+            return (
+              <section key={g.id} className="pedidos-coluna">
+                <h2>
+                  {g.rotulo} <small>{lista.length}</small>
+                </h2>
+                {lista.length ? <div className="lista-pedidos">{lista.map(cartao)}</div> : <p className="pedidos-coluna-vazia">Nenhum agora.</p>}
+              </section>
+            );
+          })}
         </div>
       ) : (
-        <div className="lista-pedidos">
-          {pedidosFiltrados.map((pedido) => (
-            <div key={pedido.id} className="pedido-card">
-              <div className="pedido-topo">
-                <div>
-                  <span className={`pedido-tipo ${pedido.tipo === "entrega" ? "pedido-tipo-entrega" : ""}`}>
-                    {pedido.tipo === "mesa" ? "Mesa" : pedido.tipo === "entrega" ? (pedido.modo === "retirada" ? "🏪 Retirada · site" : "🛵 Entrega · site") : "Viagem"}
-                  </span>
-
-                  <h3>{tituloPedido(pedido)}</h3>
-
-                  <span>
-                    {pedido.totalItens} itens • R$ {formatarMoeda(pedido.total)}
-                  </span>
-
-                  {pedido.salvoEm && (
-                    <small className="pedido-horario">
-                      Criado às {formatarHora(pedido.salvoEm)}
-                    </small>
-                  )}
-                </div>
-
-                <strong className={classeStatus(pedido.status)}>
-                  {pedido.status}
-                </strong>
-              </div>
-
-              <div className="pedido-itens">
-                {ordenarItensPorPreco(pedido.itens).map((item) => (
-                  <div className="pedido-item-linha" key={item.nome}>
-                    <span>
-                      {Number(item.qtd || item.quantidade || 0)}x {item.nome}
-                    </span>
-
-                    <strong>
-                      R${" "}
-                      {formatarMoeda(
-                        Number(item.preco || 0) * Number(item.qtd || item.quantidade || 0)
-                      )}
-                    </strong>
-                  </div>
-                ))}
-              </div>
-
-              {pedido.tipo === "entrega" && (
-                <div className="pedido-entrega">
-                  <p>
-                    <strong>{pedido.cliente}</strong> ·{" "}
-                    <a href={`https://wa.me/${String(pedido.telefone || "").length <= 11 ? "55" : ""}${pedido.telefone}`} target="_blank" rel="noreferrer">
-                      WhatsApp {pedido.telefone}
-                    </a>
-                  </p>
-                  {pedido.modo === "entrega" && (
-                    <p>
-                      📍 {pedido.endereco}
-                      {pedido.referencia ? ` (ref.: ${pedido.referencia})` : ""}
-                    </p>
-                  )}
-                  <p>
-                    💰 Paga na {pedido.modo === "entrega" ? "entrega" : "retirada"}: <strong>{pedido.pagamento}</strong>
-                    {pedido.troco ? ` · troco para R$ ${formatarMoeda(pedido.troco)}` : ""}
-                  </p>
-                  {pedido.obs && <p>📝 {pedido.obs}</p>}
-                  {pedido.taxaEntrega > 0 && (
-                    <p>
-                      Itens R$ {formatarMoeda(pedido.subtotal)} + entrega R$ {formatarMoeda(pedido.taxaEntrega)}
-                    </p>
-                  )}
-                </div>
-              )}
-
-              <div className="pedido-total">
-                <span>Total</span>
-                <strong>R$ {formatarMoeda(pedido.total)}</strong>
-              </div>
-
-              <div className="pedido-acoes">
-                <button
-                  className="btn-verde"
-                  onClick={() => alterarStatus(pedido.id, "Em preparo")}
-                >
-                  Em preparo
-                </button>
-
-                <button
-                  className="btn-cinza"
-                  onClick={() => alterarStatus(pedido.id, "Entregue")}
-                >
-                  Entregue
-                </button>
-
-                {pedido.tipo === "entrega" && (
-                  <button className="btn-cinza" onClick={() => void imprimirEntrega(pedido)}>
-                    🖨️ Imprimir
-                  </button>
-                )}
-
-                <button
-                  className="btn-remover"
-                  onClick={() => removerPedido(pedido)}
-                >
-                  Finalizar
-                </button>
-              </div>
-            </div>
-          ))}
-        </div>
+        <div className="lista-pedidos">{pedidosFiltrados.map(cartao)}</div>
       )}
 
       <div className="menu-inferior">

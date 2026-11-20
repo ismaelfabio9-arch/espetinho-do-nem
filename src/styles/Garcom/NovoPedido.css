@@ -1,0 +1,36 @@
+/* Novo pedido: abas Mesa / Balcão / Entrega e escolha da mesa. */
+.novo-topo { display: flex; flex-direction: column; gap: 10px; margin-bottom: 14px; }
+.novo-titulo { margin: 0; font-size: 24px; color: var(--text); }
+.novo-abas { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; border-radius: 12px; background: var(--card-2); border: 1px solid var(--border); }
+.novo-abas button { height: 42px; border: none; border-radius: 9px; background: transparent; color: var(--muted); font-size: 15px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.novo-abas button.ativa { background: var(--card); color: var(--text); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12); }
+.novo-dica { margin: 0 2px 10px; font-size: 13px; color: var(--muted); }
+.novo-mesas { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.novo-mesa { display: flex; flex-direction: column; gap: 2px; min-height: 72px; padding: 10px; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); text-decoration: none; }
+.novo-mesa strong { font-size: 15px; }
+.novo-mesa span { font-size: 13px; color: var(--muted); }
+.novo-mesa small { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.novo-mesa.ocupada { border-color: var(--green); background: var(--green-bg); }
+.novo-mesa.ocupada span { color: var(--green); font-weight: 700; }
+
+/* Dados da entrega lançada pelo garçom */
+.modal-card.entrega-dados { max-width: 440px; max-height: 92vh; overflow-y: auto; text-align: left; display: flex; flex-direction: column; gap: 10px; }
+.entrega-dados h2 { margin: 0 0 4px; }
+.entrega-dados label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; font-weight: 700; color: var(--muted); }
+.entrega-dados input { box-sizing: border-box; width: 100%; height: 44px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--border); background: var(--card-2); color: var(--text); font-size: 16px; }
+.entrega-pagamento { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.entrega-pagamento button { height: 42px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text); font-weight: 700; cursor: pointer; }
+.entrega-pagamento button.ativo { border: 2px solid var(--green); background: var(--green-bg); }
+.entrega-totais { display: grid; grid-template-columns: 1fr auto; gap: 2px 12px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 14px; color: var(--text); }
+.entrega-totais strong:last-child { font-size: 17px; }
+.entrega-erro { margin: 0; color: var(--red); font-weight: 700; font-size: 14px; }
+
+@media (min-width: 900px) {
+  .novo-abas { max-width: 520px; }
+}
+
+/* Outras telas definem .modal-card escuro; aqui a janela segue o tema do sistema. */
+.modal-card.entrega-dados { background: var(--card) !important; border: 1px solid var(--border) !important; color: var(--text) !important; }
+.entrega-dados h2, .entrega-totais, .entrega-totais strong { color: var(--text) !important; }
+.entrega-pagamento button { color: var(--text) !important; background: var(--card) !important; }
+.entrega-pagamento button.ativo { background: var(--green-bg) !important; }
