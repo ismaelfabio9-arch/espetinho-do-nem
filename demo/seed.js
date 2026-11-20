@@ -1,7 +1,11 @@
 // Restaurante de almoço de exemplo da demonstração. Tudo inventado: cardápio, preços, nomes de
 // clientes e vendas servem só para mostrar o sistema funcionando.
 import { Timestamp, demoReplaceAll } from "./fakeFirestore";
-import { MONTAGEM_ALMOCO, ehCategoriaDePrato } from "../src/utils/montagem";
+import { MONTAGEM_ALMOCO, ehCategoriaDePrato, tipoPelaCategoria } from "../src/utils/montagem";
+import { CATEGORIAS_PRONTAS } from "../src/data/produtos";
+
+// Opções (sabores, recheios) dos produtos que vêm das categorias prontas do sistema.
+const OPCOES = Object.fromEntries(CATEGORIAS_PRONTAS.flatMap((c) => c.itens.filter((i) => i.montagem).map((i) => [i.nome, i.montagem])));
 
 const slug = (t) =>
   String(t)
@@ -20,6 +24,8 @@ const CARDAPIO = [
   ["Refrigerantes e água", [["Refrigerante lata", 6, 72], ["Refrigerante 1L", 10, 24], ["Água mineral", 4, 48], ["Água com gás", 5, 24]]],
   ["Cervejas", [["Cerveja long neck", 9, 72], ["Cerveja lata", 6, 72]]],
   ["Sobremesas", [["Pudim", 8, 20], ["Mousse de maracujá", 7, 20], ["Cocada", 5, 30]]],
+  ["Picolés", [["Picolé de fruta", 4, 60], ["Picolé ao leite", 5, 60], ["Picolé recheado", 7, 40]]],
+  ["Tapiocas", [["Tapioca", 6, 40]]],
 ];
 
 const MESAS = 15;
@@ -39,10 +45,10 @@ export function seedDemo() {
   const itensPorNome = {};
 
   CARDAPIO.forEach(([categoria, itens], ordemCat) => {
-    cols.categorias[slug(categoria)] = { nome: categoria, ordem: ordemCat, ativo: true, criadoEm: new Timestamp(now), atualizadoEm: iso(now) };
+    cols.categorias[slug(categoria)] = { nome: categoria, ordem: ordemCat, ativo: true, tipo: tipoPelaCategoria(categoria), criadoEm: new Timestamp(now), atualizadoEm: iso(now) };
     itens.forEach(([nome, preco, qtd], ordem) => {
       const id = slug(`${categoria}-${nome}`);
-      cols.produtos[id] = { categoria, nome, preco, ativo: true, ordem, criadoEm: new Timestamp(now), ...(ehCategoriaDePrato(categoria) ? { montagem: MONTAGEM_ALMOCO } : {}) };
+      cols.produtos[id] = { categoria, nome, preco, ativo: true, ordem, criadoEm: new Timestamp(now), tipo: tipoPelaCategoria(categoria), ...(ehCategoriaDePrato(categoria) ? { montagem: MONTAGEM_ALMOCO } : OPCOES[nome] ? { montagem: OPCOES[nome] } : {}) };
       cols.estoque[id] = { nome, categoria, quantidade: qtd, atualizadoEm: iso(now) };
       itensPorNome[nome] = { produtoId: id, nome, preco };
     });

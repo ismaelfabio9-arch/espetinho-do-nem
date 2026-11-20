@@ -5,7 +5,8 @@
 // updateDoc, deleteDoc, writeBatch e serverTimestamp.
 
 // v2: pratos com "montar o prato" (pedido rápido do almoço); quem já abriu recebe o exemplo novo.
-export const STORAGE_KEY = "iftech_demo_mesas_v2";
+// v3: cadastro por tipo (picolés com sabor, tapioca com recheio).
+export const STORAGE_KEY = "iftech_demo_mesas_v3";
 
 class Timestamp {
   constructor(ms) {
