@@ -87,7 +87,7 @@ export function ordenarGruposPorCategoria(grupos, categoriasDocs) {
 
     if (ordemA !== ordemB) return ordemA - ordemB;
 
-    return a.categoria.localeCompare(b.categoria, "pt-BR");
+    return String(a.categoria ?? "").localeCompare(String(b.categoria ?? ""), "pt-BR");
   });
 }
 

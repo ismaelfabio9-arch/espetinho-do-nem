@@ -23,6 +23,7 @@ import Estoque from "./pages/Garcom/Estoque";
 import QrCodes from "./pages/Garcom/QrCodes";
 import CardapioHoje from "./pages/Garcom/CardapioHoje";
 import VersaoNova from "./components/VersaoNova";
+import ErroTela from "./components/ErroTela";
 import { planoQueLibera, useRecurso } from "./recursos";
 
 
@@ -41,7 +42,7 @@ function App() {
       <Routes>
         {MULTI && <Route path="/c/:loja/mesa-cliente/:mesa" element={<MesaDaLoja />} />}
         {MULTI && <Route path="/c/:loja/cardapio" element={<CardapioDaLoja />} />}
-        {!MULTI && <Route path="/mesa-cliente/:mesa" element={<CardapioMesa />} />}
+        {!MULTI && <Route path="/mesa-cliente/:mesa" element={<ErroTela><CardapioMesa /></ErroTela>} />}
         <Route path="/*" element={MULTI ? <LojaGate><TelasEquipe /></LojaGate> : <TelasEquipe />} />
       </Routes>
     </BrowserRouter>
@@ -52,9 +53,11 @@ function App() {
 function MesaDaLoja() {
   const { loja } = useParams();
   return (
-    <LojaDoEndereco id={loja}>
-      <CardapioMesa />
-    </LojaDoEndereco>
+    <ErroTela>
+      <LojaDoEndereco id={loja}>
+        <CardapioMesa />
+      </LojaDoEndereco>
+    </ErroTela>
   );
 }
 
@@ -62,9 +65,11 @@ function MesaDaLoja() {
 function CardapioDaLoja() {
   const { loja } = useParams();
   return (
-    <LojaDoEndereco id={loja}>
-      <CardapioOnline />
-    </LojaDoEndereco>
+    <ErroTela>
+      <LojaDoEndereco id={loja}>
+        <CardapioOnline />
+      </LojaDoEndereco>
+    </ErroTela>
   );
 }
 
