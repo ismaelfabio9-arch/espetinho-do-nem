@@ -20,8 +20,9 @@ import {
   setDoc,
 } from "firebase/firestore";
 import MontarPrato from "../../components/MontarPrato";
-import { sugestoesBebida, temMontagem } from "../../utils/montagem";
+import { sugestoesBebida, abreEscolha } from "../../utils/montagem";
 import PedidoRapido from "../../components/PedidoRapido";
+import { useRecurso } from "../../recursos";
 
 function CardapioMesa() {
   const nomeLoja = useNomeLoja();
@@ -41,6 +42,12 @@ function CardapioMesa() {
   const [mostrarModalPagamento, setMostrarModalPagamento] = useState(false);
   const [formaPagamento, setFormaPagamento] = useState("");
   const [produtos, setProdutos] = useState([]);
+  // Funções que a IFTech pode desligar só nesta loja (Central da Loja).
+  const pedidoLigado = useRecurso("qr-pedido");
+  const garcomLigado = useRecurso("chamar-garcom");
+  const contaLigada = useRecurso("pedir-conta");
+  const montarLigado = useRecurso("montar-prato");
+  const estoqueLigado = useRecurso("estoque");
   const [estoque, setEstoque] = useState({});
   const [categoriasDocs, setCategoriasDocs] = useState([]);
 
@@ -107,6 +114,7 @@ function CardapioMesa() {
           nome: produto.nome,
           preco: Number(produto.preco || 0),
           montagem: produto.montagem || null,
+          tipo: produto.tipo || null,
         });
 
         return resultado;
@@ -237,7 +245,7 @@ function CardapioMesa() {
 
   function alterarQuantidade(item, valor) {
     // Prato com montagem: o + abre a janela; o − tira a última montagem desse prato.
-    if (temMontagem(item)) {
+    if (abreEscolha(item, montarLigado)) {
       if (valor > 0) return setMontando(item);
       const linhas = Object.values(carrinho).filter((l) => l.produtoId === item.id && l.montagem);
       if (linhas.length) ajustarLinha(linhas[linhas.length - 1].chave, -1);
@@ -285,6 +293,7 @@ function CardapioMesa() {
   // Lojas da IFTech: só conta como esgotado o que tem estoque controlado (mínimo definido em Estoque);
   // prato de almoço sem controle de estoque nunca aparece esgotado.
   function esgotado(item) {
+    if (!estoqueLigado) return false;
     const quantidadeEstoque = Number(estoque[item.id]?.quantidade || 0);
     return MULTI ? estoque[item.id]?.minimo !== undefined && quantidadeEstoque <= 0 : quantidadeEstoque <= 0;
   }
@@ -625,15 +634,17 @@ function CardapioMesa() {
         <div className="cardapio-header">
           <span>{process.env.REACT_APP_MULTI === "1" ? "🍽️" : "🍢"} {nomeLoja}</span>
           <h1>Mesa {mesa}</h1>
-          <p>Toque no prato ou na bebida para pedir.</p>
+          <p>{pedidoLigado ? "Toque no prato ou na bebida para pedir." : "Veja o cardápio. Para pedir, chame o garçom."}</p>
 
-          <button
-            className="cardapio-garcom-btn"
-            onClick={chamarGarcom}
-            disabled={enviando}
-          >
-            🛎️ Chamar Garcom
-          </button>
+          {garcomLigado && (
+            <button
+              className="cardapio-garcom-btn"
+              onClick={chamarGarcom}
+              disabled={enviando}
+            >
+              🛎️ Chamar Garcom
+            </button>
+          )}
         </div>
 
         {produtosDisponiveis.length === 0 && (
@@ -648,9 +659,10 @@ function CardapioMesa() {
             <PedidoRapido
               categorias={produtosDisponiveis}
               emoji={emojiCategoria}
+              montar={montarLigado}
               contagem={(item) => Object.values(carrinho).filter((l) => l.produtoId === item.id).reduce((s, l) => s + l.quantidade, 0)}
               indisponivel={esgotado}
-              onTocar={(item) => alterarQuantidade(item, 1)}
+              onTocar={(item) => (pedidoLigado ? alterarQuantidade(item, 1) : setMensagem("Para pedir, chame o garçom."))}
             />
           </div>
         )}
@@ -710,21 +722,25 @@ function CardapioMesa() {
             </strong>
           </div>
 
-          <button
-            className="cardapio-btn-principal"
-            onClick={fazerPedido}
-            disabled={enviando}
-          >
-            FINALIZAR PEDIDO
-          </button>
+          {pedidoLigado && (
+            <button
+              className="cardapio-btn-principal"
+              onClick={fazerPedido}
+              disabled={enviando}
+            >
+              FINALIZAR PEDIDO
+            </button>
+          )}
 
-          <button
-            className="cardapio-btn-pagar"
-            onClick={() => setMostrarModalPagamento(true)}
-            disabled={enviando}
-          >
-            💳 Pedir conta / Pagar
-          </button>
+          {contaLigada && (
+            <button
+              className="cardapio-btn-pagar"
+              onClick={() => setMostrarModalPagamento(true)}
+              disabled={enviando}
+            >
+              💳 Pedir conta / Pagar
+            </button>
+          )}
         </div>
       </div>
     </div>

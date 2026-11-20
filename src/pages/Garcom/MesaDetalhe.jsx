@@ -29,7 +29,8 @@ import {
 import "../../styles/Garcom/MesaDetalhe.css";
 import PedidoRapido from "../../components/PedidoRapido";
 import MontarPrato from "../../components/MontarPrato";
-import { MONTAGEM_ALMOCO, emojiCategoria, pratosSemMontagem, sugestoesBebida, temMontagem } from "../../utils/montagem";
+import { useRecurso } from "../../recursos";
+import { MONTAGEM_ALMOCO, emojiCategoria, pratosSemMontagem, sugestoesBebida, abreEscolha } from "../../utils/montagem";
 
 
 const FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Débito", "Crédito"];
@@ -64,6 +65,9 @@ function MesaDetalhe() {
   const [paraImprimir, setParaImprimir] = useState(null); // { itens, total, alterado }
   const [alterouPedidoMesa, setAlterouPedidoMesa] = useState(false);
   const configImpressora = useConfigImpressora();
+  // Funções que a IFTech pode desligar só nesta loja (Central da Loja).
+  const montarLigado = useRecurso("montar-prato");
+  const imprimirLigado = useRecurso("imprimir-cozinha");
 
   useEffect(() => {
     const cancelar = onSnapshot(doc(db, ...L(), "mesas", String(id)), (documento) => {
@@ -124,6 +128,7 @@ function MesaDetalhe() {
           preco: Number(produto.preco || 0),
           ordem: produto.ordem,
           montagem: produto.montagem || null,
+          tipo: produto.tipo || null,
         });
 
         return resultado;
@@ -283,7 +288,7 @@ if (pedidosDaMesa.length === 0) {
   }
 
   function tocarItem(item) {
-    if (temMontagem(item)) setMontando(item);
+    if (abreEscolha(item, montarLigado)) setMontando(item);
     else adicionarItem(item);
   }
 
@@ -533,7 +538,7 @@ if (pedidosDaMesa.length === 0) {
       setPedido({});
       mostrarNotificacao("Pedido salvo com sucesso!");
 
-      if (configImpressora.habilitada) {
+      if (configImpressora.habilitada && imprimirLigado) {
         // "Imprimir automaticamente" ligado na configuração: tenta direto; se o celular bloquear, pergunta.
         const impresso = configImpressora.autoImprimirPedido ? await imprimirComandaAgora(itensImpressos, totalImpresso) : false;
         if (!impresso) setParaImprimir({ itens: itensImpressos, total: totalImpresso, alterado: false });
@@ -568,7 +573,7 @@ if (pedidosDaMesa.length === 0) {
 
   function fecharPedidoMesa() {
     setMostrarPedidoMesa(false);
-    if (alterouPedidoMesa && configImpressora.habilitada && itensMesa.length > 0) {
+    if (alterouPedidoMesa && configImpressora.habilitada && imprimirLigado && itensMesa.length > 0) {
       setParaImprimir({ itens: itensMesa, total: totalMesa, alterado: true });
     }
     setAlterouPedidoMesa(false);
@@ -1029,6 +1034,7 @@ if (pedidosDaMesa.length === 0) {
             <PedidoRapido
               categorias={produtos}
               emoji={emojiCategoria}
+              montar={montarLigado}
               contagem={(item) => itensPedido.filter((p) => p.produtoId === item.id).reduce((s, p) => s + p.qtd, 0)}
               onTocar={tocarItem}
             />

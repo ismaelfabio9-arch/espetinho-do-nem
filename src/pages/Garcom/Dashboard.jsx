@@ -1,3 +1,4 @@
+import { useRecurso } from "../../recursos";
 import { L } from "../../loja";
 import useNomeLoja from "../../hooks/useNomeLoja";
 import { useEffect, useRef, useState } from "react";
@@ -35,6 +36,9 @@ import {
 import { db } from "../../firebase";
 
 function Dashboard() {
+  // Funções que a IFTech pode desligar só nesta loja (Central da Loja).
+  const viagemLigado = useRecurso("viagem");
+  const estoqueLigado = useRecurso("estoque");
   const nomeLoja = useNomeLoja();
   const [faturamentoDia, setFaturamentoDia] = useState(0);
   const [mesas, setMesas] = useState([]);
@@ -534,10 +538,12 @@ function Dashboard() {
               Mesas
             </Link>
 
-            <Link to="/viagem" onClick={() => setMenuAberto(false)}>
-              <ShoppingBag size={20} />
-              Pedido Viagem
-            </Link>
+            {viagemLigado && (
+              <Link to="/viagem" onClick={() => setMenuAberto(false)}>
+                <ShoppingBag size={20} />
+                Pedido Viagem
+              </Link>
+            )}
 
             <Link to="/cardapio-hoje" onClick={() => setMenuAberto(false)}>
               📅
@@ -549,10 +555,12 @@ function Dashboard() {
               Produtos
             </Link>
 
-            <Link to="/estoque" onClick={() => setMenuAberto(false)}>
-              📦
-              <span>Estoque</span>
-            </Link>
+            {estoqueLigado && (
+              <Link to="/estoque" onClick={() => setMenuAberto(false)}>
+                📦
+                <span>Estoque</span>
+              </Link>
+            )}
 
             <Link to="/historico" onClick={() => setMenuAberto(false)}>
               <History size={20} />

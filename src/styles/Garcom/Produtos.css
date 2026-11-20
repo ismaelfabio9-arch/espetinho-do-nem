@@ -443,3 +443,19 @@ body.dark .produto-nome-cancelar { background: var(--card-3) !important; color: 
 .montagem-card input, .montagem-card textarea { display: block; width: 100%; box-sizing: border-box; margin-top: 6px; padding: 10px; border-radius: 10px; border: 1px solid #d1d5db; font-size: 15px; font-family: inherit; }
 body.dark .montagem-card input, body.dark .montagem-card textarea { background: #111; color: #f3f4f6; border-color: #2f2f2f; }
 .montagem-modelo { margin-top: 12px; background: none; border: 1px dashed #16a34a; color: #16a34a; border-radius: 10px; padding: 9px 12px; font-weight: 700; cursor: pointer; width: 100%; }
+
+/* Tipo do produto (prato, simples, sabor, recheio) e categorias prontas */
+.tipo-opcoes, .prontas-grade { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px; }
+.tipo-op { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; border: 1px solid rgba(127, 127, 127, 0.4); background: rgba(127, 127, 127, 0.08); color: inherit; border-radius: 12px; padding: 10px; cursor: pointer; font: inherit; min-width: 0; }
+/* Segue a cor da janela (escura ou clara) e da página. */
+.tipo-op strong, .modal-card .tipo-op strong, .modal-fechar-dia-card .tipo-op strong { font-size: 14px; color: inherit; display: inline; margin: 0; }
+/* Janela clara: o título acompanha a cor do texto (estava branco no fundo branco, ex.: "Adicionar produto"). */
+body:not(.dark) .modal-fechar-dia-card h2 { color: inherit; }
+.tipo-op small { font-size: 12px; font-weight: 500; opacity: 0.75; line-height: 1.3; color: inherit; }
+.tipo-op.ativo { border: 2px solid #16a34a; background: rgba(22, 163, 74, 0.16); }
+.tipo-op:disabled { opacity: 0.5; cursor: wait; }
+.prontas-grade { max-height: 55vh; overflow: auto; }
+.categoria-tipo { font-size: 12px; padding: 4px 6px; border-radius: 8px; border: 1px solid #d1d5db; max-width: 150px; }
+body.dark .categoria-tipo { background: #111; color: #f3f4f6; border-color: #2f2f2f; }
+.montagem-erro { color: #dc2626; font-weight: 700; margin-top: 10px; }
+@media (max-width: 380px) { .tipo-opcoes, .prontas-grade { grid-template-columns: 1fr; } }

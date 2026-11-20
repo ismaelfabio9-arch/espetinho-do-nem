@@ -46,11 +46,18 @@ export function nomeMontado(produto, escolha) {
   return partes.length ? `${produto.nome} — ${partes.join(", ")}` : produto.nome;
 }
 
+/** Quanto a opção escolhida acrescenta (ex.: recheio de carne de sol +3, tamanho 500 ml +6). */
+export function precoOpcao(grupo, opcao) {
+  const v = Number(grupo?.precos?.[opcao]);
+  return Number.isFinite(v) && v > 0 ? v : 0;
+}
+
 export function precoMontado(produto, escolha) {
   const m = produto?.montagem || {};
   const extras = (m.extras || []).filter((e) => (escolha?.extras || []).includes(e.nome));
   const outros = (escolha?.outros || []).reduce((s, o) => s + (Number(o.preco) || 0), 0);
-  return Math.round((Number(produto.preco || 0) + extras.reduce((s, e) => s + Number(e.preco || 0), 0) + outros) * 100) / 100;
+  const opcoes = (m.escolhas || []).reduce((s, g) => s + precoOpcao(g, escolha?.escolhas?.[g.nome]), 0);
+  return Math.round((Number(produto.preco || 0) + extras.reduce((s, e) => s + Number(e.preco || 0), 0) + outros + opcoes) * 100) / 100;
 }
 
 /** Observação livre: uma linha curta, sem símbolos estranhos (igual no servidor). */
@@ -61,6 +68,24 @@ export function limparObs(t) {
 
 // ---------- edição em Produtos (texto simples) ----------
 
+const valorDe = (t) => {
+  const v = Number(String(t || "0").replace(",", ".").replace(/[^\d.]/g, ""));
+  return Number.isFinite(v) ? Math.round(v * 100) / 100 : 0;
+};
+const real = (v) => String(v).replace(".", ",");
+
+/** "Queijo, Carne de sol = 4,50, Frango = 2" → ["Queijo", "Carne de sol = 4,50", "Frango = 2"] (a vírgula do preço não separa). */
+function opcoesDaLinha(t) {
+  const out = [];
+  String(t || "").split(",").forEach((parte) => {
+    const p = parte.trim();
+    if (!p) return;
+    if (/^\d{1,2}$/.test(p) && out.length && /=\s*\d+$/.test(out[out.length - 1])) out[out.length - 1] += "," + p;
+    else out.push(p);
+  });
+  return out;
+}
+
 /** Texto → montagem. "Vem: Arroz, Feijão" / escolhas "Feijão: Carioca, Preto" / a mais "Ovo = 2". */
 export function lerMontagem({ vem, escolhas, extras }) {
   const lista = (t) => String(t || "").split(",").map((s) => s.trim()).filter(Boolean);
@@ -69,8 +94,19 @@ export function lerMontagem({ vem, escolhas, extras }) {
     escolhas: String(escolhas || "")
       .split("\n")
       .map((linha) => {
-        const [nome, ops] = linha.split(":");
-        return { nome: (nome || "").trim(), opcoes: lista(ops).slice(0, 10) };
+        const i = linha.indexOf(":");
+        const nome = i < 0 ? linha : linha.slice(0, i);
+        const opcoes = [];
+        const precos = {};
+        opcoesDaLinha(i < 0 ? "" : linha.slice(i + 1)).slice(0, 12).forEach((op) => {
+          const [n, v] = op.split("=");
+          const nomeOp = (n || "").trim();
+          if (!nomeOp || opcoes.includes(nomeOp)) return;
+          opcoes.push(nomeOp);
+          const valor = valorDe(v);
+          if (valor > 0) precos[nomeOp] = valor;
+        });
+        return { nome: nome.trim(), opcoes, ...(Object.keys(precos).length ? { precos } : {}) };
       })
       .filter((g) => g.nome && g.opcoes.length)
       .slice(0, 6),
@@ -78,8 +114,7 @@ export function lerMontagem({ vem, escolhas, extras }) {
       .split("\n")
       .map((linha) => {
         const [nome, preco] = linha.split("=");
-        const valor = Number(String(preco || "0").replace(",", ".").replace(/[^\d.]/g, ""));
-        return { nome: (nome || "").trim(), preco: Number.isFinite(valor) ? Math.round(valor * 100) / 100 : 0 };
+        return { nome: (nome || "").trim(), preco: valorDe(preco) };
       })
       .filter((e) => e.nome)
       .slice(0, 12),
@@ -90,8 +125,10 @@ export function lerMontagem({ vem, escolhas, extras }) {
 export function textoMontagem(m) {
   return {
     vem: (m?.vem || []).join(", "),
-    escolhas: (m?.escolhas || []).map((g) => `${g.nome}: ${(g.opcoes || []).join(", ")}`).join("\n"),
-    extras: (m?.extras || []).map((e) => `${e.nome} = ${String(e.preco).replace(".", ",")}`).join("\n"),
+    escolhas: (m?.escolhas || [])
+      .map((g) => `${g.nome}: ${(g.opcoes || []).map((o) => (precoOpcao(g, o) ? `${o} = ${real(precoOpcao(g, o))}` : o)).join(", ")}`)
+      .join("\n"),
+    extras: (m?.extras || []).map((e) => `${e.nome} = ${real(e.preco)}`).join("\n"),
   };
 }
 
@@ -136,4 +173,50 @@ export function emojiCategoria(categoria) {
   if (/cerveja/i.test(categoria)) return "🍺";
   if (/sobremesa|doce/i.test(categoria)) return "🍮";
   return "🍴";
+}
+
+// ---------- tipo do produto ----------
+// prato   = almoço: o que vem no prato (tira), escolhas e o que vai a mais
+// simples = bebida, sobremesa, doce: só nome e preço
+// sabor   = picolé, sorvete, suco: o cliente escolhe o sabor
+// recheio = tapioca, cuscuz, açaí, pastel: recheio ou tamanho, cada opção com o seu preço
+export const TIPOS = [
+  { id: "prato", emoji: "🍛", nome: "Prato de almoço", exemplo: "Prato do dia, PF, marmita", botao: "🍽️ Montagem do prato", titulo: "Montar o prato" },
+  { id: "simples", emoji: "🥤", nome: "Simples", exemplo: "Bebida, sobremesa, doce, salgado", botao: "⚙️ Opções", titulo: "" },
+  { id: "sabor", emoji: "🍦", nome: "Com sabor", exemplo: "Picolé, sorvete, suco", botao: "🍦 Sabores", titulo: "Escolher o sabor" },
+  { id: "recheio", emoji: "🌮", nome: "Com recheio ou tamanho", exemplo: "Tapioca, cuscuz, açaí, pastel", botao: "🌮 Recheios e tamanhos", titulo: "Escolher" },
+];
+export const tipoInfo = (id) => TIPOS.find((t) => t.id === id) || TIPOS[1];
+
+/** Tipo do produto. Produtos antigos (sem o campo): com montagem = prato; sem = simples. */
+export function tipoDe(produto) {
+  if (TIPOS.some((t) => t.id === produto?.tipo)) return produto.tipo;
+  return temMontagem(produto) ? "prato" : "simples";
+}
+
+/** Tipo sugerido pelo nome da categoria (o dono pode trocar). */
+export function tipoPelaCategoria(categoria) {
+  const c = String(categoria || "");
+  if (ehCategoriaDePrato(c)) return "prato";
+  if (/picol|sorvet|geladinho|din.?din|suco|vitamina|milk.?shake/i.test(c)) return "sabor";
+  if (/tapioca|cuscuz|crepe|recheado|pastel|a[cç]a[ií]|panqueca|sandu|beiju/i.test(c)) return "recheio";
+  return "simples";
+}
+
+/** Modelo pronto de cada tipo (o dono troca os nomes e os preços). */
+export const MODELOS = {
+  prato: MONTAGEM_ALMOCO,
+  simples: null,
+  sabor: { vem: [], escolhas: [{ nome: "Sabor", opcoes: ["Coco", "Morango", "Chocolate", "Limão"] }], extras: [] },
+  recheio: {
+    vem: [],
+    escolhas: [{ nome: "Recheio", opcoes: ["Queijo", "Frango", "Carne de sol"], precos: { Frango: 2, "Carne de sol": 4 } }],
+    extras: [{ nome: "Queijo a mais", preco: 2 }],
+  },
+};
+
+/** Abre a janela de escolha? Prato só com "Montar o prato" ligado; sabor e recheio sempre (precisa escolher). */
+export function abreEscolha(produto, montarLigado) {
+  if (!temMontagem(produto)) return false;
+  return montarLigado || tipoDe(produto) !== "prato";
 }

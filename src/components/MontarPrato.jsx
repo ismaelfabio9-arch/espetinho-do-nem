@@ -1,12 +1,12 @@
 // Janela "Montar o prato": o que vem no prato (toque para tirar), as escolhas, o que vai a mais
 // e a bebida em um toque. Usada pelo garçom (MesaDetalhe) e pelo cliente no QR Code da mesa.
 import { useState } from "react";
-import { escolhaPadrao, nomeMontado, precoMontado } from "../utils/montagem";
+import { escolhaPadrao, nomeMontado, precoMontado, precoOpcao, tipoDe, tipoInfo } from "../utils/montagem";
 import "./MontarPrato.css";
 
 const moeda = (v) => Number(v || 0).toFixed(2).replace(".", ",");
 
-export default function MontarPrato({ produto, bebidas = [], onAdicionar, onFechar, permitirOutros = false }) {
+export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicionar, onFechar, permitirOutros = false }) {
   const [escolha, setEscolha] = useState(() => escolhaPadrao(produto));
   const [bebidasEscolhidas, setBebidasEscolhidas] = useState([]);
   // "+ Outro" (só o garçom): algo fora da lista, com preço.
@@ -24,6 +24,9 @@ export default function MontarPrato({ produto, bebidas = [], onAdicionar, onFech
     setOutroAberto(false);
   }
   const m = produto.montagem || {};
+  const tipo = tipoDe(produto);
+  // Bebida em um toque só depois do prato (no picolé ou na tapioca não faz sentido).
+  const bebidas = tipo === "prato" ? sugeridas : [];
 
   const alternar = (lista, valor) => (lista.includes(valor) ? lista.filter((x) => x !== valor) : [...lista, valor]);
   const precoPrato = precoMontado(produto, escolha);
@@ -44,7 +47,7 @@ export default function MontarPrato({ produto, bebidas = [], onAdicionar, onFech
 
   return (
     <div className="montar-fundo" onClick={onFechar}>
-      <div className="montar-folha" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Montar ${produto.nome}`}>
+      <div className="montar-folha" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`${tipoInfo(tipo).titulo || "Escolher"}: ${produto.nome}`}>
         <div className="montar-topo">
           <h2>{produto.nome}</h2>
           <strong>R$ {moeda(precoPrato)}</strong>
@@ -53,7 +56,7 @@ export default function MontarPrato({ produto, bebidas = [], onAdicionar, onFech
 
         {(m.vem || []).length > 0 && (
           <>
-            <div className="montar-grupo">VEM NO PRATO · toque para tirar</div>
+            <div className="montar-grupo">{tipo === "prato" ? "VEM NO PRATO" : "VEM"} · toque para tirar</div>
             <div className="montar-opcoes">
               {m.vem.map((v) => {
                 const tirou = escolha.tirar.includes(v);
@@ -74,6 +77,7 @@ export default function MontarPrato({ produto, bebidas = [], onAdicionar, onFech
               {g.opcoes.map((op) => (
                 <button type="button" key={op} className={escolha.escolhas[g.nome] === op ? "montar-op escolhida" : "montar-op"} onClick={() => setEscolha({ ...escolha, escolhas: { ...escolha.escolhas, [g.nome]: op } })}>
                   {op}
+                  {precoOpcao(g, op) ? ` · + R$ ${moeda(precoOpcao(g, op))}` : ""}
                 </button>
               ))}
             </div>
@@ -111,7 +115,7 @@ export default function MontarPrato({ produto, bebidas = [], onAdicionar, onFech
         )}
 
         <div className="montar-grupo">OBSERVAÇÃO</div>
-        <input className="montar-obs" placeholder="Ex.: pouco sal, trocar arroz por macaxeira" value={escolha.obs || ""} maxLength={60} onChange={(e) => setEscolha({ ...escolha, obs: e.target.value })} />
+        <input className="montar-obs" placeholder={tipo === "prato" ? "Ex.: pouco sal, trocar arroz por macaxeira" : "Ex.: sem açúcar, bem passado"} value={escolha.obs || ""} maxLength={60} onChange={(e) => setEscolha({ ...escolha, obs: e.target.value })} />
 
         {bebidas.length > 0 && (
           <>

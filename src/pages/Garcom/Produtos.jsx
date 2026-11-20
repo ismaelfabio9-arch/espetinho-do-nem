@@ -12,7 +12,7 @@ import {
 } from "firebase/firestore";
 import { Link } from "react-router-dom";
 import { db } from "../../firebase";
-import { produtos as produtosEspetinho, produtosAlmoco } from "../../data/produtos";
+import { produtos as produtosEspetinho, CATEGORIAS_PRONTAS, CARDAPIOS_EXEMPLO } from "../../data/produtos";
 import {
   SEM_CATEGORIA,
   migrarCategoriasSeNecessario,
@@ -26,7 +26,7 @@ import {
 import { ordenarItensCategoria } from "../../utils/produtosOrdem";
 import { slugify, formatarMoeda } from "../../utils/texto";
 import "../../styles/Garcom/Produtos.css";
-import { MONTAGEM_ALMOCO, lerMontagem, temMontagem, textoMontagem } from "../../utils/montagem";
+import { MODELOS, TIPOS, lerMontagem, temMontagem, textoMontagem, tipoDe, tipoInfo, tipoPelaCategoria } from "../../utils/montagem";
 
 function Produtos() {
   const [produtos, setProdutos] = useState([]);
@@ -42,6 +42,9 @@ function Produtos() {
   const [novoNome, setNovoNome] = useState("");
   const [novaCategoria, setNovaCategoria] = useState("");
   const [precoNovoProduto, setPrecoNovoProduto] = useState("");
+  const [tipoNovo, setTipoNovo] = useState("");
+  const [prontasAbertas, setProntasAbertas] = useState(false);
+  const [pondoPronta, setPondoPronta] = useState(false);
   const [segurandoProduto, setSegurandoProduto] = useState(null);
   const [produtoParaExcluir, setProdutoParaExcluir] = useState(null);
   const [erroProduto, setErroProduto] = useState("");
@@ -98,14 +101,22 @@ function Produtos() {
     setTimeout(() => setMensagemCategoria(""), 2500);
   }
 
-  async function importarProdutosPadrao() {
-    // Lojas da IFTech começam com um cardápio de almoço de exemplo; a loja original mantém o dela.
-    const produtosPadrao = MULTI ? produtosAlmoco : produtosEspetinho;
-    for (const categoria of produtosPadrao) {
-      for (const item of categoria.itens) {
-        const produtoId =
-          item.id || criarIdProduto(`${categoria.categoria}-${item.nome}`);
+  /** Tipo da categoria: o que o dono marcou nela ou, sem marcar, o sugerido pelo nome. */
+  function tipoDaCategoria(nome) {
+    const c = categorias.find((x) => x.nome.toLowerCase() === String(nome || "").trim().toLowerCase());
+    return c?.tipo || tipoPelaCategoria(nome);
+  }
 
+  /** Grava categorias com seus produtos (cardápio de exemplo ou categoria pronta). Não repete produto com o mesmo nome. */
+  async function gravarCategorias(lista) {
+    let ordemBase = categorias.reduce((max, c) => Math.max(max, typeof c.ordem === "number" ? c.ordem : 0), -1) + 1;
+    const nomesAtuais = new Set(produtos.map((p) => `${p.categoria}|${p.nome}`.toLowerCase()));
+    let novos = 0;
+    for (const categoria of lista) {
+      for (const item of categoria.itens) {
+        if (nomesAtuais.has(`${categoria.categoria}|${item.nome}`.toLowerCase())) continue;
+        const produtoId = item.id || criarIdProduto(`${categoria.categoria}-${item.nome}`);
+        const tipo = item.tipo || categoria.tipo;
         await setDoc(
           doc(db, ...L(), "produtos", produtoId),
           {
@@ -113,36 +124,57 @@ function Produtos() {
             nome: item.nome,
             preco: Number(item.preco),
             ativo: true,
+            ...(tipo ? { tipo } : {}),
             ...(item.montagem ? { montagem: item.montagem } : {}),
             criadoEm: serverTimestamp(),
           },
           { merge: true }
         );
-
         await setDoc(
           doc(db, ...L(), "estoque", produtoId),
-          {
-            nome: item.nome,
-            categoria: categoria.categoria,
-            quantidade: 0,
-            atualizadoEm: new Date().toISOString(),
-          },
+          { nome: item.nome, categoria: categoria.categoria, quantidade: 0, atualizadoEm: new Date().toISOString() },
           { merge: true }
         );
+        novos++;
+      }
+      // Loja da IFTech: a categoria entra no fim da lista, já com o tipo dos produtos novos.
+      if (MULTI) {
+        const existente = categorias.find((c) => c.nome.toLowerCase() === categoria.categoria.toLowerCase());
+        if (existente) {
+          if (categoria.tipo && !existente.tipo) await setDoc(doc(db, ...L(), "categorias", existente.id), { tipo: categoria.tipo }, { merge: true });
+        } else {
+          await setDoc(
+            doc(db, ...L(), "categorias", slugify(categoria.categoria) || `categoria-${ordemBase}`),
+            { nome: categoria.categoria, ordem: ordemBase++, ativo: true, ...(categoria.tipo ? { tipo: categoria.tipo } : {}), criadoEm: serverTimestamp(), atualizadoEm: new Date().toISOString() },
+            { merge: true }
+          );
+        }
       }
     }
+    return novos;
+  }
 
-    // Loja nova da IFTech: as categorias já nascem na ordem do cardápio (pratos primeiro, sobremesas no fim).
-    if (MULTI && categorias.length === 0) {
-      for (const [ordem, categoria] of produtosPadrao.entries()) {
-        await setDoc(
-          doc(db, ...L(), "categorias", slugify(categoria.categoria) || `categoria-${ordem}`),
-          { nome: categoria.categoria, ordem, ativo: true, criadoEm: serverTimestamp(), atualizadoEm: new Date().toISOString() },
-          { merge: true }
-        );
-      }
+  async function importarProdutosPadrao(exemploId) {
+    // Lojas da IFTech escolhem um cardápio de exemplo pelo tipo de negócio; a loja original mantém o dela.
+    if (MULTI) {
+      const ex = CARDAPIOS_EXEMPLO.find((c) => c.id === exemploId) || CARDAPIOS_EXEMPLO[0];
+      await gravarCategorias(ex.categorias.map((id) => CATEGORIAS_PRONTAS.find((c) => c.id === id)).filter(Boolean));
+    } else {
+      await gravarCategorias(produtosEspetinho);
     }
     await migrarCategoriasSeNecessario();
+  }
+
+  async function porCategoriaPronta(pronta) {
+    setPondoPronta(true);
+    try {
+      const n = await gravarCategorias([pronta]);
+      mostrarMensagemCategoria(n ? `${pronta.categoria}: ${n} produto(s) de exemplo. Mude nomes e preços à vontade.` : `${pronta.categoria} já estava no cardápio.`);
+      setProntasAbertas(false);
+    } catch {
+      mostrarMensagemCategoria("Não foi possível pôr a categoria agora.");
+    }
+    setPondoPronta(false);
   }
 
   async function adicionarProduto() {
@@ -154,6 +186,7 @@ function Produtos() {
     const nomeTratado = novoNome.trim();
     const categoriaTratada = novaCategoria.trim();
     const produtoId = criarIdProduto(`${categoriaTratada}-${nomeTratado}`);
+    const tipoEscolhido = tipoNovo || tipoDaCategoria(categoriaTratada);
 
     await setDoc(
       doc(db, ...L(), "produtos", produtoId),
@@ -162,6 +195,7 @@ function Produtos() {
         categoria: categoriaTratada,
         preco: Number(precoNovoProduto),
         ativo: true,
+        tipo: tipoEscolhido,
         criadoEm: serverTimestamp(),
       },
       { merge: true }
@@ -185,12 +219,18 @@ function Produtos() {
     );
     if (!existeCategoria) {
       try {
-        await criarCategoria(categoriaTratada, categorias);
+        const idCategoria = await criarCategoria(categoriaTratada, categorias);
+        await setDoc(doc(db, ...L(), "categorias", idCategoria), { tipo: tipoEscolhido }, { merge: true });
       } catch {
         // categoria pode já existir por corrida entre abas — ignora
       }
     }
 
+    // Sabor, recheio ou prato: já abre as opções com o modelo do tipo para o dono ajustar.
+    if (tipoEscolhido !== "simples") {
+      setMontagemAberta({ id: produtoId, nome: nomeTratado, tipo: tipoEscolhido, novo: true, ...textoMontagem(MODELOS[tipoEscolhido]) });
+    }
+    setTipoNovo("");
     setNovoNome("");
     setNovaCategoria("");
     setPrecoNovoProduto("");
@@ -388,11 +428,20 @@ function Produtos() {
   }
 
   async function salvarMontagem() {
-    const m = lerMontagem(montagemAberta);
-    await setDoc(doc(db, ...L(), "produtos", montagemAberta.id), { montagem: m }, { merge: true });
+    const tipo = montagemAberta.tipo || "simples";
+    const m = tipo === "simples" ? null : lerMontagem(tipo === "prato" ? montagemAberta : { ...montagemAberta, vem: "" });
+    if ((tipo === "sabor" || tipo === "recheio") && !(m?.escolhas || []).length) {
+      setMontagemAberta({ ...montagemAberta, erro: tipo === "sabor" ? "Escreva os sabores. Ex.: Sabor: Coco, Morango" : "Escreva as opções. Ex.: Recheio: Queijo, Frango = 2" });
+      return;
+    }
+    await setDoc(doc(db, ...L(), "produtos", montagemAberta.id), { tipo, montagem: m }, { merge: true });
     setMontagemAberta(null);
-    setMensagemCategoria(m ? "Montagem do prato salva!" : "Montagem removida.");
-    setTimeout(() => setMensagemCategoria(""), 2500);
+    mostrarMensagemCategoria(tipo === "simples" ? "Produto simples: entra direto, sem opções." : `${tipoInfo(tipo).nome}: opções salvas!`);
+  }
+
+  async function mudarTipoCategoria(categoria, tipo) {
+    await setDoc(doc(db, ...L(), "categorias", categoria.id), { tipo }, { merge: true });
+    mostrarMensagemCategoria(`Produtos novos em "${categoria.nome}": ${tipoInfo(tipo).nome}.`);
   }
 
   const produtosDisponiveisComoDestino = (categoriaAtual) =>
@@ -415,6 +464,11 @@ function Produtos() {
           <Link to="/cardapio-hoje" className="produto-mini-btn" title="Cardápio de hoje" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
             📅
           </Link>
+          {MULTI && (
+            <button className="produto-mini-btn" onClick={() => setProntasAbertas(true)} title="Categoria pronta (picolés, tapiocas, açaí…)">
+              🧩
+            </button>
+          )}
           <button
             className="produto-mini-btn"
             onClick={() => setGerenciandoCategorias((v) => !v)}
@@ -438,29 +492,87 @@ function Produtos() {
 
       {mensagemCategoria && <div className="toast">{mensagemCategoria}</div>}
 
-      {montagemAberta && (
-        <div className="modal-overlay" onClick={() => setMontagemAberta(null)}>
+      {montagemAberta && (() => {
+        const tipo = montagemAberta.tipo || "simples";
+        const info = tipoInfo(tipo);
+        const muda = (campos) => setMontagemAberta({ ...montagemAberta, erro: "", ...campos });
+        return (
+          <div className="modal-overlay" onClick={() => setMontagemAberta(null)}>
+            <div className="modal-card montagem-card" onClick={(e) => e.stopPropagation()}>
+              <h2>{info.emoji} {montagemAberta.nome}</h2>
+              <label>
+                Tipo do produto
+                <div className="tipo-opcoes">
+                  {TIPOS.map((t) => (
+                    <button
+                      type="button"
+                      key={t.id}
+                      className={t.id === tipo ? "tipo-op ativo" : "tipo-op"}
+                      onClick={() => muda({ tipo: t.id, ...(t.id !== "simples" && !montagemAberta.escolhas && !montagemAberta.vem && !montagemAberta.extras ? textoMontagem(MODELOS[t.id]) : {}) })}
+                    >
+                      <strong>{t.emoji} {t.nome}</strong>
+                      <small>{t.exemplo}</small>
+                    </button>
+                  ))}
+                </div>
+              </label>
+              {tipo === "simples" && <p>Entra direto no pedido com um toque, sem perguntar nada. Bom para bebida, sobremesa, doce e salgado.</p>}
+              {tipo === "prato" && (
+                <>
+                  <p>Na hora de lançar, o garçom (e o cliente no QR Code) monta o prato com isto. Deixe em branco o que não usar.</p>
+                  <label>
+                    Vem no prato <small>(separe por vírgula)</small>
+                    <input value={montagemAberta.vem} onChange={(e) => muda({ vem: e.target.value })} placeholder="Arroz, Feijão, Salada, Farofa" />
+                  </label>
+                </>
+              )}
+              {tipo === "sabor" && <p>Um produto só, e na hora do pedido escolhe o sabor. Se um sabor custar mais, ponha "= preço" depois dele.</p>}
+              {tipo === "recheio" && <p>Na hora do pedido escolhe o recheio ou o tamanho. Ponha "= preço" no que custar mais que o preço do produto.</p>}
+              {tipo !== "simples" && (
+                <>
+                  <label>
+                    {tipo === "sabor" ? "Sabores" : tipo === "recheio" ? "Recheios e tamanhos" : "Escolhas"} <small>(uma por linha: Grupo: opção, opção = preço)</small>
+                    <textarea
+                      rows={3}
+                      value={montagemAberta.escolhas}
+                      onChange={(e) => muda({ escolhas: e.target.value })}
+                      placeholder={tipo === "sabor" ? "Sabor: Coco, Morango, Chocolate" : tipo === "recheio" ? "Recheio: Queijo, Frango = 2, Carne de sol = 4\nTamanho: Pequeno, Grande = 3" : "Feijão: Carioca, Preto, Macassar\nSalada: Verdura, Vinagrete"}
+                    />
+                  </label>
+                  <label>
+                    {tipo === "prato" ? "A mais, com preço" : "Adicionais, com preço"} <small>(uma por linha: nome = preço)</small>
+                    <textarea rows={2} value={montagemAberta.extras} onChange={(e) => muda({ extras: e.target.value })} placeholder={tipo === "prato" ? "Ovo = 2\nBatata frita = 6" : tipo === "sabor" ? "Cobertura = 2" : "Ovo = 2\nQueijo a mais = 3"} />
+                  </label>
+                  <button type="button" className="montagem-modelo" onClick={() => muda(textoMontagem(MODELOS[tipo]))}>
+                    Usar o exemplo de {info.nome.toLowerCase()}
+                  </button>
+                </>
+              )}
+              {montagemAberta.erro && <p className="montagem-erro">{montagemAberta.erro}</p>}
+              <div className="modal-acoes">
+                <button type="button" className="modal-btn cancelar" onClick={() => setMontagemAberta(null)}>{montagemAberta.novo ? "Depois" : "Cancelar"}</button>
+                <button type="button" className="modal-btn confirmar" onClick={salvarMontagem}>Salvar</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {prontasAbertas && (
+        <div className="modal-overlay" onClick={() => !pondoPronta && setProntasAbertas(false)}>
           <div className="modal-card montagem-card" onClick={(e) => e.stopPropagation()}>
-            <h2>🍽️ {montagemAberta.nome}</h2>
-            <p>Na hora de lançar, o garçom (e o cliente no QR Code) monta o prato com isto. Deixe em branco o que não usar.</p>
-            <label>
-              Vem no prato <small>(separe por vírgula)</small>
-              <input value={montagemAberta.vem} onChange={(e) => setMontagemAberta({ ...montagemAberta, vem: e.target.value })} placeholder="Arroz, Feijão, Salada, Farofa" />
-            </label>
-            <label>
-              Escolhas <small>(uma por linha: Grupo: opção, opção)</small>
-              <textarea rows={3} value={montagemAberta.escolhas} onChange={(e) => setMontagemAberta({ ...montagemAberta, escolhas: e.target.value })} placeholder={"Feijão: Carioca, Preto, Macassar\nSalada: Verdura, Vinagrete"} />
-            </label>
-            <label>
-              A mais, com preço <small>(uma por linha: nome = preço)</small>
-              <textarea rows={3} value={montagemAberta.extras} onChange={(e) => setMontagemAberta({ ...montagemAberta, extras: e.target.value })} placeholder={"Ovo = 2\nBatata frita = 6"} />
-            </label>
-            <button type="button" className="montagem-modelo" onClick={() => setMontagemAberta({ ...montagemAberta, ...textoMontagem(MONTAGEM_ALMOCO) })}>
-              Usar o modelo de almoço
-            </button>
+            <h2>➕ Categoria pronta</h2>
+            <p>A categoria entra no fim do cardápio com produtos de exemplo, já com sabores, recheios ou montagem. Depois é só mudar nomes e preços.</p>
+            <div className="prontas-grade">
+              {CATEGORIAS_PRONTAS.map((c) => (
+                <button type="button" key={c.id} className="tipo-op" disabled={pondoPronta} onClick={() => porCategoriaPronta(c)}>
+                  <strong>{c.emoji} {c.categoria}</strong>
+                  <small>{tipoInfo(c.tipo).nome} · {c.itens.map((i) => i.nome).slice(0, 3).join(", ")}</small>
+                </button>
+              ))}
+            </div>
             <div className="modal-acoes">
-              <button type="button" className="modal-btn cancelar" onClick={() => setMontagemAberta(null)}>Cancelar</button>
-              <button type="button" className="modal-btn confirmar" onClick={salvarMontagem}>Salvar</button>
+              <button type="button" className="modal-btn cancelar" disabled={pondoPronta} onClick={() => setProntasAbertas(false)}>Fechar</button>
             </div>
           </div>
         </div>
@@ -511,6 +623,18 @@ function Produtos() {
                 <span className="categoria-contagem">
                   {(produtosPorCategoria[categoria.nome] || []).length} itens
                 </span>
+
+                <select
+                  className="categoria-tipo"
+                  value={categoria.tipo || tipoPelaCategoria(categoria.nome)}
+                  onChange={(e) => mudarTipoCategoria(categoria, e.target.value)}
+                  title="Tipo dos produtos novos desta categoria"
+                  aria-label={`Tipo dos produtos de ${categoria.nome}`}
+                >
+                  {TIPOS.map((t) => (
+                    <option key={t.id} value={t.id}>{t.emoji} {t.nome}</option>
+                  ))}
+                </select>
 
                 <div className="categoria-acoes">
                   <button
@@ -728,10 +852,18 @@ function Produtos() {
 
               <input
                 type="number"
-                placeholder="Preço"
+                placeholder={(tipoNovo || tipoDaCategoria(novaCategoria)) === "simples" ? "Preço" : "Preço (o menor; o que custar mais vai nas opções)"}
                 value={precoNovoProduto}
                 onChange={(e) => setPrecoNovoProduto(e.target.value)}
               />
+              <div className="tipo-opcoes">
+                {TIPOS.map((t) => (
+                  <button type="button" key={t.id} className={t.id === (tipoNovo || tipoDaCategoria(novaCategoria)) ? "tipo-op ativo" : "tipo-op"} onClick={() => setTipoNovo(t.id)}>
+                    <strong>{t.emoji} {t.nome}</strong>
+                    <small>{t.exemplo}</small>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="modal-fechar-dia-botoes">
@@ -740,6 +872,7 @@ function Produtos() {
                 onClick={() => {
                   setAdicionando(false);
                   setErroProduto("");
+                  setTipoNovo("");
                 }}
               >
                 Cancelar
@@ -788,21 +921,28 @@ function Produtos() {
 
       {produtos.length === 0 && (
         <div style={{ marginBottom: "16px" }}>
-          <button
-            className="btn-verde"
-            style={{ width: "100%" }}
-            onClick={importarProdutosPadrao}
-          >
-            {MULTI ? "Começar com um cardápio de almoço de exemplo" : "Importar cardápio padrão"}
-          </button>
-          {MULTI && (
-            <p style={{ margin: "8px 2px 0", fontSize: 13, opacity: 0.75 }}>
-              Pratos do dia, PF, acompanhamentos, sucos, refrigerantes, cervejas e sobremesas. Depois é só mudar nomes e preços.
-            </p>
+          {MULTI ? (
+            <>
+              <p style={{ margin: "0 2px 8px", fontWeight: 700 }}>Começar com um cardápio de exemplo. O que a loja vende?</p>
+              <div className="prontas-grade">
+                {CARDAPIOS_EXEMPLO.map((c) => (
+                  <button type="button" key={c.id} className="tipo-op" onClick={() => importarProdutosPadrao(c.id)}>
+                    <strong>{c.emoji} {c.nome}</strong>
+                    <small>{c.descricao}</small>
+                  </button>
+                ))}
+              </div>
+              <p style={{ margin: "8px 2px 0", fontSize: 13, opacity: 0.75 }}>
+                Depois é só mudar nomes e preços. Vende mais coisas? Toque em 🧩 para pôr outra categoria pronta.
+              </p>
+            </>
+          ) : (
+            <button className="btn-verde" style={{ width: "100%" }} onClick={() => importarProdutosPadrao()}>
+              Importar cardápio padrão
+            </button>
           )}
         </div>
       )}
-
       {categoriasExibidas.map((categoria) => (
         <div key={categoria.id} className="pedido-card">
           <div className="produtos-categoria-header">
@@ -893,9 +1033,10 @@ function Produtos() {
                     className="produto-montagem-btn"
                     onMouseDown={(e) => e.stopPropagation()}
                     onTouchStart={(e) => e.stopPropagation()}
-                    onClick={() => setMontagemAberta({ id: produto.id, nome: produto.nome, ...textoMontagem(produto.montagem) })}
+                    onClick={() => setMontagemAberta({ id: produto.id, nome: produto.nome, tipo: tipoDe(produto), ...textoMontagem(produto.montagem) })}
                   >
-                    {temMontagem(produto) ? "🍽️ Montagem do prato ✓" : "🍽️ Montagem do prato"}
+                    {tipoInfo(tipoDe(produto)).botao}
+                    {tipoDe(produto) !== "simples" ? (temMontagem(produto) ? " ✓" : " · cadastrar") : ""}
                   </button>
                 </div>
 
