@@ -63,8 +63,10 @@ export default function CardapioOnline() {
           .map((d) => ({ id: d.id, ...d.data() }))
           .filter((p) => p.ativo !== false && p.foraHoje !== true)
           .forEach((p) => {
-            if (!grupos[p.categoria]) grupos[p.categoria] = { categoria: p.categoria, itens: [] };
-            grupos[p.categoria].itens.push({ id: p.id, nome: p.nome, preco: Number(p.preco || 0), montagem: p.montagem || null, tipo: p.tipo || null });
+            // Produto sem categoria ou sem nome não pode derrubar a página (tela preta).
+            const cat = String(p.categoria || "").trim() || "Outros";
+            if (!grupos[cat]) grupos[cat] = { categoria: cat, itens: [] };
+            grupos[cat].itens.push({ id: p.id, nome: String(p.nome || "Produto"), preco: Number(p.preco || 0) || 0, montagem: p.montagem || null, tipo: p.tipo || null });
           });
         setProdutos(ordenarGruposPorCategoria(Object.values(grupos), categoriasDocs));
       }),

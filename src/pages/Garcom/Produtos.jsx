@@ -3,7 +3,6 @@ import { useEffect, useMemo, useState, useRef } from "react";
 import {
   collection,
   onSnapshot,
-  updateDoc,
   deleteDoc,
   doc,
   serverTimestamp,
@@ -33,16 +32,21 @@ import { MODELOS, TIPOS, lerMontagem, temMontagem, textoMontagem, tipoDe, tipoIn
 // A loja original do espetinho continua com o cardápio dela.
 const LOJA_IFTECH = process.env.REACT_APP_MULTI === "1";
 
+const normalizar = (t) =>
+  String(t || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
+
 function Produtos() {
   const [produtos, setProdutos] = useState([]);
   const [categorias, setCategorias] = useState([]);
-  const [editando, setEditando] = useState(null);
-  const [novoPreco, setNovoPreco] = useState("");
-  const [editandoNome, setEditandoNome] = useState(null);
+  // Editar produto: toca na linha e abre a ficha (nome, preço, categoria, opções e excluir).
+  const [ficha, setFicha] = useState(null);
+  const [busca, setBusca] = useState("");
   // Montagem do prato (almoço): o que vem, as escolhas e o que vai a mais.
   const [montagemAberta, setMontagemAberta] = useState(null);
-  const [novoNomeProduto, setNovoNomeProduto] = useState("");
-  const [erroNomeProduto, setErroNomeProduto] = useState("");
   const [adicionando, setAdicionando] = useState(false);
   const [novoNome, setNovoNome] = useState("");
   const [novaCategoria, setNovaCategoria] = useState("");
@@ -50,7 +54,6 @@ function Produtos() {
   const [tipoNovo, setTipoNovo] = useState("");
   const [prontasAbertas, setProntasAbertas] = useState(false);
   const [pondoPronta, setPondoPronta] = useState(false);
-  const [segurandoProduto, setSegurandoProduto] = useState(null);
   const [produtoParaExcluir, setProdutoParaExcluir] = useState(null);
   const [erroProduto, setErroProduto] = useState("");
 
@@ -243,58 +246,43 @@ function Produtos() {
     setAdicionando(false);
   }
 
-  async function salvarPreco(produto) {
-    await updateDoc(doc(db, ...L(), "produtos", produto.id), {
-      preco: Number(novoPreco),
-      atualizadoEm: new Date().toISOString(),
-    });
-
-    setEditando(null);
-    setNovoPreco("");
+  function abrirFicha(produto) {
+    setFicha({ id: produto.id, nome: produto.nome || "", preco: String(produto.preco ?? ""), categoria: produto.categoria || "", erro: "", salvando: false });
   }
 
-  async function salvarNomeProduto(produto) {
-    const nomeTratado = novoNomeProduto.trim();
-
-    if (!nomeTratado) {
-      setErroNomeProduto("O nome não pode ficar em branco.");
-      return;
-    }
-
+  async function salvarFicha() {
+    const produto = produtos.find((p) => p.id === ficha?.id);
+    if (!produto) return setFicha(null);
+    const nomeTratado = ficha.nome.trim();
+    const preco = Number(String(ficha.preco).replace(",", "."));
+    const categoria = ficha.categoria || produto.categoria;
+    if (!nomeTratado) return setFicha({ ...ficha, erro: "O nome não pode ficar em branco." });
+    if (!Number.isFinite(preco) || preco < 0) return setFicha({ ...ficha, erro: "Confira o preço." });
     const nomeJaExiste = produtos.some(
       (item) =>
         item.id !== produto.id &&
-        item.categoria === produto.categoria &&
-        item.nome.trim().toLowerCase() === nomeTratado.toLowerCase()
+        item.categoria === categoria &&
+        (item.nome || "").trim().toLowerCase() === nomeTratado.toLowerCase()
     );
+    if (nomeJaExiste) return setFicha({ ...ficha, erro: "Já existe um produto com esse nome nessa categoria." });
 
-    if (nomeJaExiste) {
-      setErroNomeProduto("Já existe um produto com esse nome nessa categoria.");
-      return;
-    }
-
+    setFicha({ ...ficha, erro: "", salvando: true });
     try {
-      const batch = writeBatch(db);
-
-      batch.update(doc(db, ...L(), "produtos", produto.id), {
-        nome: nomeTratado,
-        atualizadoEm: new Date().toISOString(),
-      });
-
-      batch.set(
-        doc(db, ...L(), "estoque", produto.id),
-        { nome: nomeTratado, atualizadoEm: new Date().toISOString() },
-        { merge: true }
-      );
-
-      await batch.commit();
-
-      setEditandoNome(null);
-      setNovoNomeProduto("");
-      setErroNomeProduto("");
+      const agora = new Date().toISOString();
+      const muda = {};
+      if (nomeTratado !== produto.nome) muda.nome = nomeTratado;
+      if (preco !== Number(produto.preco)) muda.preco = preco;
+      if (Object.keys(muda).length) {
+        const batch = writeBatch(db);
+        batch.update(doc(db, ...L(), "produtos", produto.id), { ...muda, atualizadoEm: agora });
+        if (muda.nome) batch.set(doc(db, ...L(), "estoque", produto.id), { nome: nomeTratado, atualizadoEm: agora }, { merge: true });
+        await batch.commit();
+      }
+      if (categoria !== produto.categoria) await moverProdutoParaCategoria(produto.id, categoria);
+      setFicha(null);
     } catch (erro) {
-      console.error("Erro ao renomear produto:", erro);
-      setErroNomeProduto("Erro ao renomear. Tente novamente.");
+      console.error("Erro ao salvar produto:", erro);
+      setFicha((f) => f && { ...f, salvando: false, erro: "Não foi possível salvar. Tente novamente." });
     }
   }
 
@@ -305,25 +293,6 @@ function Produtos() {
     await deleteDoc(doc(db, ...L(), "estoque", produtoParaExcluir.id));
 
     setProdutoParaExcluir(null);
-  }
-
-  function iniciarPressionar(produto) {
-    const timer = setTimeout(() => {
-      setProdutoParaExcluir(produto);
-    }, 900);
-
-    setSegurandoProduto(timer);
-  }
-
-  function cancelarPressionar() {
-    if (segurandoProduto) {
-      clearTimeout(segurandoProduto);
-      setSegurandoProduto(null);
-    }
-  }
-
-  async function trocarCategoriaProduto(produtoId, novaCategoriaNome) {
-    await moverProdutoParaCategoria(produtoId, novaCategoriaNome);
   }
 
   // ── Ordenação das categorias exibidas ──
@@ -453,45 +422,48 @@ function Produtos() {
     categorias.filter((c) => c.nome !== categoriaAtual);
 
   return (
-    <div className="container">
+    <div className="container prod-pagina">
       <Link to="/" className="voltar">
         ← Voltar
       </Link>
 
-      <div className="pedidos-header">
-        <div>
-          <span>Cardápio</span>
+      <div className="prod-topo">
+        <div className="prod-titulo">
           <h1>Produtos</h1>
-          <p>Altere preços e organize as categorias do cardápio.</p>
+          <p>Toque num produto para mudar nome, preço, categoria ou opções.</p>
         </div>
+        <button
+          className="prod-acao principal"
+          onClick={() => {
+            setAdicionando(true);
+            setErroProduto("");
+          }}
+        >
+          + Produto
+        </button>
+      </div>
 
-        <div style={{ display: "flex", gap: "8px" }}>
-          <Link to="/cardapio-hoje" className="produto-mini-btn" title="Cardápio de hoje" style={{ textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" }}>
-            📅
-          </Link>
+      <div className="prod-barra">
+        <input
+          className="prod-busca"
+          type="search"
+          placeholder="Buscar produto"
+          value={busca}
+          onChange={(e) => setBusca(e.target.value)}
+          aria-label="Buscar produto"
+        />
+        <div className="prod-acoes">
+          <button className={gerenciandoCategorias ? "prod-acao ativo" : "prod-acao"} onClick={() => setGerenciandoCategorias((v) => !v)}>
+            {gerenciandoCategorias ? "✕ Fechar categorias" : "🗂️ Categorias"}
+          </button>
           {LOJA_IFTECH && (
-            <button className="produto-mini-btn" onClick={() => setProntasAbertas(true)} title="Categoria pronta (picolés, tapiocas, açaí…)">
-              🧩
+            <button className="prod-acao" onClick={() => setProntasAbertas(true)}>
+              🧩 Categoria pronta
             </button>
           )}
-          <button
-            className="produto-mini-btn"
-            onClick={() => setGerenciandoCategorias((v) => !v)}
-            title="Gerenciar categorias"
-          >
-            {gerenciandoCategorias ? "✕" : "🗂️"}
-          </button>
-
-          <button
-            className="produto-mini-btn"
-            onClick={() => {
-              setAdicionando(true);
-              setErroProduto("");
-            }}
-            title="Adicionar produto"
-          >
-            +
-          </button>
+          <Link to="/cardapio-hoje" className="prod-acao">
+            📅 Cardápio de hoje
+          </Link>
         </div>
       </div>
 
@@ -948,138 +920,114 @@ function Produtos() {
           )}
         </div>
       )}
-      {categoriasExibidas.map((categoria) => (
-        <div key={categoria.id} className="pedido-card">
-          <div className="produtos-categoria-header">
-            <h3>{categoria.nome}</h3>
-          </div>
+      {(() => {
+        const termo = normalizar(busca);
+        let algum = false;
+        const blocos = categoriasExibidas.map((categoria) => {
+          const itens = ordenarItensCategoria(produtosPorCategoria[categoria.nome] || []).filter(
+            (p) => !termo || normalizar(p.nome).includes(termo)
+          );
+          if (termo && !itens.length) return null;
+          algum = algum || itens.length > 0;
+          return (
+            <section key={categoria.id} className="prod-cat">
+              <h3>
+                {categoria.nome} <small>{itens.length}</small>
+              </h3>
+              {itens.length === 0 && <p className="prod-vazio">Nenhum produto nesta categoria.</p>}
+              <div className="prod-lista">
+                {itens.map((produto) => {
+                  const tipo = tipoDe(produto);
+                  const info = tipoInfo(tipo);
+                  const comOpcoes = tipo !== "simples";
+                  const ok = comOpcoes && temMontagem(produto);
+                  return (
+                    <button type="button" key={produto.id} className="prod-item" onClick={() => abrirFicha(produto)}>
+                      <span className="prod-item-nome">
+                        {produto.nome}
+                        {comOpcoes && (
+                          <small className={ok ? "prod-tag" : "prod-tag falta"}>
+                            {info.emoji} {ok ? info.nome : "cadastrar opções"}
+                          </small>
+                        )}
+                      </span>
+                      <strong className="prod-item-preco">R$ {formatarMoeda(produto.preco)}</strong>
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        });
+        return termo && !algum ? <p className="prod-vazio">Nenhum produto com “{busca}”.</p> : blocos;
+      })()}
 
-          {ordenarItensCategoria(produtosPorCategoria[categoria.nome] || []).map(
-            (produto) => (
-              <div
-                key={produto.id}
-                className="pedido-total produto-linha-editavel"
-                onMouseDown={() => iniciarPressionar(produto)}
-                onMouseUp={cancelarPressionar}
-                onMouseLeave={cancelarPressionar}
-                onTouchStart={() => iniciarPressionar(produto)}
-                onTouchEnd={cancelarPressionar}
-              >
-                <div className="produto-linha-info">
-                  {editandoNome === produto.id ? (
-                    <div
-                      className="produto-nome-editando"
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onTouchStart={(e) => e.stopPropagation()}
-                    >
-                      <input
-                        type="text"
-                        value={novoNomeProduto}
-                        onChange={(e) => setNovoNomeProduto(e.target.value)}
-                        autoFocus
-                      />
-
-                      <button
-                        className="btn-verde"
-                        onClick={() => salvarNomeProduto(produto)}
-                      >
-                        OK
-                      </button>
-
-                      <button
-                        className="produto-nome-cancelar"
-                        onClick={() => {
-                          setEditandoNome(null);
-                          setNovoNomeProduto("");
-                          setErroNomeProduto("");
-                        }}
-                      >
-                        ✕
-                      </button>
-
-                      {erroNomeProduto && (
-                        <small className="produto-nome-erro">
-                          {erroNomeProduto}
-                        </small>
-                      )}
-                    </div>
-                  ) : (
-                    <span
-                      className="produto-nome-clicavel"
-                      onMouseDown={(e) => e.stopPropagation()}
-                      onTouchStart={(e) => e.stopPropagation()}
-                      onClick={() => {
-                        setEditandoNome(produto.id);
-                        setNovoNomeProduto(produto.nome);
-                        setErroNomeProduto("");
-                      }}
-                      title="Toque para renomear"
-                    >
-                      {produto.nome} ✏️
-                    </span>
-                  )}
-
-                  <select
-                    className="produto-select-categoria"
-                    value={produto.categoria || ""}
-                    onClick={(e) => e.stopPropagation()}
-                    onChange={(e) =>
-                      trocarCategoriaProduto(produto.id, e.target.value)
-                    }
-                  >
+      {ficha && (() => {
+        const produto = produtos.find((p) => p.id === ficha.id);
+        if (!produto) return null;
+        const tipo = tipoDe(produto);
+        const info = tipoInfo(tipo);
+        return (
+          <div className="modal-overlay prod-ficha-fundo" onClick={() => !ficha.salvando && setFicha(null)}>
+            <div className="prod-ficha" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Editar ${produto.nome}`}>
+              <div className="prod-ficha-topo">
+                <h2>Editar produto</h2>
+                <button type="button" className="prod-ficha-x" onClick={() => setFicha(null)} aria-label="Fechar">✕</button>
+              </div>
+              <label>
+                Nome
+                <input value={ficha.nome} onChange={(e) => setFicha({ ...ficha, nome: e.target.value, erro: "" })} />
+              </label>
+              <div className="prod-ficha-dupla">
+                <label>
+                  Preço (R$)
+                  <input type="number" inputMode="decimal" step="0.01" value={ficha.preco} onChange={(e) => setFicha({ ...ficha, preco: e.target.value, erro: "" })} />
+                </label>
+                <label>
+                  Categoria
+                  <select value={ficha.categoria} onChange={(e) => setFicha({ ...ficha, categoria: e.target.value, erro: "" })}>
                     {categoriasExibidas.map((c) => (
-                      <option key={c.id} value={c.nome}>
-                        {c.nome}
-                      </option>
+                      <option key={c.id} value={c.nome}>{c.nome}</option>
                     ))}
                   </select>
-                  <button
-                    type="button"
-                    className="produto-montagem-btn"
-                    onMouseDown={(e) => e.stopPropagation()}
-                    onTouchStart={(e) => e.stopPropagation()}
-                    onClick={() => setMontagemAberta({ id: produto.id, nome: produto.nome, tipo: tipoDe(produto), ...textoMontagem(produto.montagem) })}
-                  >
-                    {tipoInfo(tipoDe(produto)).botao}
-                    {tipoDe(produto) !== "simples" ? (temMontagem(produto) ? " ✓" : " · cadastrar") : ""}
-                  </button>
-                </div>
-
-                {editando === produto.id ? (
-                  <div style={{ display: "flex", gap: "6px" }}>
-                    <input
-                      type="number"
-                      value={novoPreco}
-                      onChange={(e) => setNovoPreco(e.target.value)}
-                      style={{
-                        width: "80px",
-                        padding: "8px",
-                      }}
-                    />
-
-                    <button
-                      className="btn-verde"
-                      onClick={() => salvarPreco(produto)}
-                    >
-                      OK
-                    </button>
-                  </div>
-                ) : (
-                  <strong
-                    onClick={() => {
-                      setEditando(produto.id);
-                      setNovoPreco(produto.preco);
-                    }}
-                    style={{ cursor: "pointer" }}
-                  >
-                    R$ {formatarMoeda(produto.preco)}
-                  </strong>
-                )}
+                </label>
               </div>
-            )
-          )}
-        </div>
-      ))}
+              <button
+                type="button"
+                className="prod-ficha-opcoes"
+                onClick={() => {
+                  setFicha(null);
+                  setMontagemAberta({ id: produto.id, nome: produto.nome, tipo, ...textoMontagem(produto.montagem) });
+                }}
+              >
+                <span>
+                  <strong>{info.emoji} {info.nome}</strong>
+                  <small>
+                    {tipo === "simples" ? "Entra direto, sem escolhas. Toque para mudar o tipo." : temMontagem(produto) ? "Opções cadastradas. Toque para ver ou mudar." : "Falta cadastrar as opções."}
+                  </small>
+                </span>
+                <span aria-hidden="true">›</span>
+              </button>
+              {ficha.erro && <p className="prod-ficha-erro">{ficha.erro}</p>}
+              <div className="prod-ficha-botoes">
+                <button
+                  type="button"
+                  className="prod-ficha-excluir"
+                  onClick={() => {
+                    setFicha(null);
+                    setProdutoParaExcluir(produto);
+                  }}
+                >
+                  Excluir
+                </button>
+                <button type="button" className="btn-verde" disabled={ficha.salvando} onClick={salvarFicha}>
+                  {ficha.salvando ? "Salvando…" : "Salvar"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }
