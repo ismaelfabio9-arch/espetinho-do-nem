@@ -15,8 +15,11 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import "../../styles/Garcom/Pedidos.css";
+import { useConfigImpressora } from "../../hooks/useConfigImpressora";
+import { gerarComandaHTML, imprimir } from "../../utils/print";
 
 function Pedidos() {
+  const configImpressora = useConfigImpressora();
   const [pedidos, setPedidos] = useState([]);
   const [nomesMesas, setNomesMesas] = useState({});
   const [busca, setBusca] = useState("");
@@ -113,12 +116,34 @@ function Pedidos() {
     });
   }
 
+  /** Comanda do pedido de casa com endereço, pagamento e troco (Bluetooth ou impressora do navegador). */
+  async function imprimirEntrega(pedido) {
+    const info = [
+      pedido.telefone ? `Tel: ${pedido.telefone}` : "",
+      pedido.modo === "entrega" ? `Entrega: ${pedido.endereco}${pedido.referencia ? ` (ref.: ${pedido.referencia})` : ""}` : "Retirada no balcão",
+      `Pagamento na ${pedido.modo === "entrega" ? "entrega" : "retirada"}: ${pedido.pagamento}${pedido.troco ? ` - troco para R$ ${formatarMoeda(pedido.troco)}` : ""}`,
+      pedido.taxaEntrega ? `Taxa de entrega: R$ ${formatarMoeda(pedido.taxaEntrega)}` : "",
+      pedido.obs ? `Obs: ${pedido.obs}` : "",
+    ].filter(Boolean);
+    const html = gerarComandaHTML({
+      numeroPedido: pedido.numero,
+      titulo: pedido.modo === "entrega" ? "ENTREGA" : "RETIRADA",
+      cliente: pedido.cliente,
+      itens: pedido.itens || [],
+      total: pedido.total,
+      observacoes: info.join(" | "),
+      config: configImpressora,
+    });
+    await imprimir(html, configImpressora.larguraPapel);
+  }
+
   async function removerPedido(pedido) {
     const clienteMesa =
       pedido.tipo === "mesa" ? nomesMesas[String(pedido.mesa)] || "" : "";
 
     const vendaFinalizada = {
       origem: pedido.tipo || "viagem",
+      ...(pedido.tipo === "entrega" ? { modo: pedido.modo || "entrega", taxaEntrega: pedido.taxaEntrega || 0, formaPagamento: pedido.pagamento || "" } : {}),
       mesa: pedido.mesa || null,
       cliente: clienteMesa,
       titulo: tituloPedido(pedido),
@@ -186,7 +211,7 @@ function Pedidos() {
         <div>
           <span>Atendimento</span>
           <h1>Pedidos</h1>
-          <p>Pedidos de mesas e viagem em andamento.</p>
+          <p>Pedidos de mesas, viagem e do cardápio online em andamento.</p>
         </div>
       </div>
 
@@ -209,8 +234,8 @@ function Pedidos() {
             <div key={pedido.id} className="pedido-card">
               <div className="pedido-topo">
                 <div>
-                  <span className="pedido-tipo">
-                    {pedido.tipo === "mesa" ? "Mesa" : "Viagem"}
+                  <span className={`pedido-tipo ${pedido.tipo === "entrega" ? "pedido-tipo-entrega" : ""}`}>
+                    {pedido.tipo === "mesa" ? "Mesa" : pedido.tipo === "entrega" ? (pedido.modo === "retirada" ? "🏪 Retirada · site" : "🛵 Entrega · site") : "Viagem"}
                   </span>
 
                   <h3>{tituloPedido(pedido)}</h3>
@@ -248,6 +273,33 @@ function Pedidos() {
                 ))}
               </div>
 
+              {pedido.tipo === "entrega" && (
+                <div className="pedido-entrega">
+                  <p>
+                    <strong>{pedido.cliente}</strong> ·{" "}
+                    <a href={`https://wa.me/${String(pedido.telefone || "").length <= 11 ? "55" : ""}${pedido.telefone}`} target="_blank" rel="noreferrer">
+                      WhatsApp {pedido.telefone}
+                    </a>
+                  </p>
+                  {pedido.modo === "entrega" && (
+                    <p>
+                      📍 {pedido.endereco}
+                      {pedido.referencia ? ` (ref.: ${pedido.referencia})` : ""}
+                    </p>
+                  )}
+                  <p>
+                    💰 Paga na {pedido.modo === "entrega" ? "entrega" : "retirada"}: <strong>{pedido.pagamento}</strong>
+                    {pedido.troco ? ` · troco para R$ ${formatarMoeda(pedido.troco)}` : ""}
+                  </p>
+                  {pedido.obs && <p>📝 {pedido.obs}</p>}
+                  {pedido.taxaEntrega > 0 && (
+                    <p>
+                      Itens R$ {formatarMoeda(pedido.subtotal)} + entrega R$ {formatarMoeda(pedido.taxaEntrega)}
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="pedido-total">
                 <span>Total</span>
                 <strong>R$ {formatarMoeda(pedido.total)}</strong>
@@ -267,6 +319,12 @@ function Pedidos() {
                 >
                   Entregue
                 </button>
+
+                {pedido.tipo === "entrega" && (
+                  <button className="btn-cinza" onClick={() => void imprimirEntrega(pedido)}>
+                    🖨️ Imprimir
+                  </button>
+                )}
 
                 <button
                   className="btn-remover"
