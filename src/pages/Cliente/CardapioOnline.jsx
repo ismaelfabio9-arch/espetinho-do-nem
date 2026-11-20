@@ -9,6 +9,7 @@ import useNomeLoja from "../../hooks/useNomeLoja";
 import { mesasApi } from "../../tenant";
 import { ordenarGruposPorCategoria } from "../../utils/categorias";
 import MontarPrato from "../../components/MontarPrato";
+import PratoNoPedido from "../../components/PratoNoPedido";
 import PedidoRapido from "../../components/PedidoRapido";
 import { abreEscolha, emojiCategoria } from "../../utils/montagem";
 import { useRecurso } from "../../recursos";
@@ -318,24 +319,13 @@ export default function CardapioOnline() {
         </>
       )}
       {perguntar && (
-        <div className="montar-fundo" onClick={() => setPerguntar(null)}>
-          <div className="montar-folha online-pergunta" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`${perguntar.nome} já está no pedido`}>
-            <div className="montar-topo">
-              <h2>{perguntar.nome} já está no seu pedido</h2>
-              <button type="button" className="montar-fechar" onClick={() => setPerguntar(null)} aria-label="Fechar" data-fechar>✕</button>
-            </div>
-            <p className="online-pergunta-dica">Esqueceu alguma coisa? Edite o prato. Ou acrescente mais um.</p>
-            {linhasDoProduto(perguntar.id).map((l) => (
-              <button type="button" key={l.chave} className="online-pergunta-op" onClick={() => editarLinha(l)}>
-                <strong>✏️ Editar{l.quantidade > 1 ? ` (${l.quantidade}x)` : ""}</strong>
-                <span>{l.nome.replace(`${perguntar.nome} — `, "")}</span>
-              </button>
-            ))}
-            <button type="button" className="montar-adicionar" onClick={() => { setEditando(null); setMontando(perguntar); setPerguntar(null); }}>
-              + Acrescentar mais um
-            </button>
-          </div>
-        </div>
+        <PratoNoPedido
+          produto={perguntar}
+          linhas={linhasDoProduto(perguntar.id)}
+          onEditar={editarLinha}
+          onMaisUm={() => { setEditando(null); setMontando(perguntar); setPerguntar(null); }}
+          onFechar={() => setPerguntar(null)}
+        />
       )}
 
       {montando && (
