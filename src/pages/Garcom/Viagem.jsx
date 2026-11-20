@@ -16,6 +16,7 @@ import { ordenarGruposPorCategoria } from "../../utils/categorias";
 import { ordenarItensCategoria } from "../../utils/produtosOrdem";
 import PedidoRapido from "../../components/PedidoRapido";
 import MontarPrato from "../../components/MontarPrato";
+import PratoNoPedido from "../../components/PratoNoPedido";
 import { emojiCategoria, sugestoesBebida, abreEscolha } from "../../utils/montagem";
 import { useConfigImpressora } from "../../hooks/useConfigImpressora";
 import { useRecurso } from "../../recursos";
@@ -42,6 +43,9 @@ function Viagem({ modo = "balcao", topo = null }) {
   const [categoriasDocs, setCategoriasDocs] = useState([]);
   // Prato com montagem aberto na janela "Montar o prato" (igual às mesas).
   const [montando, setMontando] = useState(null);
+  // Prato que já está no pedido atual: pergunta se edita ou acrescenta mais um.
+  const [perguntar, setPerguntar] = useState(null);
+  const [editando, setEditando] = useState(null); // nome da linha do pedido que está sendo editada
   // Depois de salvar: pergunta se imprime na cozinha (a janela de impressão só abre direito num toque).
   const [paraImprimir, setParaImprimir] = useState(null); // { itens, total, cliente, numero }
   const configImpressora = useConfigImpressora();
@@ -103,17 +107,38 @@ function Viagem({ modo = "balcao", topo = null }) {
     return () => cancelar();
   }, [categoriasDocs]);
 
+  const linhasDoProduto = (id) =>
+    Object.values(pedido)
+      .filter((l) => l.produtoId === id && l.montagem)
+      .map((l) => ({ ...l, chave: l.nome, quantidade: l.qtd }));
+  const produtoPorId = (id) => produtos.flatMap((g) => g.itens || []).find((i) => i.id === id);
+
+  function editarLinha(l) {
+    const item = produtoPorId(l.produtoId);
+    if (!item) return;
+    setPerguntar(null);
+    setEditando(l.nome);
+    setMontando(item);
+  }
+
   function tocarItem(item) {
-    if (abreEscolha(item, montarLigado)) setMontando(item);
-    else adicionarItem(item);
+    if (abreEscolha(item, montarLigado)) {
+      if (linhasDoProduto(item.id).length) return setPerguntar(item);
+      setEditando(null);
+      setMontando(item);
+    } else adicionarItem(item);
   }
 
   /** Prato montado (e as bebidas escolhidas junto) entram no pedido. */
   function adicionarMontado({ prato, bebidas }) {
     setPedido((atual) => {
       const novo = { ...atual };
+      // Editando: a linha antiga sai e a nova fica com a mesma quantidade.
+      const antiga = editando ? atual[editando] : null;
+      if (antiga) delete novo[editando];
       const ja = novo[prato.nome];
-      novo[prato.nome] = { ...prato, qtd: ja ? ja.qtd + 1 : 1 };
+      const qtd = antiga ? antiga.qtd : 1;
+      novo[prato.nome] = { ...prato, qtd: ja ? ja.qtd + qtd : qtd };
       bebidas.forEach((b) => {
         const jb = novo[b.nome];
         novo[b.nome] = { produtoId: b.id, nome: b.nome, preco: b.preco, qtd: jb ? jb.qtd + 1 : 1 };
@@ -121,6 +146,7 @@ function Viagem({ modo = "balcao", topo = null }) {
       return novo;
     });
     setMontando(null);
+    setEditando(null);
   }
 
   function ajustarItemPedido(nome, delta) {
@@ -562,6 +588,11 @@ function Viagem({ modo = "balcao", topo = null }) {
             <div className="resumo-linha resumo-linha-editavel" key={item.nome}>
               <span>
                 {item.qtd}x {item.nome}
+                {item.montagem && produtoPorId(item.produtoId) && (
+                  <button type="button" className="resumo-editar" onClick={() => editarLinha(item)}>
+                    ✏️ Editar
+                  </button>
+                )}
               </span>
 
               <strong>R$ {formatarMoeda(item.preco * item.qtd)}</strong>
@@ -580,11 +611,25 @@ function Viagem({ modo = "balcao", topo = null }) {
 
       {montando && (
         <MontarPrato
+          key={editando || "novo"}
           produto={montando}
-          bebidas={sugestoesBebida(produtos)}
+          bebidas={editando ? [] : sugestoesBebida(produtos)}
           permitirOutros
+          inicial={editando ? pedido[editando]?.montagem : null}
+          textoBotao={editando ? "Salvar alteração" : "Adicionar"}
           onAdicionar={adicionarMontado}
-          onFechar={() => setMontando(null)}
+          onFechar={() => { setMontando(null); setEditando(null); }}
+        />
+      )}
+
+      {perguntar && (
+        <PratoNoPedido
+          produto={perguntar}
+          linhas={linhasDoProduto(perguntar.id)}
+          onEditar={editarLinha}
+          onMaisUm={() => { setEditando(null); setMontando(perguntar); setPerguntar(null); }}
+          onFechar={() => setPerguntar(null)}
+          noPedido="neste pedido"
         />
       )}
 

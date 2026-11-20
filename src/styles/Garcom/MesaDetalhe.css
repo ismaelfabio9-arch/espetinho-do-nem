@@ -940,3 +940,5 @@ body.dark .resumo-linha .resumo-nome, body.dark .resumo-linha .resumo-ajuste b {
 
 /* Valor no cartão com a taxa da maquininha repassada (Configurações → Taxas da maquininha) */
 .modal-cartao { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; background: rgba(22, 163, 74, 0.12); font-size: 14px; line-height: 1.5; }
+/* "Editar" no prato montado do pedido atual */
+.resumo-editar { display: block; margin-top: 3px; padding: 0; border: 0; background: none; color: #16a34a; font-weight: 700; font-size: 13px; cursor: pointer; }
