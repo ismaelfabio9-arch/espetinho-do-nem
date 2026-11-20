@@ -493,3 +493,27 @@ body.dark span,
 body.dark small {
   color: var(--muted);
 }
+/* ── Atalhos de teclado (computador) ── */
+.atalho-aviso { position: fixed; left: 50%; bottom: 90px; transform: translateX(-50%); z-index: 100000; padding: 10px 16px; border-radius: 10px; background: #111827; color: #fff; font-size: 14px; font-weight: 600; box-shadow: 0 6px 20px rgba(0,0,0,.25); }
+.atalhos-fundo { position: fixed; inset: 0; z-index: 100000; display: flex; align-items: center; justify-content: center; padding: 20px; background: rgba(0,0,0,.55); }
+.atalhos-card { width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; padding: 20px; border-radius: 16px; background: var(--card); color: var(--text); border: 1px solid var(--border); }
+.atalhos-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.atalhos-topo h2 { margin: 0; font-size: 18px; }
+.atalhos-topo button { width: 34px; height: 34px; border: none; border-radius: 999px; background: var(--card-2); color: var(--muted); cursor: pointer; }
+.atalhos-card ul { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 8px; }
+.atalhos-card li { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 10px; font-size: 14px; }
+.atalhos-card kbd, [data-atalho]::after { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 12px; font-weight: 700; }
+.atalhos-card kbd { justify-self: start; padding: 3px 8px; border-radius: 6px; border: 1px solid var(--border); border-bottom-width: 2px; background: var(--card-2); color: var(--text); }
+.atalhos-card p { margin: 14px 0 0; font-size: 12px; color: var(--muted); }
+@media (hover: hover) and (pointer: fine) {
+  [data-atalho]::after { content: attr(data-atalho); margin-left: 8px; padding: 1px 6px; border-radius: 5px; border: 1px solid currentColor; opacity: .55; vertical-align: middle; }
+}
+
+/* Atalho para a lista de teclas: só faz sentido com teclado (computador). */
+.menu-atalhos-ref { display: none; margin-top: 8px; padding: 12px 14px; border: 1px dashed var(--border); border-radius: 12px; background: transparent; color: var(--muted); font-size: 15px; font-weight: 600; text-align: left; cursor: pointer; }
+@media (hover: hover) and (pointer: fine) { .menu-atalhos-ref { display: block; } }
+
+/* Início: novo pedido em um toque (mesa, balcão, entrega) */
+.novo-rapido-ref { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 4px; }
+.novo-rapido-ref a { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px; border-radius: 14px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 22px; text-decoration: none; }
+.novo-rapido-ref a span { font-size: 14px; font-weight: 700; }

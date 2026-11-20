@@ -952,7 +952,7 @@ if (pedidosDaMesa.length === 0) {
               <button type="button" className="modal-btn cancelar" onClick={() => setParaImprimir(null)}>
                 Agora não
               </button>
-              <button type="button" className="modal-btn confirmar" onClick={confirmarImpressaoCozinha}>
+              <button type="button" className="modal-btn confirmar" onClick={confirmarImpressaoCozinha} data-atalho="F1">
                 Imprimir na cozinha
               </button>
             </div>
@@ -985,7 +985,7 @@ if (pedidosDaMesa.length === 0) {
       </div>
 
       <div className="acoes-mesa">
-        <button className="btn-verde" onClick={salvarPedido}>
+        <button className="btn-verde" onClick={salvarPedido} data-atalho="F8">
           Salvar pedido
         </button>
 
@@ -993,13 +993,14 @@ if (pedidosDaMesa.length === 0) {
           className="btn-cinza"
           onClick={abrirModalEncerrar}
           disabled={encerrando}
+          data-atalho="F9"
         >
           {encerrando ? "Encerrando..." : "Encerrar mesa"}
         </button>
       </div>
 
       {configImpressora.habilitada && totalItensMesa > 0 && (
-        <button className="btn-imprimir-comanda" onClick={imprimirComandaManual}>
+        <button className="btn-imprimir-comanda" onClick={imprimirComandaManual} data-atalho="F1">
           🖨️ Imprimir comanda da mesa
         </button>
       )}

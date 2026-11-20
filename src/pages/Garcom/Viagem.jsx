@@ -20,8 +20,24 @@ import { emojiCategoria, sugestoesBebida, abreEscolha } from "../../utils/montag
 import { useConfigImpressora } from "../../hooks/useConfigImpressora";
 import { useRecurso } from "../../recursos";
 import { gerarComandaHTML, imprimir } from "../../utils/print";
+import { moeda, useEntrega } from "../../utils/entrega";
 
-function Viagem() {
+const PAGAMENTOS = ["Dinheiro", "Pix", "Cartão"];
+const soDigitos = (t) => String(t || "").replace(/\D/g, "");
+const numeroDe = (v) => {
+  const n = Number(String(v ?? "").replace(",", "."));
+  return Number.isFinite(n) && n > 0 ? Math.round(n * 100) / 100 : 0;
+};
+
+/**
+ * Pedido de balcão (o cliente leva) ou de entrega lançada pelo garçom (telefone/WhatsApp).
+ * modo "balcao" é o pedido para viagem de sempre; modo "entrega" pede os dados do cliente no fim.
+ * topo: o que vai no lugar do "← Voltar" (as abas da tela Novo pedido).
+ */
+function Viagem({ modo = "balcao", topo = null }) {
+  const entregaCfg = useEntrega();
+  const ehEntrega = modo === "entrega";
+  const [dadosEntrega, setDadosEntrega] = useState(null);
   const [produtos, setProdutos] = useState([]);
   const [categoriasDocs, setCategoriasDocs] = useState([]);
   // Prato com montagem aberto na janela "Montar o prato" (igual às mesas).
@@ -138,6 +154,7 @@ function Viagem() {
     setPedido({});
     setNomeCliente("");
     setNomeClienteInput("");
+    setDadosEntrega(null);
   }
 
   function salvarNomeCliente() {
@@ -213,10 +230,11 @@ function Viagem() {
   function imprimirViagem(p) {
     const html = gerarComandaHTML({
       numeroPedido: p.numero,
-      titulo: "PARA VIAGEM",
+      titulo: p.titulo || "PARA VIAGEM",
       cliente: p.cliente,
       itens: p.itens,
       total: p.total,
+      ...(p.observacoes ? { observacoes: p.observacoes } : {}),
       config: configImpressora,
     });
     return imprimir(html, configImpressora.larguraPapel);
@@ -229,6 +247,110 @@ function Viagem() {
     const abriu = await imprimirViagem(p);
     if (!abriu) mostrarNotificacao("O celular bloqueou a janela de impressão. Libere as janelas (pop-ups) do site e tente de novo.");
   }
+
+  function abrirDadosEntrega() {
+    if (itensPedido.length === 0) {
+      mostrarNotificacao("Adicione pelo menos 1 item antes de salvar.");
+      return;
+    }
+    setDadosEntrega((d) => d ? { ...d, aberto: true } : {
+      aberto: true,
+      cliente: nomeCliente,
+      telefone: "",
+      endereco: "",
+      referencia: "",
+      taxa: entregaCfg.taxa ? moeda(entregaCfg.taxa) : "",
+      pagamento: "",
+      troco: "",
+      obs: "",
+      erro: "",
+    });
+  }
+
+  async function salvarPedidoEntrega() {
+    const d = dadosEntrega;
+    const cliente = d.cliente.trim();
+    const telefone = soDigitos(d.telefone);
+    const endereco = d.endereco.trim();
+    const erro = !cliente
+      ? "Coloque o nome do cliente."
+      : telefone.length < 8
+        ? "Coloque o telefone ou WhatsApp do cliente."
+        : endereco.length < 5
+          ? "Coloque o endereço da entrega."
+          : !d.pagamento
+            ? "Escolha como o cliente vai pagar."
+            : "";
+    if (erro) return setDadosEntrega({ ...d, erro });
+
+    const taxaEntrega = numeroDe(d.taxa);
+    const subtotal = Math.round(total * 100) / 100;
+    const totalComTaxa = Math.round((subtotal + taxaEntrega) * 100) / 100;
+    const trocoNum = numeroDe(d.troco);
+    const troco = d.pagamento === "Dinheiro" && trocoNum > totalComTaxa ? trocoNum : null;
+    const agora = Date.now();
+    const numero = agora.toString(36).slice(-4).toUpperCase();
+    const referencia = d.referencia.trim();
+    const obs = d.obs.trim();
+    const dadosPedido = {
+      idLocal: agora,
+      tipo: "entrega",
+      modo: "entrega",
+      origem: "manual",
+      numero,
+      titulo: `Entrega #${numero} - ${cliente}`,
+      cliente,
+      telefone,
+      endereco,
+      referencia,
+      pagamento: d.pagamento,
+      troco,
+      obs,
+      itens: itensPedido,
+      subtotal,
+      taxaEntrega,
+      total: totalComTaxa,
+      totalItens,
+      status: "aberto",
+      salvoEm: new Date(agora).toISOString(),
+      criadoEm: serverTimestamp(),
+    };
+    setDadosEntrega({ ...d, erro: "", salvando: true });
+    try {
+      await addDoc(collection(db, ...L(), "pedidos"), dadosPedido);
+      await baixarEstoque(itensPedido);
+      await addDoc(collection(db, ...L(), "notificacoes"), {
+        tipo: "pedido",
+        mensagem: `Nova entrega #${numero} - ${cliente}`,
+        total: totalComTaxa,
+        totalItens,
+        horario: new Date().toISOString(),
+        criadoEm: serverTimestamp(),
+      });
+      setPedido({});
+      setNomeCliente("");
+      setNomeClienteInput("");
+      setDadosEntrega(null);
+      mostrarNotificacao(`Entrega #${numero} salva!`);
+      if (configImpressora.habilitada && imprimirLigado) {
+        const observacoes = [
+          `Tel: ${telefone}`,
+          `Entrega: ${endereco}${referencia ? ` (ref.: ${referencia})` : ""}`,
+          `Pagamento na entrega: ${d.pagamento}${troco ? ` - troco para R$ ${moeda(troco)}` : ""}`,
+          taxaEntrega ? `Taxa de entrega: R$ ${moeda(taxaEntrega)}` : "",
+          obs ? `Obs: ${obs}` : "",
+        ].filter(Boolean).join(" | ");
+        const p = { itens: itensPedido, total: totalComTaxa, cliente, numero, titulo: "ENTREGA", observacoes };
+        const impresso = configImpressora.autoImprimirPedido ? await imprimirViagem(p) : false;
+        if (!impresso) setParaImprimir(p);
+      }
+    } catch (e) {
+      console.error("Erro ao salvar entrega:", e);
+      setDadosEntrega((x) => x && { ...x, salvando: false, erro: "Não foi possível salvar. Confira a internet e tente de novo." });
+    }
+  }
+
+  const salvar = () => (ehEntrega ? abrirDadosEntrega() : salvarPedidoViagem());
 
   async function salvarPedidoViagem() {
     if (itensPedido.length === 0) {
@@ -335,17 +457,60 @@ function Viagem() {
         </div>
       )}
 
+      {dadosEntrega?.aberto && (() => {
+        const d = dadosEntrega;
+        const muda = (campo) => (e) => setDadosEntrega({ ...d, [campo]: e.target.value, erro: "" });
+        const taxa = numeroDe(d.taxa);
+        return (
+          <div className="modal-overlay" onClick={() => !d.salvando && setDadosEntrega({ ...d, aberto: false })}>
+            <div className="modal-card entrega-dados" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Dados da entrega">
+              <h2>🛵 Dados da entrega</h2>
+              <label>Nome do cliente<input value={d.cliente} onChange={muda("cliente")} maxLength={60} autoFocus /></label>
+              <label>Telefone / WhatsApp<input value={d.telefone} onChange={muda("telefone")} inputMode="tel" maxLength={20} placeholder="(81) 9 9999-9999" /></label>
+              <label>Endereço (rua, número e bairro)<input value={d.endereco} onChange={muda("endereco")} maxLength={140} /></label>
+              <label>Ponto de referência (opcional)<input value={d.referencia} onChange={muda("referencia")} maxLength={100} /></label>
+              <label>Taxa de entrega (R$)<input value={d.taxa} onChange={muda("taxa")} inputMode="decimal" placeholder="0,00" /></label>
+              <div className="entrega-pagamento" role="radiogroup" aria-label="Pagamento na entrega">
+                {PAGAMENTOS.map((f) => (
+                  <button type="button" key={f} className={d.pagamento === f ? "ativo" : ""} aria-pressed={d.pagamento === f} onClick={() => setDadosEntrega({ ...d, pagamento: f, erro: "" })}>
+                    {f}
+                  </button>
+                ))}
+              </div>
+              {d.pagamento === "Dinheiro" && (
+                <label>Troco para quanto? (opcional)<input value={d.troco} onChange={muda("troco")} inputMode="decimal" placeholder="Ex.: 100" /></label>
+              )}
+              <label>Observação (opcional)<input value={d.obs} onChange={muda("obs")} maxLength={200} /></label>
+              <div className="entrega-totais">
+                <span>Itens</span><strong>R$ {moeda(total)}</strong>
+                <span>Entrega</span><strong>R$ {moeda(taxa)}</strong>
+                <span>Total</span><strong>R$ {moeda(total + taxa)}</strong>
+              </div>
+              {d.erro && <p className="entrega-erro">{d.erro}</p>}
+              <div className="modal-acoes">
+                <button type="button" className="modal-btn cancelar" onClick={() => setDadosEntrega({ ...d, aberto: false })}>
+                  Voltar
+                </button>
+                <button type="button" className="modal-btn confirmar" disabled={d.salvando} onClick={salvarPedidoEntrega} data-atalho="F8">
+                  {d.salvando ? "Salvando…" : "Salvar entrega"}
+                </button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {paraImprimir && (
         <div className="modal-overlay">
           <div className="modal-card">
             <div className="modal-icon">🖨️</div>
-            <h2>Pedido viagem salvo</h2>
+            <h2>{paraImprimir.titulo === "ENTREGA" ? "Entrega salva" : "Pedido viagem salvo"}</h2>
             <p>{`Imprimir ${paraImprimir.itens.reduce((s, i) => s + Number(i.qtd || 0), 0)} item(ns) na cozinha?`}</p>
             <div className="modal-acoes">
               <button type="button" className="modal-btn cancelar" onClick={() => setParaImprimir(null)}>
                 Agora não
               </button>
-              <button type="button" className="modal-btn confirmar" onClick={confirmarImpressaoCozinha}>
+              <button type="button" className="modal-btn confirmar" onClick={confirmarImpressaoCozinha} data-atalho="F1">
                 Imprimir na cozinha
               </button>
             </div>
@@ -353,9 +518,11 @@ function Viagem() {
         </div>
       )}
 
-      <Link className="voltar" to="/">
-        ← Voltar
-      </Link>
+      {topo || (
+        <Link className="voltar" to="/">
+          ← Voltar
+        </Link>
+      )}
 
       <div className="mesa-topo">
         <div>
@@ -363,11 +530,11 @@ function Viagem() {
 
           <div className="mesa-titulo-cliente">
             <h1>
-              Viagem
+              {ehEntrega ? "Entrega" : "Viagem"}
               {nomeCliente ? ` - ${nomeCliente}` : ""}
             </h1>
 
-            <button onClick={() => setEditandoNomeCliente(true)}>✏️</button>
+            {!ehEntrega && <button onClick={() => setEditandoNomeCliente(true)}>✏️</button>}
           </div>
         </div>
 
@@ -378,8 +545,8 @@ function Viagem() {
       </div>
 
       <div className="acoes-mesa">
-        <button className="btn-verde" onClick={salvarPedidoViagem}>
-          Salvar pedido viagem
+        <button className="btn-verde" onClick={salvar} data-atalho="F8">
+          {ehEntrega ? "Continuar para a entrega" : "Salvar pedido viagem"}
         </button>
 
         <button className="btn-cinza" onClick={limparPedido}>
@@ -443,7 +610,7 @@ function Viagem() {
             <span>R$ {formatarMoeda(total)}</span>
           </div>
 
-          <button onClick={salvarPedidoViagem}>Salvar Pedido</button>
+          <button onClick={salvar}>{ehEntrega ? "Continuar" : "Salvar Pedido"}</button>
         </div>
       )}
     </div>

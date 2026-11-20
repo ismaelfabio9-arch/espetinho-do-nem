@@ -24,6 +24,8 @@ import QrCodes from "./pages/Garcom/QrCodes";
 import CardapioHoje from "./pages/Garcom/CardapioHoje";
 import VersaoNova from "./components/VersaoNova";
 import ErroTela from "./components/ErroTela";
+import Atalhos from "./components/Atalhos";
+import NovoPedido from "./pages/Garcom/NovoPedido";
 import { planoQueLibera, useRecurso } from "./recursos";
 
 
@@ -99,6 +101,8 @@ function SeLigado({ recurso, children }) {
 /** Telas do garçom e do dono. */
 function TelasEquipe() {
   return (
+    <>
+    <Atalhos />
     <Routes>
       <Route path="/estoque" element={<SeLigado recurso="estoque"><Estoque /></SeLigado>} />
       <Route path="/" element={<Dashboard />} />
@@ -116,7 +120,9 @@ function TelasEquipe() {
       <Route path="/produtos" element={<Produtos />} />
       <Route path="/qrcodes" element={<QrCodes />} />
       <Route path="/cardapio-hoje" element={<CardapioHoje />} />
+      <Route path="/novo" element={<NovoPedido />} />
     </Routes>
+    </>
   );
 }
 

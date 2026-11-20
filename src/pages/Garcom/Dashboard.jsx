@@ -538,12 +538,10 @@ function Dashboard() {
               Mesas
             </Link>
 
-            {viagemLigado && (
-              <Link to="/viagem" onClick={() => setMenuAberto(false)}>
-                <ShoppingBag size={20} />
-                Pedido Viagem
-              </Link>
-            )}
+            <Link to="/novo" onClick={() => setMenuAberto(false)}>
+              <ShoppingBag size={20} />
+              Novo pedido
+            </Link>
 
             <Link to="/cardapio-hoje" onClick={() => setMenuAberto(false)}>
               📅
@@ -571,6 +569,10 @@ function Dashboard() {
               <Settings size={20} />
               Configurações
             </Link>
+
+            <button type="button" className="menu-atalhos-ref" onClick={() => { setMenuAberto(false); window.dispatchEvent(new Event("abrir-atalhos")); }}>
+              ⌨️ Atalhos do teclado
+            </button>
           </aside>
         </>
       )}
@@ -628,6 +630,14 @@ function Dashboard() {
           </div>
         </div>
       </section>
+
+      {viagemLigado && (
+        <nav className="novo-rapido-ref" aria-label="Novo pedido">
+          <Link to="/novo">🍽️<span>Mesa</span></Link>
+          <Link to="/novo?aba=balcao">🛍️<span>Balcão</span></Link>
+          <Link to="/novo?aba=entrega">🛵<span>Entrega</span></Link>
+        </nav>
+      )}
 
       <div className="section-title-ref">
         <h2>Mesas</h2>
