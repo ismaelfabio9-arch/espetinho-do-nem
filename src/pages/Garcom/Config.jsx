@@ -230,6 +230,19 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
       </Link>
 
       {MULTI && (
+        <a href="/sistemas/sistema-de-mesas#planos" style={{ textDecoration: "none" }}>
+          <div className="config-card">
+            <div className="config-icon">⭐</div>
+            <div>
+              <h2>Planos e lojas</h2>
+              <p>Veja os planos, troque para a licença ou para o combo de mais de uma loja.</p>
+              <strong>Ver os planos</strong>
+            </div>
+          </div>
+        </a>
+      )}
+
+      {MULTI && (
         <Link to="/dono" style={{ textDecoration: "none" }}>
           <div className="config-card">
             <div className="config-icon">🏪</div>
