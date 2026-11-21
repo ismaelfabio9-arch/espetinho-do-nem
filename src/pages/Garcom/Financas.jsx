@@ -8,8 +8,10 @@ import { useTaxas } from "../../utils/taxas";
 import { moeda } from "../../utils/tipoVenda";
 import { GRUPOS, SEM_CATEGORIA_FIN, TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
 import { custoDaFicha, perdasNoPeriodo } from "../../utils/insumos";
+import { percentuaisDaLoja, precoDoProduto, somaPct } from "../../utils/precificacao";
 import "../../styles/Garcom/RelatorioGerencial.css";
 import "../../styles/Garcom/Financas.css";
+import "../../styles/Garcom/Insumos.css";
 
 const PERIODOS = [
   { id: "hoje", nome: "Hoje" },
@@ -25,6 +27,7 @@ const ABAS = [
   { id: "resumo", nome: "Lucro e caixa" },
   { id: "lancamentos", nome: "Lançamentos" },
   { id: "custos", nome: "Custos dos produtos" },
+  { id: "preco", nome: "Preço certo" },
 ];
 
 function useMovsInsumos() {
@@ -77,6 +80,13 @@ function Financas() {
     return { custos: { ...m, ...f }, daFicha: f };
   }, [custosDocs, fichas, insumos]);
   const carregando = dias === null || hoje === null || produtos === null || custosDocs === null || lancamentos === null || fichas === null || insumos === null || movs === null;
+  // Últimos 30 dias: base dos percentuais do Preço certo (quanto de cada venda vai para taxas e despesas).
+  const f30 = useMemo(() => {
+    if (carregando) return null;
+    const hojeD = new Date();
+    const de = isoDia(new Date(hojeD.getFullYear(), hojeD.getMonth(), hojeD.getDate() - 29));
+    return calcularFinancas({ vendas: juntarVendas(dias, hoje), produtos, custos, lancamentos, taxas, de, ate: isoDia(hojeD) });
+  }, [carregando, dias, hoje, produtos, custos, lancamentos, taxas]);
   const f = useMemo(
     () => (carregando ? null : calcularFinancas({ vendas: juntarVendas(dias, hoje), produtos, custos, lancamentos, taxas, de: faixa.de, ate: faixa.ate, perdas: perdasNoPeriodo(movs, faixa.de, faixa.ate).total })),
     [carregando, dias, hoje, produtos, custos, lancamentos, taxas, faixa, movs]
@@ -95,14 +105,14 @@ function Financas() {
         <div className="relatorio-filtros">
           <h1>Finanças</h1>
           <p>O lucro do que a loja vende e o dinheiro que entrou e saiu, no geral e por categoria do cardápio.</p>
-          <div className="fin-abas" role="tablist">
+          <div className="fin-abas ins-abas" role="tablist">
             {ABAS.map((a) => (
               <button key={a.id} role="tab" aria-selected={aba === a.id} className={aba === a.id ? "ativa" : ""} onClick={() => setAba(a.id)}>
                 {a.nome}
               </button>
             ))}
           </div>
-          {aba !== "custos" && (
+          {aba !== "custos" && aba !== "preco" && (
             <>
               <div className="fin-periodos">
                 {PERIODOS.map((p) => (
@@ -135,6 +145,8 @@ function Financas() {
         <Lancamentos f={f} categorias={categorias} />
       ) : aba === "custos" ? (
         <Custos produtos={produtos} custos={custos} daFicha={daFicha} />
+      ) : aba === "preco" ? (
+        <PrecoCerto produtos={produtos} custos={custos} daFicha={daFicha} f30={f30} taxas={taxas} irCustos={() => setAba("custos")} />
       ) : (
         <Resumo f={f} nomeLoja={nomeLoja} faixa={faixa} irCustos={() => setAba("custos")} />
       )}
@@ -526,3 +538,175 @@ function Custos({ produtos, custos, daFicha }) {
 }
 
 export default Financas;
+
+/** Preço certo: por quanto vender cada produto para pagar tudo e sobrar o lucro que o dono quer. */
+function PrecoCerto({ produtos, custos, daFicha, f30, taxas, irCustos }) {
+  const auto = percentuaisDaLoja(f30, taxas);
+  const [salvo, setSalvo] = useState(null); // configuracoes/precificacao
+  const [form, setForm] = useState(null);
+  const [aberto, setAberto] = useState(null);
+  const [soAbaixo, setSoAbaixo] = useState(false);
+  const [msg, setMsg] = useState("");
+  useEffect(
+    () =>
+      onSnapshot(
+        doc(db, ...L(), "configuracoes", "precificacao"),
+        (s2) => setSalvo(s2.data() || {}),
+        () => setSalvo({})
+      ),
+    []
+  );
+  useEffect(() => {
+    if (salvo && !form) {
+      const t = (v) => (typeof v === "number" ? String(v).replace(".", ",") : "");
+      setForm({ maquininha: t(salvo.maquininha), fixas: t(salvo.fixas), variaveis: t(salvo.variaveis), impostos: t(salvo.impostos ?? 0), lucro: t(salvo.lucro ?? 15) });
+    }
+  }, [salvo, form]);
+  if (!form) return <p className="fin-carregando">Carregando…</p>;
+
+  const pctDe = (v) => {
+    const n = Number(String(v ?? "").replace(",", "."));
+    return String(v ?? "").trim() !== "" && Number.isFinite(n) && n >= 0 && n < 100 ? n : null;
+  };
+  // Em branco = automático (pelo movimento da loja).
+  const p = {
+    maquininha: pctDe(form.maquininha) ?? auto.maquininha ?? 0,
+    fixas: pctDe(form.fixas) ?? auto.fixas ?? 0,
+    variaveis: pctDe(form.variaveis) ?? auto.variaveis ?? 0,
+    impostos: pctDe(form.impostos) ?? 0,
+    lucro: pctDe(form.lucro) ?? 0,
+  };
+  const total = somaPct(p);
+  const fmtPct = (n) => `${String(Math.round(n * 10) / 10).replace(".", ",")}%`;
+
+  async function salvar() {
+    const v = (k) => pctDe(form[k]);
+    try {
+      await setDoc(doc(db, ...L(), "configuracoes", "precificacao"), { maquininha: v("maquininha"), fixas: v("fixas"), variaveis: v("variaveis"), impostos: v("impostos") ?? 0, lucro: v("lucro") ?? 0, atualizadoEm: new Date().toISOString() });
+      setMsg("✓ Salvo");
+    } catch {
+      setMsg("Não foi possível salvar. Confira a internet.");
+    }
+    setTimeout(() => setMsg(""), 2000);
+  }
+
+  const campos = [
+    { k: "maquininha", nome: "Taxa da maquininha", dica: auto.vendas > 0 ? `automático: ${fmtPct(auto.maquininha)} (o que a maquininha levou nos últimos 30 dias)` : `automático: ${fmtPct(auto.maquininha)} (taxa do crédito)` },
+    { k: "fixas", nome: "Despesas fixas", dica: auto.fixas !== null ? `automático: ${fmtPct(auto.fixas)} (aluguel, funcionários, contas ÷ vendas dos últimos 30 dias)` : "sem vendas nos últimos 30 dias: digite quanto acha (ex.: 20)" },
+    { k: "variaveis", nome: "Despesas variáveis", dica: auto.variaveis !== null ? `automático: ${fmtPct(auto.variaveis)} (entregador, divulgação… ÷ vendas)` : "sem vendas nos últimos 30 dias: digite (ex.: 5)" },
+    { k: "impostos", nome: "Impostos", dica: "MEI paga valor fixo (deixe 0); Simples Nacional costuma ser de 4% a 6%" },
+    { k: "lucro", nome: "Lucro que você quer", dica: "o que sobra limpo em cada venda (restaurante costuma ficar entre 10% e 20%)" },
+  ];
+
+  const linhas = (produtos || [])
+    .filter((x) => x.nome && x.ativo !== false)
+    .map((x) => ({ produto: x, custo: custos[x.id], ficha: typeof daFicha?.[x.id] === "number", r: precoDoProduto(custos[x.id], x.preco, p) }))
+    .sort((a, b) => String(a.produto.categoria || "").localeCompare(String(b.produto.categoria || ""), "pt-BR") || String(a.produto.nome).localeCompare(String(b.produto.nome), "pt-BR"));
+  const abaixo = linhas.filter((l) => l.r.situacao === "baixo").length;
+  const semCusto = linhas.filter((l) => l.r.situacao === "sem-custo").length;
+  const mostrar = soAbaixo ? linhas.filter((l) => l.r.situacao === "baixo") : linhas;
+
+  return (
+    <>
+      <div className="relatorio-documento">
+        <h2>Quanto sai de cada venda</h2>
+        <p className="fin-explica">Além do custo do produto, cada venda paga a maquininha, uma parte das despesas da loja e os impostos. Deixe em branco para o sistema calcular pelo movimento da loja.</p>
+        <div className="pc-campos">
+          {campos.map((c) => (
+            <label key={c.k} className="pc-campo">
+              <span>
+                {c.nome}
+                <small>{c.dica}</small>
+              </span>
+              <span className="pc-input">
+                <input inputMode="decimal" placeholder={c.k === "lucro" || c.k === "impostos" ? "0" : "auto"} aria-label={`${c.nome} (%)`} value={form[c.k]} onChange={(e) => setForm({ ...form, [c.k]: e.target.value })} />
+                %
+              </span>
+            </label>
+          ))}
+        </div>
+        <p className={`pc-resumo ${total >= 100 ? "ruim" : ""}`}>
+          {total >= 100
+            ? `A soma passou de 100% (${fmtPct(total)}): não tem preço que pague. Diminua o lucro ou as despesas.`
+            : `De cada R$ 100,00 vendidos: R$ ${fmt(total - p.lucro)} vão para taxas, despesas e impostos, R$ ${fmt(p.lucro)} são o seu lucro e R$ ${fmt(100 - total)} pagam o custo do produto.`}
+        </p>
+        <div className="ins-modal-botoes">
+          <span className="fin-ok">{msg}</span>
+          <button type="button" className="btn-verde" onClick={salvar}>Salvar</button>
+        </div>
+      </div>
+
+      <div className="relatorio-documento">
+        <h2>Preço de cada produto</h2>
+        <p className="fin-explica">
+          {abaixo > 0 ? `${abaixo} ${abaixo === 1 ? "produto está" : "produtos estão"} abaixo do preço ideal.` : "Todos os produtos com custo estão com o preço bom."}
+          {semCusto > 0 ? ` ${semCusto} sem custo cadastrado.` : ""}
+        </p>
+        {semCusto > 0 && (
+          <button type="button" className="fin-aviso" onClick={irCustos}>
+            ⚠️ Sem o custo, não dá para calcular o preço. <u>Cadastrar custos</u> (ou monte a ficha técnica em Matéria-prima).
+          </button>
+        )}
+        <label className="ins-check">
+          <input type="checkbox" checked={soAbaixo} onChange={(e) => setSoAbaixo(e.target.checked)} /> Mostrar só os que estão abaixo
+        </label>
+        <ul className="pc-lista">
+          {mostrar.map(({ produto: x, custo, ficha, r }) => (
+            <li key={x.id} className={`pc-item ${r.situacao}`}>
+              <button type="button" className="pc-linha" aria-expanded={aberto === x.id} onClick={() => setAberto(aberto === x.id ? null : x.id)} disabled={r.situacao === "sem-custo" || r.situacao === "impossivel"}>
+                <span className="pc-nome">
+                  <strong>{x.nome}</strong>
+                  <small>
+                    {typeof custo === "number" ? `Custo ${R(custo)}${ficha ? " (ficha)" : ""} · vende por ${R(x.preco)}` : `Vende por ${R(x.preco)} · sem custo`}
+                  </small>
+                  {r.situacao === "bom" || r.situacao === "baixo" ? (
+                    <small className={r.lucroReal < 0 ? "fin-neg" : ""}>
+                      Lucro por venda: <b>{R(r.lucroReal)}</b>
+                      {r.margemReal !== null ? ` (${r.margemReal}%)` : ""}
+                    </small>
+                  ) : null}
+                </span>
+                <span className="pc-status">
+                  {r.situacao === "bom" && <b className="pc-chip bom">✓ Preço bom</b>}
+                  {r.situacao === "baixo" && (
+                    <>
+                      <b className="pc-chip baixo">Abaixo</b>
+                      <small>ideal {R(r.sugerido)}</small>
+                    </>
+                  )}
+                  {r.situacao === "sem-custo" && <b className="pc-chip">Sem custo</b>}
+                  {r.situacao === "impossivel" && <b className="pc-chip baixo">—</b>}
+                </span>
+              </button>
+              {aberto === x.id && (r.situacao === "bom" || r.situacao === "baixo") && (
+                <div className="pc-detalhe">
+                  <p>
+                    Preço ideal: <b>{R(r.ideal)}</b> · sugerido <b>{R(r.sugerido)}</b> (lucro de {R(r.lucroNoSugerido)} por venda)
+                  </p>
+                  <div className="pc-colunas">
+                    <Partes titulo={`Vendendo a ${R(x.preco)} (hoje)`} partes={r.partes} lucro={r.lucroReal} />
+                    {r.situacao === "baixo" && <Partes titulo={`Vendendo a ${R(r.sugerido)} (sugerido)`} partes={r.partesIdeal} lucro={r.lucroNoSugerido} />}
+                  </div>
+                </div>
+              )}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </>
+  );
+}
+
+function Partes({ titulo, partes, lucro }) {
+  return (
+    <div className="pc-partes">
+      <strong>{titulo}</strong>
+      <ul>
+        {partes.map((x) => (
+          <li key={x.nome}><span>{x.nome}</span><span>{R(x.valor)}</span></li>
+        ))}
+        <li className={lucro < 0 ? "fin-neg" : "pc-lucro"}><span>{lucro < 0 ? "Prejuízo" : "Seu lucro"}</span><span>{R(lucro)}</span></li>
+      </ul>
+    </div>
+  );
+}

@@ -77,3 +77,30 @@
 .fin-dica { background: var(--card-2); border-radius: 12px; padding: 10px 12px; font-size: 14px; margin: 4px 0 14px; }
 .fin-totais { color: var(--muted); margin: -8px 0 8px; font-size: 14px; }
 .fin-ficha { font-weight: 800; text-align: right; } .fin-ficha small { display: block; font-weight: 500; color: var(--muted); font-size: 12px; }
+/* Preço certo */
+.pc-campos { display: grid; gap: 8px; }
+.pc-campo { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--card-2); border-radius: 12px; padding: 10px 12px; font-weight: 700; font-size: 14px; }
+.pc-campo small { display: block; font-weight: 500; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.pc-input { display: flex; align-items: center; gap: 4px; color: var(--muted); }
+.pc-input input { width: 74px; padding: 9px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; text-align: right; }
+.pc-resumo { background: var(--green-bg); color: #166534; border-radius: 12px; padding: 10px 12px; font-size: 14px; font-weight: 600; margin: 12px 0; }
+.pc-resumo.ruim { background: #fee2e2; color: #991b1b; }
+.pc-lista { list-style: none; padding: 0; margin: 0; }
+.pc-item { border-bottom: 1px solid var(--border); }
+.pc-linha { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; background: none; border: 0; color: var(--text); text-align: left; padding: 12px 0; cursor: pointer; font-size: 15px; }
+.pc-linha:disabled { cursor: default; }
+.pc-nome { min-width: 0; }
+.pc-nome small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.pc-nome small b { color: var(--text); }
+.pc-status { text-align: right; white-space: nowrap; }
+.pc-status small { display: block; color: #b45309; font-weight: 700; font-size: 13px; margin-top: 3px; }
+.pc-chip { display: inline-block; border-radius: 999px; padding: 4px 10px; font-size: 12.5px; background: var(--card-2); color: var(--muted); }
+.pc-chip.bom { background: var(--green-bg); color: #166534; }
+.pc-chip.baixo { background: #fef3c7; color: #92400e; }
+.pc-detalhe { background: var(--card-2); border-radius: 12px; padding: 12px; margin: 0 0 12px; font-size: 14px; }
+.pc-detalhe p { margin: 0 0 10px; }
+.pc-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.pc-partes ul { list-style: none; padding: 0; margin: 6px 0 0; }
+.pc-partes li { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--border); font-size: 13.5px; }
+.pc-partes li.pc-lucro { color: #15803d; font-weight: 800; border-bottom: 0; }
+.pc-partes li span:last-child { white-space: nowrap; }
