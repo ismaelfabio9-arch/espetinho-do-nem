@@ -27,32 +27,67 @@ export function vendasDoCaixa(caixa, diasFechados, vendasHoje) {
   });
 }
 
-export function resumoCaixa(caixa, vendas, movs) {
+/** Taxa da maquininha da venda: a % gravada nela ou, sem isso, a % de hoje da forma (débito/crédito). */
+function pctMaquininha(v, taxas) {
+  if (typeof v.taxaCartaoPct === "number" && v.taxaCartaoPct > 0) return v.taxaCartaoPct;
+  if (v.formaPagamento === "Débito") return Number(taxas?.debito || 0);
+  if (v.formaPagamento === "Crédito") return Number(taxas?.credito || 0);
+  return 0;
+}
+
+/**
+ * Quanto TEM QUE TER em cada lugar:
+ * - Dinheiro (gaveta) = troco inicial + vendas em dinheiro + suprimentos − sangrias
+ * - Pix = vendas no Pix (o que tem que ter entrado no banco)
+ * - Débito / Crédito = o que passou na maquininha (com a taxa que o cliente pagou junto) e
+ *   quanto cai na conta depois da taxa da maquininha
+ */
+export function resumoCaixa(caixa, vendas, movs, taxas) {
   const porForma = {};
+  const maq = {};
   let total = 0;
+  let semForma = 0;
   (vendas || []).forEach((v) => {
     const forma = v.formaPagamento || "Não informado";
     const valor = Number(v.total || 0) + Number(v.taxaCartao || 0);
-    porForma[forma] = r2((porForma[forma] || 0) + valor);
+    porForma[forma] = (porForma[forma] || 0) + valor;
+    maq[forma] = (maq[forma] || 0) + (valor * pctMaquininha(v, taxas)) / 100;
     total += valor;
+    if (!v.formaPagamento || v.formaPagamento === "Não informado") semForma += 1;
   });
   const meus = (movs || []).filter((m) => m.caixaId === caixa?.id);
   const suprimentos = r2(meus.filter((m) => m.tipo === "suprimento").reduce((s, m) => s + Number(m.valor || 0), 0));
   const sangrias = r2(meus.filter((m) => m.tipo === "sangria").reduce((s, m) => s + Number(m.valor || 0), 0));
   const inicial = Number(caixa?.valorInicial || 0);
-  const dinheiro = porForma.Dinheiro || 0;
+  const dinheiro = r2(porForma.Dinheiro || 0);
+  const gaveta = r2(inicial + dinheiro + suprimentos - sangrias);
   const formas = [...FORMAS_CAIXA, ...Object.keys(porForma).filter((f) => !FORMAS_CAIXA.includes(f))]
     .filter((f) => porForma[f] || FORMAS_CAIXA.includes(f))
-    .map((f) => ({ nome: f, valor: porForma[f] || 0 }));
+    .map((f) => {
+      const vendido = r2(porForma[f] || 0);
+      const taxa = r2(maq[f] || 0);
+      return {
+        nome: f,
+        valor: vendido,
+        vendido,
+        taxa,
+        caiNaConta: r2(vendido - taxa),
+        // O que tem que conferir: gaveta no dinheiro; nas outras, o que passou (Pix no banco, cartão na maquininha).
+        temQueTer: f === "Dinheiro" ? gaveta : vendido,
+        onde: f === "Dinheiro" ? "na gaveta" : f === "Pix" ? "no banco" : f === "Débito" || f === "Crédito" ? "na maquininha" : "",
+      };
+    });
   return {
     pedidos: (vendas || []).length,
     total: r2(total),
     formas,
+    semForma,
     inicial: r2(inicial),
-    dinheiro: r2(dinheiro),
+    dinheiro,
     suprimentos,
     sangrias,
-    esperado: r2(inicial + dinheiro + suprimentos - sangrias),
+    esperado: gaveta,
+    caiNaConta: r2(formas.filter((f) => f.nome !== "Dinheiro").reduce((s, f) => s + f.caiNaConta, 0)),
     movimentos: meus.sort((a, b) => String(a.em).localeCompare(String(b.em))),
   };
 }

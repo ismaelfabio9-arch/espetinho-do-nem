@@ -6,6 +6,7 @@ import { addDoc, collection, doc, limit, onSnapshot, orderBy, query, serverTimes
 import { auth, db } from "../../firebase";
 import { lerValor } from "../../utils/financas";
 import { resumoCaixa, vendasDoCaixa } from "../../utils/caixa";
+import { useTaxas } from "../../utils/taxas";
 import "../../styles/Garcom/RelatorioGerencial.css";
 import "../../styles/Garcom/Financas.css";
 import "../../styles/Garcom/Insumos.css";
@@ -29,6 +30,7 @@ function Caixa() {
   const hoje = useLista(() => collection(db, ...L(), "vendasDia"), []);
   const dias = useLista(() => query(collection(db, ...L(), "relatorioGerencial"), orderBy("criadoEm", "desc"), limit(15)), []);
   const [ver, setVer] = useState(null);
+  const taxas = useTaxas();
   const carregando = caixas === null || movs === null || hoje === null || dias === null;
   const aberto = (caixas || []).find((c) => c.status === "aberto") || null;
   const fechados = (caixas || []).filter((c) => c.status === "fechado");
@@ -45,9 +47,9 @@ function Caixa() {
       {carregando ? (
         <p className="fin-carregando">Carregando…</p>
       ) : ver ? (
-        <Fechamento caixa={ver} r={resumoCaixa(ver, vendasDoCaixa(ver, dias, hoje), movs)} nomeLoja={nomeLoja} voltar={() => setVer(null)} />
+        <Fechamento caixa={ver} r={resumoCaixa(ver, vendasDoCaixa(ver, dias, hoje), movs, taxas)} nomeLoja={nomeLoja} voltar={() => setVer(null)} />
       ) : aberto ? (
-        <Aberto caixa={aberto} r={resumoCaixa(aberto, vendasDoCaixa(aberto, dias, hoje), movs)} />
+        <Aberto caixa={aberto} r={resumoCaixa(aberto, vendasDoCaixa(aberto, dias, hoje), movs, taxas)} />
       ) : (
         <Abrir ultimo={fechados[0]} />
       )}
@@ -126,7 +128,7 @@ function Aberto({ caixa, r }) {
           <Linha nome="Vendas em dinheiro" valor={r.dinheiro} />
           {r.suprimentos > 0 && <Linha nome="Reforço de troco (suprimento)" valor={r.suprimentos} />}
           {r.sangrias > 0 && <Linha nome="Retiradas (sangria)" valor={-r.sangrias} />}
-          <Linha nome="Deve ter na gaveta" valor={r.esperado} total />
+          <Linha nome="Tem que ter na gaveta" valor={r.esperado} total />
         </div>
         <div className="ins-modal-botoes cx-botoes">
           <button type="button" className="ins-btn" onClick={() => setMov("sangria")}>− Sangria (retirar)</button>
@@ -134,13 +136,10 @@ function Aberto({ caixa, r }) {
         </div>
       </div>
       <div className="relatorio-documento">
-        <h2>Vendas deste caixa · {R(r.total)}</h2>
-        <p className="fin-explica">{r.pedidos} {r.pedidos === 1 ? "pedido fechado" : "pedidos fechados"} desde a abertura. Pix e cartão não ficam na gaveta: confira no banco e na maquininha.</p>
-        <ul className="fin-lista">
-          {r.formas.map((f) => (
-            <li key={f.nome}><span>{f.nome}</span><strong>{R(f.valor)}</strong></li>
-          ))}
-        </ul>
+        <h2>Tem que ter em cada lugar</h2>
+        <p className="fin-explica">{r.pedidos} {r.pedidos === 1 ? "pedido fechado" : "pedidos fechados"} desde a abertura · vendas {R(r.total)}.</p>
+        <TabelaFormas r={r} />
+        {r.semForma > 0 && <p className="fin-aviso cx-semforma">⚠️ {r.semForma === 1 ? "1 venda está" : `${r.semForma} vendas estão`} sem forma de pagamento: não dá para saber se entrou na gaveta, no Pix ou no cartão.</p>}
         {r.movimentos.length > 0 && (
           <>
             <h3 className="cx-sub">Sangrias e suprimentos</h3>
@@ -200,29 +199,37 @@ function Movimento({ caixa, tipo, fechar }) {
 }
 
 function Fechar({ caixa, r, cancelar }) {
-  const [contado, setContado] = useState("");
+  const [conf, setConf] = useState({}); // { Dinheiro: "75,00", Pix: "...", ... }
   const [fica, setFica] = useState("");
   const [obs, setObs] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
-  const c = contado === "" ? null : lerValor(contado);
-  const dif = c === null ? null : Math.round((c - r.esperado) * 100) / 100;
+  const linhas = r.formas.filter((f) => f.nome === "Dinheiro" || f.vendido > 0);
+  const valorDe = (f) => (conf[f.nome] === undefined || conf[f.nome] === "" ? null : lerValor(conf[f.nome]));
+  const difDe = (f) => (valorDe(f) === null ? null : Math.round((valorDe(f) - f.temQueTer) * 100) / 100);
+  const dinheiro = linhas.find((f) => f.nome === "Dinheiro");
+  const c = valorDe(dinheiro);
   async function confirmar(e) {
     e.preventDefault();
     if (c === null) return setErro("Conte o dinheiro da gaveta e informe o valor.");
     setSalvando(true);
     try {
       const deixar = fica === "" ? c : Math.min(c, lerValor(fica));
+      const conferencia = {};
+      linhas.forEach((f) => {
+        conferencia[f.nome] = { temQueTer: f.temQueTer, conferido: valorDe(f), diferenca: difDe(f) };
+      });
       await updateDoc(doc(db, ...L(), "caixas", caixa.id), {
         status: "fechado",
         fechadoEm: new Date().toISOString(),
         fechadoPor: quem(),
         contado: c,
         esperado: r.esperado,
-        diferenca: dif,
+        diferenca: difDe(dinheiro),
+        conferencia,
         retiradoNoFechamento: Math.round((c - deixar) * 100) / 100,
         obs: obs.trim().slice(0, 200),
-        resumo: { total: r.total, pedidos: r.pedidos, formas: r.formas, inicial: r.inicial, dinheiro: r.dinheiro, suprimentos: r.suprimentos, sangrias: r.sangrias },
+        resumo: { total: r.total, pedidos: r.pedidos, formas: r.formas, inicial: r.inicial, dinheiro: r.dinheiro, suprimentos: r.suprimentos, sangrias: r.sangrias, caiNaConta: r.caiNaConta, semForma: r.semForma },
       });
     } catch {
       setErro("Não foi possível fechar. Confira a internet.");
@@ -233,26 +240,41 @@ function Fechar({ caixa, r, cancelar }) {
     <div className="ins-modal" role="dialog" aria-modal="true" aria-label="Fechar caixa" onClick={cancelar}>
       <form className="ins-modal-caixa" onClick={(e) => e.stopPropagation()} onSubmit={confirmar}>
         <h2>Fechar o caixa</h2>
-        <p className="fin-explica">Conte o dinheiro da gaveta. O sistema compara com o que deveria ter ({R(r.esperado)}).</p>
+        <p className="fin-explica">Conte o dinheiro da gaveta e confira o Pix no banco e o cartão no relatório da maquininha.</p>
+        <div className="cx-conf">
+          {linhas.map((f) => {
+            const d = difDe(f);
+            return (
+              <div key={f.nome} className="cx-conf-linha">
+                <label>
+                  <span>
+                    {f.nome === "Dinheiro" ? "Dinheiro contado na gaveta" : `${f.nome} ${f.onde ? `(${f.onde})` : ""}`}
+                    <small>Tem que ter {R(f.temQueTer)}</small>
+                  </span>
+                  <input
+                    autoFocus={f.nome === "Dinheiro"}
+                    inputMode="decimal"
+                    placeholder={f.nome === "Dinheiro" ? "0,00" : "opcional"}
+                    aria-label={f.nome === "Dinheiro" ? "Dinheiro contado (R$)" : `${f.nome} conferido (R$)`}
+                    value={conf[f.nome] ?? ""}
+                    onChange={(e) => setConf({ ...conf, [f.nome]: e.target.value })}
+                  />
+                </label>
+                {d !== null && <span className={`cx-dif-mini ${d === 0 ? "ok" : d > 0 ? "sobra" : "falta"}`}>{d === 0 ? "✓ Bateu" : d > 0 ? `Sobrando ${R(d)}` : `Faltando ${R(-d)}`}</span>}
+              </div>
+            );
+          })}
+        </div>
         <div className="fin-campos">
-          <label>
-            Dinheiro contado (R$)
-            <input autoFocus inputMode="decimal" placeholder="0,00" value={contado} onChange={(e) => setContado(e.target.value)} />
-          </label>
           <label>
             Fica na gaveta para amanhã (R$)
             <input inputMode="decimal" placeholder="Tudo" value={fica} onChange={(e) => setFica(e.target.value)} />
           </label>
-          <label className="fin-largo">
+          <label>
             Observação (opcional)
             <input placeholder="Ex.: troco errado na mesa 4" value={obs} onChange={(e) => setObs(e.target.value)} />
           </label>
         </div>
-        {dif !== null && (
-          <p className={`cx-dif ${dif === 0 ? "ok" : dif > 0 ? "sobra" : "falta"}`}>
-            {dif === 0 ? "✓ Bateu certinho" : dif > 0 ? `Sobrando ${R(dif)}` : `Faltando ${R(-dif)}`}
-          </p>
-        )}
         {erro && <p className="fin-erro">{erro}</p>}
         <div className="ins-modal-botoes">
           <button type="button" className="ins-btn" onClick={cancelar}>Cancelar</button>
@@ -260,6 +282,37 @@ function Fechar({ caixa, r, cancelar }) {
         </div>
       </form>
     </div>
+  );
+}
+
+/** Cada forma de pagamento num cartão: vendido, quanto tem que ter (e onde), quanto cai na conta e a conferência. */
+function TabelaFormas({ r, conferencia }) {
+  return (
+    <ul className="cx-formas">
+      {r.formas.map((f) => {
+        const c = conferencia?.[f.nome];
+        const d = c?.diferenca;
+        const conferido = c && c.conferido !== null && c.conferido !== undefined;
+        return (
+          <li key={f.nome} className="cx-forma">
+            <div className="cx-forma-topo">
+              <strong>{f.nome}</strong>
+              <span>Tem que ter {f.onde ? `${f.onde} ` : ""}<b>{R(f.temQueTer ?? f.valor)}</b></span>
+            </div>
+            <small>
+              Vendido {R(f.vendido ?? f.valor)}
+              {f.taxa > 0 ? ` · taxa da maquininha − ${R(f.taxa)} · cai na conta ${R(f.caiNaConta)}` : ""}
+              {f.nome === "Dinheiro" && (f.temQueTer ?? 0) !== (f.vendido ?? 0) ? " · com troco, suprimentos e sangrias" : ""}
+            </small>
+            {conferencia && (
+              <p className={`cx-forma-conf ${!conferido ? "" : d === 0 ? "ok" : d > 0 ? "sobra" : "falta"}`}>
+                {!conferido ? "Não conferido" : `Conferido ${R(c.conferido)} · ${d === 0 ? "✓ Bateu" : d > 0 ? `Sobrou ${R(d)}` : `Faltou ${R(-d)}`}`}
+              </p>
+            )}
+          </li>
+        );
+      })}
+    </ul>
   );
 }
 
@@ -283,18 +336,14 @@ function Fechamento({ caixa, r, nomeLoja, voltar }) {
         <Linha nome="Vendas em dinheiro" valor={res.dinheiro} />
         <Linha nome="Suprimentos" valor={res.suprimentos} />
         <Linha nome="Sangrias" valor={-res.sangrias} />
-        <Linha nome="Deveria ter" valor={caixa.esperado} total />
-        <Linha nome="Contado" valor={caixa.contado} />
-        <Linha nome={Number(caixa.diferenca) < 0 ? "Faltou" : Number(caixa.diferenca) > 0 ? "Sobrou" : "Diferença"} valor={caixa.diferenca} total />
+        <Linha nome="Tinha que ter na gaveta" valor={caixa.esperado} total />
+        <Linha nome="Contado na gaveta" valor={caixa.contado} />
+        {Number(caixa.diferenca) === 0 ? <div className="fin-linha fin-total"><div><span>Gaveta</span></div><strong className="fin-pos">✓ Bateu</strong></div> : <Linha nome={Number(caixa.diferenca) < 0 ? "Faltou na gaveta" : "Sobrou na gaveta"} valor={caixa.diferenca} total />}
         {Number(caixa.retiradoNoFechamento) > 0 && <Linha nome="Retirado no fechamento" valor={caixa.retiradoNoFechamento} />}
       </div>
       <div className="relatorio-secao">
         <h2>Vendas · {R(res.total)} ({res.pedidos} pedidos)</h2>
-        <ul className="fin-lista">
-          {(res.formas || []).map((f) => (
-            <li key={f.nome}><span>{f.nome}</span><strong>{R(f.valor)}</strong></li>
-          ))}
-        </ul>
+        <TabelaFormas r={res} conferencia={caixa.conferencia} />
         {caixa.obs && <p className="relatorio-nota">Obs.: {caixa.obs}</p>}
       </div>
       <div className="ins-modal-botoes no-print">
