@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { addDoc, collection, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { L } from "../loja";
-import { custoDaFicha, daFicha, daParaQuantos, mostrarQtd, paraFicha, unidadeDe } from "../utils/insumos";
+import { custoDaFicha, daFicha, daParaQuantos, itensJuntos, mostrarQtd, paraFicha, unidadeDe } from "../utils/insumos";
 import { tipoDe } from "../utils/montagem";
 import { calcularFinancas, isoDia, juntarVendas, lerValor } from "../utils/financas";
 import { percentuaisDaLoja, percentuaisFinais, precoDoProduto } from "../utils/precificacao";
@@ -318,7 +318,7 @@ const paraLinhas = (itens, porId) => (itens || []).map((it) => ({ insumoId: it.i
 function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
   const [criados, setCriados] = useState({}); // ingredientes criados aqui (até o banco devolver)
   const todos = { ...criados, ...porId };
-  const [linhas, setLinhas] = useState(() => paraLinhas(ficha?.itens, porId));
+  const [linhas, setLinhas] = useState(() => paraLinhas(itensJuntos(ficha), porId));
   const [mudou, setMudou] = useState(false);
   const [novo, setNovo] = useState(false); // { nome? }
   const [msg, setMsg] = useState("");
