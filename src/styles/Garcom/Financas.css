@@ -133,3 +133,6 @@
 .pc-montar { max-width: 560px; }
 .pc-montar-topo { display: flex; justify-content: space-between; align-items: center; }
 .pc-montar .ficha-qtd input { width: 62px; }
+.pc-todos { width: 100%; margin: 0 0 12px; }
+.pc-fila { margin: 0; font-weight: 800; color: #15803d; font-size: 14px; }
+.pc-fila-botoes { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px; position: sticky; bottom: 0; background: var(--card); padding-top: 8px; }

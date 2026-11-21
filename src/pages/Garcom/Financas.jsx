@@ -466,6 +466,7 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
   const [msg, setMsg] = useState("");
   const [detalhe, setDetalhe] = useState({}); // { fixas: true } lista aberta
   const [montar, setMontar] = useState(null); // produto com a janela de ingredientes aberta
+  const [fila, setFila] = useState(null); // { ids, i }: montando um prato depois do outro
   const [digitar, setDigitar] = useState({});
   useEffect(
     () =>
@@ -571,6 +572,8 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
     .map((x) => ({ produto: x, custo: custos[x.id], ficha: typeof daFicha?.[x.id] === "number", r: precoDoProduto(custos[x.id], x.preco, p) }))
     .sort((a, b) => String(a.produto.categoria || "").localeCompare(String(b.produto.categoria || ""), "pt-BR") || String(a.produto.nome).localeCompare(String(b.produto.nome), "pt-BR"));
   const abaixo = linhas.filter((l) => l.r.situacao === "baixo").length;
+  // Produtos ainda sem ingredientes (mesmo com custo digitado): a fila do "um por um".
+  const semFicha = linhas.filter((l) => !l.ficha);
   const semCusto = linhas.filter((l) => l.r.situacao === "sem-custo").length;
   const mostrar = soAbaixo ? linhas.filter((l) => l.r.situacao === "baixo") : linhas;
 
@@ -644,6 +647,11 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
 
       <div className="relatorio-documento">
         <h2>Preço de cada produto</h2>
+        {semFicha.length > 0 && (
+          <button type="button" className="btn-verde pc-todos" onClick={() => { setFila({ ids: semFicha.map((l) => l.produto.id), i: 0 }); setMontar(semFicha[0].produto); }}>
+            🧮 Montar o custo de todos os que faltam ({semFicha.length}), um por um
+          </button>
+        )}
         <p className="fin-explica">
           {total >= 100
             ? "As despesas e o lucro passaram de 100% de cada venda: confira os valores acima antes de olhar os preços."
@@ -690,7 +698,7 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
                 </span>
               </button>
               <div className="pc-acoes">
-                <button type="button" className="ins-btn entrada" onClick={() => setMontar(x)}>
+                <button type="button" className="ins-btn entrada" onClick={() => { setFila(null); setMontar(x); }}>
                   🧮 {ficha ? "Ver os ingredientes" : "Montar o custo com os ingredientes"}
                 </button>
                 {!ficha && typeof custo !== "number" && !digitar[x.id] && (
@@ -719,14 +727,25 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
         </ul>
       </div>
       {montar && (
-        <div className="ins-modal" role="dialog" aria-modal="true" aria-label={`Custo de ${montar.nome}`} onClick={() => setMontar(null)}>
+        <div className="ins-modal" role="dialog" aria-modal="true" aria-label={`Custo de ${montar.nome}`} onClick={() => { setMontar(null); setFila(null); }}>
           <div className="ins-modal-caixa pc-montar" onClick={(e) => e.stopPropagation()}>
             <div className="pc-montar-topo">
               <h2>{montar.nome}</h2>
-              <button type="button" className="prod-ficha-x" aria-label="Fechar" onClick={() => setMontar(null)}>✕</button>
+              <button type="button" className="prod-ficha-x" aria-label="Fechar" onClick={() => { setMontar(null); setFila(null); }}>✕</button>
             </div>
+            {fila && <p className="pc-fila">Produto {fila.i + 1} de {fila.ids.length}</p>}
             <p className="fin-explica">Diga o que vai em 1 {montar.nome} e quanto de cada. O sistema soma a comida, põe a parte das despesas e diz o preço para vender.</p>
-            <FichaDoProduto produto={montar} precoAtual={montar.preco} />
+            <FichaDoProduto key={montar.id} produto={montar} precoAtual={montar.preco} />
+            {fila && (
+              <div className="pc-fila-botoes">
+                <button type="button" className="ins-btn" disabled={fila.i === 0} onClick={() => { const i = fila.i - 1; setFila({ ...fila, i }); setMontar((produtos || []).find((x) => x.id === fila.ids[i]) || null); }}>← Anterior</button>
+                {fila.i < fila.ids.length - 1 ? (
+                  <button type="button" className="btn-verde" onClick={() => { const i = fila.i + 1; setFila({ ...fila, i }); setMontar((produtos || []).find((x) => x.id === fila.ids[i]) || null); }}>Próximo produto →</button>
+                ) : (
+                  <button type="button" className="btn-verde" onClick={() => { setFila(null); setMontar(null); }}>✓ Terminei</button>
+                )}
+              </div>
+            )}
           </div>
         </div>
       )}
