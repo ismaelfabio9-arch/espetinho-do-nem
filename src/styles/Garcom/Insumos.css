@@ -1,0 +1,179 @@
+/* Matéria-prima e Caixa: usam o visual de Finanças/Relatório e acrescentam lista, modal e status. */
+.ins-aviso { cursor: default; margin: 4px 0 0; }
+.ins-lista { list-style: none; padding: 0; margin: 0; }
+.ins-item { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.ins-info { min-width: 0; }
+.ins-info small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.ins-qtd { font-size: 18px; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ins-qtd.baixo { color: var(--orange); }
+.ins-qtd.zerado { color: var(--red); }
+.ins-acoes { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.ins-btn { border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 10px; padding: 8px 12px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.ins-btn.entrada { border-color: var(--green); color: #15803d; }
+.ins-check { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 0 0 10px; }
+.ins-check input { width: 18px; height: 18px; }
+
+.ins-modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: grid; place-items: end center; z-index: 50; padding: 12px; }
+.ins-modal-caixa { width: 100%; max-width: 520px; background: var(--card); color: var(--text); border-radius: 20px; padding: 20px; max-height: 90vh; overflow: auto; }
+.ins-modal-caixa h2 { margin: 0 0 6px; font-size: 20px; }
+.ins-modal-botoes { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; }
+@media (min-width: 700px) { .ins-modal { place-items: center; } }
+
+.ins-fichas { list-style: none; padding: 0; margin: 0; }
+.ins-fichas > li { border-bottom: 1px solid var(--border); }
+.ins-ficha-linha { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left; background: none; border: 0; padding: 12px 0; color: var(--text); cursor: pointer; font-size: 15px; }
+.ins-ficha-linha small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.ins-ficha { background: var(--card-2); border-radius: 14px; padding: 12px; margin-bottom: 12px; display: grid; gap: 8px; }
+.ins-ficha-item { display: grid; grid-template-columns: 1fr 84px 28px 34px; gap: 6px; align-items: center; }
+.ins-ficha-item select, .ins-ficha-item input { padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; min-width: 0; }
+.ins-ficha-item input { text-align: right; }
+.ins-un { color: var(--muted); font-size: 13px; }
+
+.cx-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 14px; }
+.cx-status { color: #16a34a; font-weight: 800; }
+.cx-topo small { color: var(--muted); }
+.cx-botoes { justify-content: stretch; }
+.cx-botoes .ins-btn { flex: 1; padding: 12px; }
+.cx-sub { margin: 18px 0 4px; font-size: 15px; }
+.cx-fechar { width: 100%; margin-top: 18px; }
+.cx-dif { font-weight: 800; font-size: 18px; border-radius: 12px; padding: 10px 12px; }
+.cx-dif.ok { background: var(--green-bg); color: #166534; }
+.cx-dif.sobra { background: #dbeafe; color: #1e40af; }
+.cx-dif.falta { background: #fee2e2; color: #991b1b; }
+.ins-rotulo { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 700; } .ins-rotulo .fin-tipos { margin: 0; }
+.cx-onde { color: var(--muted); font-size: 12px; font-weight: 500; }
+.cx-tabela td { white-space: nowrap; }
+.cx-semforma { cursor: default; margin-top: 12px; }
+.cx-conf { display: grid; gap: 10px; margin: 6px 0 14px; }
+.cx-conf-linha { display: grid; gap: 4px; background: var(--card-2); border-radius: 12px; padding: 10px 12px; }
+.cx-conf-linha label { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-weight: 700; font-size: 14px; }
+.cx-conf-linha label small { display: block; color: var(--muted); font-weight: 500; font-size: 13px; margin-top: 2px; }
+.cx-conf-linha input { width: 120px; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; text-align: right; }
+.cx-dif-mini { font-weight: 800; font-size: 14px; }
+.cx-dif-mini.ok { color: #16a34a; }
+.cx-dif-mini.sobra { color: #1d4ed8; }
+.cx-dif-mini.falta { color: #b91c1c; }
+.cx-formas { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }
+.cx-forma { border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; }
+.cx-forma-topo { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.cx-forma-topo strong { font-size: 16px; }
+.cx-forma-topo span { color: var(--muted); font-size: 14px; }
+.cx-forma-topo b { color: var(--text); font-size: 17px; }
+.cx-forma small { display: block; color: var(--muted); font-size: 13px; margin-top: 4px; }
+.cx-forma-conf { margin: 8px 0 0; font-weight: 800; font-size: 14px; color: var(--muted); }
+.cx-forma-conf.ok { color: #16a34a; }
+.cx-forma-conf.sobra { color: #1d4ed8; }
+.cx-forma-conf.falta { color: #b91c1c; }
+.ins-prev { display: block; color: #0f766e !important; font-weight: 600; }
+.ins-prev.perto { color: #b45309 !important; }
+.ins-da { display: block; margin-top: 3px; font-weight: 700; color: #15803d; font-size: 13px; }
+.ins-da.pouco { color: #b45309; }
+.ins-perdas-resumo { width: 100%; display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; background: #fee2e2; color: #991b1b; border: 0; border-radius: 12px; padding: 10px 12px; margin: 0 0 8px; cursor: pointer; text-align: left; font-size: 14px; }
+.ins-perdas-resumo strong { font-size: 16px; }
+.ins-perdas-resumo small { margin-left: auto; font-weight: 700; }
+.ins-cont { list-style: none; padding: 0; margin: 0; }
+.ins-cont-linha { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--border); }
+.ins-cont-linha > div { min-width: 0; }
+.ins-cont-linha small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.ins-cont-linha label { display: flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+.ins-cont-linha input { width: 86px; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; text-align: right; }
+.ins-cont-dif { font-weight: 800; }
+.ins-cont-dif.ok { color: #16a34a !important; }
+.ins-cont-dif.falta { color: #b91c1c !important; }
+.ins-cont-dif.sobra { color: #1d4ed8 !important; }
+.ins-cont-total { font-weight: 700; margin: 12px 0 0; }
+.ins-abas { flex-wrap: wrap; overflow: visible; } .ins-abas button { flex: 1 1 auto; }
+/* Cadastro simples de ingrediente e ficha técnica */
+.ins-topo { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 8px; }
+.ins-topo h2 { margin: 0 !important; }
+.ni { display: grid; gap: 14px; }
+.ni-passo { display: grid; grid-template-columns: 30px 1fr; gap: 10px; align-items: start; }
+.ni-num { width: 28px; height: 28px; border-radius: 50%; background: var(--green); color: #fff; display: grid; place-items: center; font-weight: 800; font-size: 14px; }
+.ni-passo label, .ni-rot { display: block; font-weight: 800; font-size: 15px; margin-bottom: 6px; }
+.ni-passo label small { font-weight: 500; color: var(--muted); }
+.ni-passo input { width: 100%; box-sizing: border-box; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; }
+.ni-sug { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.ni-sug button { border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 999px; padding: 7px 12px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.ni-como { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.ni-como button { display: grid; justify-items: center; gap: 2px; border: 1.5px solid var(--border); background: var(--card); color: var(--text); border-radius: 14px; padding: 10px 4px; cursor: pointer; }
+.ni-como button span { font-size: 22px; }
+.ni-como button small { color: var(--muted); font-size: 11.5px; text-align: center; }
+.ni-como button.ativo { border-color: var(--green); background: var(--green-bg); }
+.ni-fixo { margin: 0; color: var(--muted); }
+.ni-linha { display: flex; align-items: center; gap: 8px; }
+.ni-linha input { flex: 1; min-width: 0; }
+.ni-linha span { color: var(--muted); font-size: 14px; white-space: nowrap; }
+.ni-link { background: none; border: 0; color: #15803d; font-weight: 700; padding: 6px 0 0; cursor: pointer; text-decoration: underline; font-size: 13.5px; }
+.ni-pacote { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 8px; background: var(--card-2); padding: 8px; border-radius: 12px; font-size: 14px; }
+.ni-pacote input { width: 84px !important; flex: none; }
+.ni-tirar { margin-right: auto; background: none; border: 0; color: var(--red); font-weight: 700; cursor: pointer; }
+.ficha-titulo { margin: 0 0 4px; font-size: 15px; }
+.ficha-linha { display: flex; align-items: center; gap: 8px; background: var(--card); border-radius: 12px; padding: 8px 10px; }
+.ficha-nome { flex: 1; min-width: 0; }
+.ficha-nome small { display: block; color: #15803d; font-weight: 700; font-size: 12.5px; }
+.ficha-qtd { display: flex; align-items: center; gap: 4px; }
+.ficha-qtd button { width: 34px; height: 34px; border-radius: 10px; border: 1px solid var(--border); background: var(--card-2); color: var(--text); font-size: 18px; font-weight: 800; cursor: pointer; }
+.ficha-qtd input { width: 62px; padding: 8px 6px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; text-align: center; }
+.ficha-qtd span { color: var(--muted); font-size: 13px; min-width: 18px; }
+.ficha-por > span { font-size: 13px; font-weight: 700; color: var(--muted); }
+.ficha-novo { border-style: dashed !important; color: #15803d !important; border-color: var(--green) !important; }
+.ficha-custo { background: var(--green-bg); color: #166534; border-radius: 12px; padding: 10px 12px; display: grid; gap: 2px; }
+.ficha-custo strong { font-size: 20px; }
+.ficha-custo small { font-size: 12.5px; }
+.ficha-custo.ruim { background: #fee2e2; color: #991b1b; }
+.ficha-pendente { color: #b45309; font-weight: 700; font-size: 13px; }
+@media (max-width: 420px) { .ficha-linha { flex-wrap: wrap; } .ficha-nome { flex-basis: calc(100% - 50px); } }
+.fdp { display: grid; gap: 10px; }
+.fdp-manual { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13.5px; color: var(--muted); }
+.pnp { border-radius: 12px; padding: 10px 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; background: var(--green-bg); color: #166534; }
+.pnp.baixo { background: #fef3c7; color: #92400e; }
+.pnp span { display: block; font-size: 12.5px; }
+.pnp strong { font-size: 18px; }
+.pnp p { grid-column: 1 / -1; margin: 0; font-size: 12.5px; }
+.ficha-ok { margin: 0; width: auto; } .ins-ficha .ficha-pendente { margin: 0; }
+.ficha-da { font-weight: 700; }
+.ni-pacote { display: grid !important; gap: 8px; }
+.ni-pac-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ni-pac-linha input { width: 74px !important; }
+.ni-pac-res { margin: 0; color: #15803d; }
+.pnp-conta { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 14px; }
+.pnp-conta b { text-align: right; font-size: 15px; }
+.pnp-conta .pnp-total { font-weight: 800; font-size: 16px; border-top: 1px solid currentColor; padding-top: 4px; }
+.pnp-aviso { display: block; margin: 0; font-size: 13.5px; }
+.ins-ultima { display: block; color: var(--muted); }
+.ins-compra-conta { background: var(--green-bg); color: #166534; border-radius: 12px; padding: 10px 12px; margin: 0 0 10px; }
+.ins-compra-conta p { margin: 0; font-size: 15px; }
+.ins-compra-modo { display: grid; gap: 8px; margin-top: 10px; color: var(--text); }
+.ins-compra-modo label { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+.ins-compra-modo small { display: block; color: var(--muted); font-size: 12.5px; }
+.ins-compra-modo input { margin-top: 3px; width: 18px; height: 18px; }
+.ficha-cadastro { background: var(--green-bg); border-radius: 12px; padding: 10px; }
+.ficha-do-prato { border-color: var(--green) !important; font-weight: 800 !important; }
+.ficha-do-prato.novo small { font-weight: 500; color: var(--muted); }
+.ficha-dica { display: block; margin-top: 6px; color: var(--muted); font-size: 12.5px; }
+
+/* Custo por recheio, tamanho e adicional */
+.ficha-opcoes { display: grid; gap: 8px; margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.ficha-op { border: 1px solid var(--border); border-radius: 12px; background: var(--card); overflow: hidden; }
+.ficha-op.aberta { border-color: var(--green); }
+.ficha-op-topo { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; background: none; border: 0; color: var(--text); text-align: left; cursor: pointer; font-size: 15px; }
+.ficha-op-topo small { display: block; color: var(--muted); font-size: 12px; font-weight: 500; margin-top: 2px; }
+.ficha-op-custo { font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.ficha-op-falta { font-size: 13px; font-weight: 700; color: var(--orange); white-space: nowrap; }
+.ficha-op-corpo { display: grid; gap: 8px; padding: 0 12px 12px; }
+.ficha-op-titulo { margin: 0; font-size: 14px; }
+.tv { display: grid; gap: 8px; }
+.tv-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.tv-linha { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }
+.tv-linha.baixo { border-color: var(--orange); }
+.tv-nome { min-width: 0; }
+.tv-nome b { display: block; font-size: 15px; color: var(--text); }
+.ficha-op-topo b { color: var(--text); }
+.tv-nome small, .tv-lucro small { display: block; color: var(--muted); font-size: 12px; }
+.tv-lucro { text-align: right; white-space: nowrap; }
+.tv-lucro b { font-size: 16px; }
+.tv-ideal { color: var(--orange) !important; font-weight: 700; }
+.pc-item .tv { margin: 6px 0 4px; }
+.pnp-titulo { margin: 0 0 6px; font-weight: 700; font-size: 14px; }
+.ficha-estoque { display: block; color: var(--muted); font-size: 12px; margin-top: 1px; }
+.ni-troca { margin: 8px 0 0; }

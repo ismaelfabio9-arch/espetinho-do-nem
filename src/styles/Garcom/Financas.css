@@ -1,0 +1,152 @@
+/* Finanças: usa o visual do Relatório Gerencial e acrescenta a conta do lucro, abas e formulários. */
+.fin-abas { display: flex; gap: 6px; background: var(--card-2); padding: 4px; border-radius: 14px; margin-bottom: 14px; overflow-x: auto; }
+.fin-abas button { flex: 1; white-space: nowrap; border: 0; background: transparent; color: var(--muted); font-weight: 700; font-size: 14px; padding: 10px 12px; border-radius: 10px; cursor: pointer; }
+.fin-abas button.ativa { background: var(--card); color: var(--text); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); }
+.fin-periodos { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.fin-periodos button, .fin-tipos button { border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 999px; padding: 8px 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.fin-periodos button.ativo, .fin-tipos button.ativo { background: var(--green); border-color: var(--green); color: #fff; }
+.fin-carregando { padding: 24px; color: var(--muted); }
+
+.fin-aviso { display: block; width: 100%; text-align: left; background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; border-radius: 14px; padding: 12px 14px; font-size: 14px; margin-bottom: 18px; cursor: pointer; }
+
+.fin-conta { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 24px; }
+.fin-linha { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.fin-linha:last-child { border-bottom: 0; }
+.fin-linha span { font-size: 15px; }
+.fin-linha small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.fin-linha strong { font-size: 17px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fin-total { background: var(--card-2); }
+.fin-total span { font-weight: 800; font-size: 16px; }
+.fin-total strong { font-size: 22px; }
+.fin-neg { color: var(--red) !important; }
+.fin-pos { color: #16a34a !important; }
+.fin-sem { color: var(--orange); font-weight: 600; }
+
+.fin-duas { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.fin-lista { list-style: none; padding: 0; margin: 0; }
+.fin-lista li { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 14.5px; }
+.fin-lista li:last-child { border-bottom: 0; }
+
+.fin-form h2, .fin-page .relatorio-documento > h2 { margin: 0 0 14px; font-size: 20px; }
+.fin-tipos { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.fin-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.fin-campos label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 700; }
+.fin-campos input, .fin-campos select { padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; font-weight: 400; }
+.fin-largo { grid-column: 1 / -1; }
+.fin-erro { color: var(--red); font-weight: 600; }
+
+.fin-despesas { list-style: none; padding: 0; margin: 0; }
+.fin-despesas li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.fin-despesas li > div { flex: 1; min-width: 0; }
+.fin-despesas small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.fin-valor { font-weight: 800; white-space: nowrap; }
+.fin-btn-x { border: 0; background: var(--card-2); color: var(--muted); width: 34px; height: 34px; border-radius: 10px; cursor: pointer; }
+.fin-confirma { display: flex; gap: 6px; }
+.fin-confirma button { border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 10px; padding: 7px 10px; cursor: pointer; font-weight: 600; }
+.fin-confirma .fin-btn-perigo { background: var(--red); border-color: var(--red); color: #fff; }
+
+.fin-custos-grupo h3 { margin: 18px 0 6px; font-size: 15px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.fin-custo { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.fin-custo > div { flex: 1; min-width: 0; }
+.fin-custo small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.fin-custo label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.fin-custo input { width: 96px; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; text-align: right; }
+.fin-ok { width: 56px; color: #16a34a; font-size: 13px; font-weight: 700; }
+
+@media (max-width: 640px) {
+  .fin-duas, .fin-campos { grid-template-columns: 1fr; }
+  .fin-custo { flex-wrap: wrap; }
+  .fin-ok { width: auto; }
+}
+@media print {
+  .fin-conta { break-inside: avoid; }
+}
+
+/* Lucro e caixa (DRE simples + fluxo de caixa) */
+.fin-explica { color: var(--muted); font-size: 14px; margin: -6px 0 12px; }
+.fin-sub { background: var(--card-2); }
+.fin-sub span { font-weight: 700; }
+.fin-equilibrio { background: #fef3c7; color: #92400e; border-radius: 14px; padding: 12px 14px; font-size: 14px; margin: -8px 0 8px; }
+.fin-equilibrio.ok { background: var(--green-bg); color: #166534; }
+.fin-grupo { margin-bottom: 12px; }
+.fin-grupo-topo { display: flex; justify-content: space-between; font-weight: 800; padding: 6px 0; border-bottom: 2px solid var(--border); }
+.fin-grupo .fin-lista li { color: var(--muted); padding-left: 6px; }
+.fin-grupo-tipos { border: 0; padding: 0; margin: 0 0 10px; }
+.fin-grupo-tipos legend { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px; padding: 0; }
+.fin-tipos button.ativo.entrada { background: var(--blue); border-color: var(--blue); }
+.fin-dica { background: var(--card-2); border-radius: 12px; padding: 10px 12px; font-size: 14px; margin: 4px 0 14px; }
+.fin-totais { color: var(--muted); margin: -8px 0 8px; font-size: 14px; }
+.fin-ficha { font-weight: 800; text-align: right; } .fin-ficha small { display: block; font-weight: 500; color: var(--muted); font-size: 12px; }
+/* Preço certo */
+.pc-campos { display: grid; gap: 8px; }
+.pc-campo { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--card-2); border-radius: 12px; padding: 10px 12px; font-weight: 700; font-size: 14px; }
+.pc-campo small { display: block; font-weight: 500; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.pc-input { display: flex; align-items: center; gap: 4px; color: var(--muted); }
+.pc-input input { width: 74px; padding: 9px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; text-align: right; }
+.pc-resumo { background: var(--green-bg); color: #166534; border-radius: 12px; padding: 10px 12px; font-size: 14px; font-weight: 600; margin: 12px 0; }
+.pc-resumo.ruim { background: #fee2e2; color: #991b1b; }
+.pc-lista { list-style: none; padding: 0; margin: 0; }
+.pc-item { border-bottom: 1px solid var(--border); }
+.pc-linha { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; background: none; border: 0; color: var(--text); text-align: left; padding: 12px 0; cursor: pointer; font-size: 15px; }
+.pc-linha:disabled { cursor: default; }
+.pc-nome { min-width: 0; }
+.pc-nome small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.pc-nome small b { color: var(--text); }
+.pc-status { text-align: right; white-space: nowrap; }
+.pc-status small { display: block; color: #b45309; font-weight: 700; font-size: 13px; margin-top: 3px; }
+.pc-chip { display: inline-block; border-radius: 999px; padding: 4px 10px; font-size: 12.5px; background: var(--card-2); color: var(--muted); }
+.pc-chip.bom { background: var(--green-bg); color: #166534; }
+.pc-chip.baixo { background: #fef3c7; color: #92400e; }
+.pc-detalhe { background: var(--card-2); border-radius: 12px; padding: 12px; margin: 0 0 12px; font-size: 14px; }
+.pc-detalhe p { margin: 0 0 10px; }
+.pc-colunas { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 10px; }
+.pc-partes ul { list-style: none; padding: 0; margin: 6px 0 0; }
+.pc-partes li { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--border); font-size: 13.5px; }
+.pc-partes li.pc-lucro { color: #15803d; font-weight: 800; border-bottom: 0; }
+.pc-partes li span:last-child { white-space: nowrap; }
+.pc-campo { flex-wrap: wrap; }
+.pc-campo > span:first-child { flex: 1 1 200px; min-width: 0; }
+.pc-input em { font-style: normal; font-size: 12.5px; min-width: 52px; }
+.pc-modo { display: inline-flex; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
+.pc-modo button { border: 0; background: var(--card); color: var(--muted); font-weight: 800; padding: 7px 9px; font-size: 13px; cursor: pointer; }
+.pc-modo button.ativo { background: var(--green); color: #fff; }
+.pc-equiv { flex-basis: 100%; text-align: right; color: #0f766e !important; font-weight: 700 !important; }
+.pc-verde { color: #15803d !important; }
+.pc-escada li span small { display: block; color: var(--muted); font-size: 12px; font-weight: 500; }
+.pc-escada li span:last-child small { display: inline; }
+.pc-escada li.pc-degrau { font-weight: 800; border-bottom-style: solid; }
+.pc-escada li.pc-final { font-weight: 800; border-bottom: 0; font-size: 15px; }
+.pc-nota { margin: 10px 0 0 !important; color: var(--muted); font-size: 13px; }
+.pc-escada li.pc-lucro, .pc-escada li.pc-lucro span { color: #15803d !important; } .pc-escada li.fin-neg, .pc-escada li.fin-neg span { color: var(--red) !important; } .pc-escada li.pc-degrau span:first-child, .pc-escada li.pc-degrau span:last-child { color: var(--text); }
+.pc-custo-dig { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: -4px 0 10px; font-size: 13px; color: var(--muted); } .pc-custo-dig .fin-ok { width: 16px; }
+.pc-itens { flex-basis: 100%; }
+.pc-itens-abrir { background: none; border: 0; color: #16a34a; font-weight: 800; font-size: 14px; padding: 6px 0 0; cursor: pointer; }
+.pc-itens-lista { margin-top: 8px; display: grid; gap: 6px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px; }
+.pc-item-linha { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-weight: 600; font-size: 14px; }
+.pc-item-linha .pc-input input { width: 96px; }
+.pc-x-vazio { display: inline-block; width: 34px; }
+.pc-item-novo { display: flex; gap: 6px; margin-top: 4px; }
+.pc-item-novo input { flex: 1; min-width: 0; padding: 9px; border-radius: 10px; border: 1px solid var(--border); background: var(--card-2); color: var(--text); font-size: 15px; }
+.pc-itens-total { margin: 4px 0 0; text-align: right; font-size: 14px; }
+.pc-campo .pc-input input { width: 104px; }
+.pc-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: -2px 0 10px; }
+.pc-montar { max-width: 560px; }
+.pc-montar-topo { display: flex; justify-content: space-between; align-items: center; }
+.pc-montar .ficha-qtd input { width: 62px; }
+.pc-todos { width: 100%; margin: 0 0 12px; }
+.pc-fila { margin: 0; font-weight: 800; color: #15803d; font-size: 14px; }
+.pc-fila-botoes { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px; position: sticky; bottom: 0; background: var(--card); padding-top: 8px; }
+
+/* Como calcular o lucro: só ingredientes ou conta completa */
+.pc-conta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 14px; }
+.pc-conta button { text-align: left; border: 2px solid var(--border); background: var(--card); color: var(--text); border-radius: 14px; padding: 12px; cursor: pointer; display: grid; gap: 4px; }
+.pc-conta button.ativo { border-color: var(--green); background: var(--green-bg); }
+.pc-conta b { font-size: 15px; }
+.pc-conta small { color: var(--muted); font-size: 12.5px; line-height: 1.3; }
+@media (max-width: 380px) { .pc-conta { grid-template-columns: 1fr; } }
+
+/* Preço certo em blocos por categoria */
+.pc-grupo { list-style: none; display: flex; align-items: baseline; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin: 18px 0 2px; padding: 8px 12px; border-radius: 10px; background: var(--card-2, rgba(127,127,127,.1)); }
+.pc-grupo:first-child { margin-top: 4px; }
+.pc-grupo h3 { margin: 0; font-size: 16px; }
+.pc-grupo small { color: var(--muted); font-size: 13px; }

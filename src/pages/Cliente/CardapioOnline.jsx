@@ -11,11 +11,13 @@ import { ordenarGruposPorCategoria } from "../../utils/categorias";
 import MontarPrato from "../../components/MontarPrato";
 import PratoNoPedido from "../../components/PratoNoPedido";
 import PedidoRapido from "../../components/PedidoRapido";
-import { abreEscolha, emojiCategoria } from "../../utils/montagem";
+import { abreEscolha, emojiCategoria, sugestoesBebida } from "../../utils/montagem";
 import { useRecurso } from "../../recursos";
 import { repassaAlguma, useTaxas } from "../../utils/taxas";
 import { moeda, useEntrega } from "../../utils/entrega";
 import "../../styles/Cliente/CardapioOnline.css";
+import QuerMais, { sugestoesComplemento } from "../../components/QuerMais";
+import { linkWhats, useWhatsLoja } from "../../utils/contato";
 
 const GUARDADO = "iftech:cardapio-online:cliente";
 const PAGAMENTOS = ["Dinheiro", "Pix", "Cartão"];
@@ -44,6 +46,10 @@ export default function CardapioOnline() {
   const [perguntar, setPerguntar] = useState(null);
   const [editando, setEditando] = useState(null); // chave da linha do pedido que está sendo editada
   const [etapa, setEtapa] = useState("cardapio");
+  const whatsLoja = useWhatsLoja();
+  // "Vai querer mais alguma coisa?": oferecido uma vez em cada pedido, antes dos dados.
+  const [querMais, setQuerMais] = useState(null); // sugestões guardadas ao abrir (o que o cliente toca não some)
+  const [ofereceu, setOfereceu] = useState(false);
   const g = lerGuardado();
   const [form, setForm] = useState({ modo: "entrega", cliente: g.cliente || "", telefone: g.telefone || "", endereco: g.endereco || "", referencia: g.referencia || "", pagamento: "", troco: "", obs: "" });
   const [enviando, setEnviando] = useState(false);
@@ -174,6 +180,13 @@ export default function CardapioOnline() {
     setEnviando(false);
   }
 
+  const noPedido = new Set(Object.values(carrinho).map((l) => l.produtoId));
+  const complementos = sugestoesComplemento(produtos, noPedido, esgotado, montarLigado);
+  function verPedido() {
+    if (!ofereceu && complementos.length) return setQuerMais(complementos);
+    setEtapa("dados");
+  }
+
   if (!entrega.carregado) return <div className="online"><p className="online-vazio">Carregando o cardápio…</p></div>;
   const aberta = ligadoNoPlano && entrega.ligado;
 
@@ -188,6 +201,11 @@ export default function CardapioOnline() {
           </p>
         ) : (
           <p className="online-fechado">A loja não está recebendo pedidos pelo site agora. Você pode ver o cardápio.</p>
+        )}
+        {whatsLoja && (
+          <a className="whats-btn claro online-whats" href={linkWhats(whatsLoja, `Olá! Vim pelo cardápio online da ${nomeLoja || "loja"}.`)} target="_blank" rel="noopener noreferrer">
+            💬 Falar com a loja no WhatsApp
+          </a>
         )}
         {aberta && repassaAlguma(taxas) && <p className="online-aviso">💳 No cartão, tem o acréscimo da taxa da maquininha. Pix e dinheiro sem acréscimo.</p>}
       </header>
@@ -204,7 +222,12 @@ export default function CardapioOnline() {
             Pagamento na {feito.modo === "entrega" ? "entrega" : "retirada"}: {feito.pagamento}
             {feito.troco ? ` · troco para R$ ${moeda(feito.troco)}` : ""}
           </p>
-          <button type="button" className="online-btn" onClick={() => { setFeito(null); setEtapa("cardapio"); }}>
+          {whatsLoja && (
+            <a className="whats-btn online-whats-pedido" href={linkWhats(whatsLoja, `Olá! Fiz o pedido #${feito.numero} pelo cardápio online (${form.cliente}). `)} target="_blank" rel="noopener noreferrer">
+              💬 Falar com a loja sobre o pedido #{feito.numero}
+            </a>
+          )}
+          <button type="button" className="online-btn" onClick={() => { setFeito(null); setOfereceu(false); setEtapa("cardapio"); }}>
             Fazer outro pedido
           </button>
         </section>
@@ -311,7 +334,7 @@ export default function CardapioOnline() {
           />
           {aberta && qtdItens > 0 && (
             <div className="online-barra">
-              <button type="button" className="online-btn" onClick={() => setEtapa("dados")}>
+              <button type="button" className="online-btn" onClick={verPedido}>
                 Ver pedido · {qtdItens} {qtdItens === 1 ? "item" : "itens"} · R$ {moeda(subtotal)}
               </button>
             </div>
@@ -328,10 +351,22 @@ export default function CardapioOnline() {
         />
       )}
 
+      {querMais && (
+        <QuerMais
+          sugestoes={querMais}
+          contagem={(i) => porProduto[i.id] || 0}
+          onAdicionar={adicionar}
+          total={subtotal}
+          textoContinuar="Ver meu pedido"
+          onContinuar={() => { setQuerMais(null); setOfereceu(true); setEtapa("dados"); }}
+          onFechar={() => setQuerMais(null)}
+        />
+      )}
       {montando && (
         <MontarPrato
           key={editando || "novo"}
           produto={montando}
+          bebidas={editando ? [] : sugestoesBebida(produtos)}
           inicial={editando ? carrinho[editando]?.montagem : null}
           textoBotao={editando ? "Salvar alteração" : "Adicionar"}
           onAdicionar={adicionarMontado}

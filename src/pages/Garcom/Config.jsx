@@ -19,14 +19,20 @@ import { db } from "../../firebase";
 import "../../styles/Garcom/Config.css";
 import InstallModal from "../../components/InstallApp";
 import { isInstalled } from "../../utils/installPrompt";
-import { planoQueLibera, useRecurso } from "../../recursos";
+import { usePlanoQueLibera, useRecurso } from "../../recursos";
+import { useCaixaAberto } from "../../components/AvisoCaixa";
+import "../../styles/Garcom/AvisoCaixa.css";
+import WhatsLojaConfig from "../../components/WhatsLojaConfig";
+import "../../components/QuerMais.css";
 
 // Prato montado ("Peito empanado — feijão preto, …") conta no relatório como o prato.
 const nomeProduto = (item) => item.nomeBase || String(item.nome || "").split(" — ")[0];
 
 
 function Config() {
-  const relatoriosLigado = useRecurso("relatorios");
+  const financasLigado = useRecurso("financas");
+  const financasPlano = usePlanoQueLibera("financas");
+  const caixaAberto = useCaixaAberto(financasLigado);
   const nomeLoja = useNomeLoja();
   const [instalarAberto, setInstalarAberto] = useState(false);
   const [mensagem, setMensagem] = useState("");
@@ -186,7 +192,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
         <div>
           <span>⚙️ Sistema</span>
           <h1>Configurações</h1>
-          <p>Gerencie opções básicas do aplicativo.</p>
+          <p>Ajustes da loja: impressora, equipe, taxas, WhatsApp e fechamento do dia.</p>
         </div>
       </div>
 
@@ -196,38 +202,28 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
         </p>
       )}
 
-      <Link to="/historico" style={{ textDecoration: "none" }}>
-        <div className="config-card">
-          <div className="config-icon">📋</div>
-          <div>
-            <h2>Histórico dos dias</h2>
-            <p>Fechamentos de cada dia, separados em mesas, balcão e entregas.</p>
-            <strong>Abrir histórico</strong>
-          </div>
+      {/* Caixa, histórico, relatório, produtos, estoque e finanças ficam nas 3 áreas. */}
+      <div className="config-areas">
+        <span>Procurando caixa, histórico, produtos, estoque ou finanças? Ficam aqui:</span>
+        <div>
+          <Link to="/vendas">💵 Vendas</Link>
+          <Link to="/cardapio">🍔 Cardápio e estoque</Link>
+          {(financasLigado || financasPlano) && <Link to="/dinheiro">💰 Dinheiro</Link>}
         </div>
-      </Link>
+      </div>
 
-      <Link to="/historico-mesas" style={{ textDecoration: "none" }}>
-        <div className="config-card">
-          <div className="config-icon">🍽️</div>
-          <div>
-            <h2>Histórico de pedidos</h2>
-            <p>Pedidos finalizados hoje: mesas, balcão e entregas separados.</p>
-            <strong>Abrir histórico de pedidos</strong>
+      {MULTI && (
+        <a href="/sistemas/sistema-de-mesas#planos" style={{ textDecoration: "none" }}>
+          <div className="config-card">
+            <div className="config-icon">⭐</div>
+            <div>
+              <h2>Planos e lojas</h2>
+              <p>Veja os planos, troque para a licença ou para o combo de mais de uma loja.</p>
+              <strong>Ver os planos</strong>
+            </div>
           </div>
-        </div>
-      </Link>
-
-      <Link to="/relatorio" style={{ textDecoration: "none" }}>
-        <div className="config-card">
-          <div className="config-icon">📈</div>
-          <div>
-            <h2>Relatório Gerencial</h2>
-            <p>Tudo junto: mesas, balcão e entregas por período, produtos vendidos e PDF.</p>
-            <strong>{relatoriosLigado ? "Abrir relatório" : planoQueLibera("relatorios") ? `Disponível no plano ${planoQueLibera("relatorios")}` : "Função desligada"}</strong>
-          </div>
-        </div>
-      </Link>
+        </a>
+      )}
 
       {MULTI && (
         <Link to="/dono" style={{ textDecoration: "none" }}>
@@ -244,6 +240,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
 
       {MULTI && <Equipe />}
 
+      <WhatsLojaConfig />
       <TaxasMaquininha />
 
       <CardapioOnlineConfig />
@@ -371,6 +368,12 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
 
             <strong>Essa ação não pode ser desfeita.</strong>
 
+            {caixaAberto && (
+              <p className="modal-caixa-aviso">
+                🧾 O caixa ainda está aberto. O certo é <Link to="/caixa">fechar o caixa</Link> (contar o dinheiro da gaveta) antes de encerrar o dia.
+              </p>
+            )}
+
             <div className="modal-fechar-dia-botoes">
               <button
                 className="modal-btn-cancelar"
@@ -385,7 +388,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
                 disabled={encerrando}
                 onClick={confirmarEncerrarDia}
               >
-                {encerrando ? "Encerrando..." : "Encerrar Dia"}
+                {encerrando ? "Encerrando..." : caixaAberto ? "Encerrar assim mesmo" : "Encerrar Dia"}
               </button>
             </div>
           </div>

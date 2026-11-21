@@ -1,0 +1,11 @@
+.abrindo { min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: #f4f5f7; color: #111827; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+.abrindo.escuro { background: #070707; color: #fff; }
+.abrindo-logo { width: 96px; height: 96px; border-radius: 24px; box-shadow: 0 10px 30px rgba(29, 78, 216, 0.25); margin-bottom: 10px; animation: abrindo-pulso 1.6s ease-in-out infinite; }
+.abrindo strong { font-size: 22px; }
+.abrindo-marca { font-size: 13px; font-weight: 800; letter-spacing: 0.18em; color: #1d4ed8; }
+.abrindo.escuro .abrindo-marca { color: #60a5fa; }
+.abrindo-roda { width: 28px; height: 28px; margin: 18px 0 6px; border-radius: 50%; border: 3px solid rgba(29, 78, 216, 0.2); border-top-color: #1d4ed8; animation: abrindo-gira 0.8s linear infinite; }
+.abrindo small { color: #6b7280; font-size: 14px; }
+@keyframes abrindo-gira { to { transform: rotate(360deg); } }
+@keyframes abrindo-pulso { 50% { transform: scale(0.96); } }
+@media (prefers-reduced-motion: reduce) { .abrindo-logo, .abrindo-roda { animation: none; } }

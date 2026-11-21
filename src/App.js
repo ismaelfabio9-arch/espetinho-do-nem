@@ -14,20 +14,16 @@ import Config from "./pages/Garcom/Config";
 import ConfiguracaoImpressora from "./pages/Garcom/ConfiguracaoImpressora";
 import ConectarImpressoraBluetooth from "./pages/Garcom/ConectarImpressoraBluetooth";
 import Notificacoes from "./pages/Garcom/Notificacoes";
-import Historico from "./pages/Garcom/Historico";
-import Produtos from "./pages/Garcom/Produtos";
-import HistoricoMesas from "./pages/Garcom/HistoricoMesas";
-import RelatorioGerencial from "./pages/Garcom/RelatorioGerencial";
 import CardapioMesa from "./pages/Cliente/CardapioMesa";
-import Estoque from "./pages/Garcom/Estoque";
 import QrCodes from "./pages/Garcom/QrCodes";
-import CardapioHoje from "./pages/Garcom/CardapioHoje";
 import VersaoNova from "./components/VersaoNova";
 import ErroTela from "./components/ErroTela";
 import Atalhos from "./components/Atalhos";
 import NovoPedido from "./pages/Garcom/NovoPedido";
 import PainelDono from "./pages/Garcom/PainelDono";
-import { planoQueLibera, useRecurso } from "./recursos";
+import SeLigado from "./components/SeLigado";
+import { Vendas, CardapioArea, Dinheiro } from "./pages/Garcom/Areas";
+import { Navigate, useLocation } from "react-router-dom";
 
 
 function App() {
@@ -76,27 +72,11 @@ function CardapioDaLoja() {
   );
 }
 
-/** Tela de uma função que a IFTech desligou só nesta loja. */
-function SeLigado({ recurso, children }) {
-  const ligado = useRecurso(recurso);
-  if (ligado) return children;
-  const plano = planoQueLibera(recurso);
-  return (
-    <div className="container" style={{ padding: 24 }}>
-      <a href="./" className="voltar">← Voltar</a>
-      {plano ? (
-        <>
-          <h1 style={{ marginTop: 16 }}>Função do plano {plano}</h1>
-          <p>Esta função não faz parte do seu plano. Para usar, mude para o plano {plano}: fale com a IFTech pelo WhatsApp (81) 99245-8934.</p>
-        </>
-      ) : (
-        <>
-          <h1 style={{ marginTop: 16 }}>Função desligada</h1>
-          <p>Esta função está desligada na sua loja. Para ligar de novo, fale com a IFTech.</p>
-        </>
-      )}
-    </div>
-  );
+/** Endereço antigo → aba da área nova (mantém o que vier depois do "?"). */
+function Para({ to }) {
+  const { search } = useLocation();
+  const extra = search.replace(/^\?/, "");
+  return <Navigate to={extra ? `${to}${to.includes("?") ? "&" : "?"}${extra}` : to} replace />;
 }
 
 /** Telas do garçom e do dono. */
@@ -105,7 +85,6 @@ function TelasEquipe() {
     <>
     <Atalhos />
     <Routes>
-      <Route path="/estoque" element={<SeLigado recurso="estoque"><Estoque /></SeLigado>} />
       <Route path="/" element={<Dashboard />} />
       <Route path="/pedidos" element={<Pedidos />} />
       <Route path="/mesas" element={<Mesas />} />
@@ -113,14 +92,23 @@ function TelasEquipe() {
       <Route path="/config/impressora" element={<ConfiguracaoImpressora />} />
       <Route path="/config/impressora/bluetooth" element={<ConectarImpressoraBluetooth />} />
       <Route path="/notificacoes" element={<Notificacoes />} />
-      <Route path="/historico" element={<Historico />} />
-      <Route path="/historico-mesas" element={<HistoricoMesas />} />
-      <Route path="/relatorio" element={<SeLigado recurso="relatorios"><RelatorioGerencial /></SeLigado>} />
+      {/* As 3 áreas */}
+      <Route path="/vendas" element={<Vendas />} />
+      <Route path="/cardapio" element={<CardapioArea />} />
+      <Route path="/dinheiro" element={<Dinheiro />} />
+      {/* Endereços antigos: caem na aba certa da área nova */}
+      <Route path="/caixa" element={<Para to="/vendas?aba=caixa" />} />
+      <Route path="/historico-mesas" element={<Para to="/vendas?aba=hoje" />} />
+      <Route path="/historico" element={<Para to="/vendas?aba=dias" />} />
+      <Route path="/relatorio" element={<Para to="/vendas?aba=relatorio" />} />
+      <Route path="/produtos" element={<Para to="/cardapio?aba=produtos" />} />
+      <Route path="/cardapio-hoje" element={<Para to="/cardapio?aba=hoje" />} />
+      <Route path="/estoque" element={<Para to="/cardapio?aba=estoque&sub=dia" />} />
+      <Route path="/materia-prima" element={<Para to="/cardapio?aba=estoque&sub=ingredientes" />} />
+      <Route path="/financas" element={<Para to="/dinheiro" />} />
       <Route path="/mesa/:id" element={<MesaDetalhe />} />
       <Route path="/viagem" element={<SeLigado recurso="viagem"><Viagem /></SeLigado>} />
-      <Route path="/produtos" element={<Produtos />} />
       <Route path="/qrcodes" element={<QrCodes />} />
-      <Route path="/cardapio-hoje" element={<CardapioHoje />} />
       <Route path="/novo" element={<NovoPedido />} />
       {MULTI && <Route path="/dono" element={<PainelDono />} />}
     </Routes>

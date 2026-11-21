@@ -27,6 +27,11 @@ export const RECURSOS = {
   relatorios: true,
   // Cardápio online (pedido de casa): função nova, só o plano Premium liga.
   "pedido-online": false,
+  // Finanças (despesas, custo e lucro por categoria): função nova, os planos Completo e Premium ligam.
+  financas: false,
+  // Ingredientes (estoque de matéria-prima, ficha de cada produto) e Preço certo: só o Premium liga.
+  // Lojas que já estavam no Completo antes de 22/11/2026 continuam com eles (ver temRecurso).
+  custos: false,
   beta: false,
 };
 
@@ -37,7 +42,14 @@ export const PLANO_DESLIGA = {
   premium: [],
 };
 /** Funções novas que só o plano liga (sem plano, ficam desligadas). */
-export const PLANO_LIGA = { basico: [], completo: [], premium: ["pedido-online"] };
+export const PLANO_LIGA = { basico: [], completo: ["financas"], premium: ["pedido-online", "financas", "custos"] };
+/** Lojas do Completo criadas antes desta data já usavam Ingredientes e Preço certo: continuam com eles. */
+export const CUSTOS_COMPLETO_ATE = "2026-11-22T00:00:00-03:00";
+const criadaEm = (loja) => {
+  const c = loja?.createdAt;
+  const ms = typeof c?.toMillis === "function" ? c.toMillis() : typeof c?.seconds === "number" ? c.seconds * 1000 : c ? Date.parse(c) : NaN;
+  return Number.isFinite(ms) ? ms : null;
+};
 export const NOME_PLANO = { basico: "Básico", completo: "Completo", premium: "Premium" };
 let planoAtual = null;
 
@@ -67,6 +79,14 @@ export function temRecurso(nome) {
   if (!MULTI) return padrao;
   acompanhar();
   if (typeof atual[nome] === "boolean") return atual[nome];
+  if (nome === "custos") {
+    // Sem plano (loja antiga ou instalação própria): vem junto com Finanças, como era.
+    if (!planoAtual) return temRecurso("financas");
+    if (planoAtual === "completo") {
+      const em = criadaEm(getTenant().loja);
+      if (em !== null && em < Date.parse(CUSTOS_COMPLETO_ATE)) return temRecurso("financas");
+    }
+  }
   if (planoAtual && PLANO_LIGA[planoAtual].includes(nome)) return true;
   if (planoAtual && PLANO_DESLIGA[planoAtual].includes(nome)) return false;
   // Primeiros recursos foram gravados no cadastro da loja (mesasLojas/<id>.recursos).
@@ -87,6 +107,22 @@ export function useRecurso(nome) {
     };
   }, [nome]);
   return ligado;
+}
+
+/** planoQueLibera(nome) que se atualiza quando o plano da loja carrega ou muda. */
+export function usePlanoQueLibera(nome) {
+  const [plano, setPlano] = useState(() => planoQueLibera(nome));
+  useEffect(() => {
+    const fn = () => setPlano(planoQueLibera(nome));
+    fn();
+    ouvintes.add(fn);
+    const sairTenant = subscribeTenant(fn);
+    return () => {
+      ouvintes.delete(fn);
+      sairTenant();
+    };
+  }, [nome]);
+  return plano;
 }
 
 /** Desligada por causa do plano? Devolve o nome do menor plano que tem a função (ex.: "Completo"); senão null. */

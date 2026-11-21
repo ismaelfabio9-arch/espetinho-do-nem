@@ -25,6 +25,8 @@ import {
 import { ordenarItensCategoria } from "../../utils/produtosOrdem";
 import { slugify, formatarMoeda } from "../../utils/texto";
 import "../../styles/Garcom/Produtos.css";
+import { useRecurso } from "../../recursos";
+import { FichaDoProduto } from "../../components/FichaTecnica";
 import { MODELOS, TIPOS, lerMontagem, temMontagem, textoMontagem, tipoDe, tipoInfo, tipoPelaCategoria } from "../../utils/montagem";
 
 
@@ -40,6 +42,8 @@ const normalizar = (t) =>
     .trim();
 
 function Produtos() {
+  // Planos Completo e Premium: ingredientes (ficha técnica), custo e preço certo dentro do produto.
+  const financasLigado = useRecurso("custos");
   const [produtos, setProdutos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   // Editar produto: toca na linha e abre a ficha (nome, preço, categoria, opções e excluir).
@@ -992,6 +996,12 @@ function Produtos() {
                   </select>
                 </label>
               </div>
+              {financasLigado && (
+                <div className="prod-ficha-ingred">
+                  <strong>Ingredientes, custo e preço certo</strong>
+                  <FichaDoProduto produto={produto} precoAtual={ficha.preco} />
+                </div>
+              )}
               <button
                 type="button"
                 className="prod-ficha-opcoes"

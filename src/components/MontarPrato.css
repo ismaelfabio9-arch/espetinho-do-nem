@@ -33,3 +33,4 @@ body:not(.dark) .montar-outro-linha input, body:not(.dark) .montar-obs { backgro
 .prato-no-pedido-op { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; margin-bottom: 8px; padding: 12px 14px; border-radius: 12px; border: 1px solid #2f2f2f; background: transparent; color: #f3f4f6; text-align: left; font: inherit; cursor: pointer; }
 .prato-no-pedido-op strong { font-size: 15px; }
 .prato-no-pedido-op span { font-size: 13px; color: #9ca3af; overflow-wrap: anywhere; }
+.montar-bebidas-grupo + .montar-bebidas-grupo { margin-top: 10px; } .montar-bebidas-cat { font-size: 12px; font-weight: 700; color: #9ca3af; margin: 2px 0 6px; } .montar-bebidas { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }

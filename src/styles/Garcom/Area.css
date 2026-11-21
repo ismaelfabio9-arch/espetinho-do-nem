@@ -1,0 +1,26 @@
+/* Áreas do sistema: Vendas, Cardápio e estoque. As telas de dentro perdem o "Voltar" próprio. */
+.area-topo { max-width: 900px; margin: 0 auto; padding: 16px 16px 4px; }
+.area-topo h1 { margin: 12px 0 2px; font-size: 28px; }
+.area-topo p { margin: 0 0 12px; color: var(--muted); }
+.area-abas, .area-sub { display: flex; flex-wrap: wrap; gap: 6px; }
+.area-abas button { flex: 1 1 auto; border: 1px solid var(--border); background: var(--card); color: var(--muted); font-weight: 800; font-size: 15px; padding: 11px 14px; border-radius: 14px; cursor: pointer; }
+.area-abas button.ativa { background: var(--green); border-color: var(--green); color: #fff; }
+.area-sub { max-width: 900px; margin: 10px auto 0; padding: 0 16px; }
+.area-sub button { border: 1px solid var(--border); background: var(--card-2); color: var(--muted); font-weight: 700; font-size: 14px; padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+.area-sub button.ativa { background: var(--text); color: var(--bg); border-color: var(--text); }
+.area-conteudo .voltar { display: none !important; }
+.area-conteudo > .container, .area-conteudo .area-sub-bloco > .area-conteudo > .container { padding-top: 8px; }
+/* Mais leve: título menor e as telas de dentro sem o próprio título (a aba já diz onde está). */
+.area-topo h1 { font-size: 22px; margin: 10px 0 10px; }
+.area-conteudo .relatorio-filtros > h1, .area-conteudo .relatorio-filtros > h1 + p { display: none; }
+.area-conteudo .relatorio-filtros:not(:has(button, input, select)) { display: none; }
+.area-conteudo .estoque-titulo { display: none; }
+.ins-topo-embutido { margin: 4px 0 12px; display: grid; gap: 10px; }
+.ins-topo-embutido .area-sub { margin: 0; padding: 0; }
+.ins-dia > .container { padding: 0; }
+/* Abas numa linha só: as principais dividem a largura; as de dentro rolam para o lado. */
+.area-abas { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 6px; }
+.area-abas button { padding: 10px 4px; font-size: 13.5px; line-height: 1.15; white-space: normal; border-radius: 12px; }
+.area-sub, .ins-topo-embutido .area-sub { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+.area-sub::-webkit-scrollbar { display: none; }
+.area-sub button { flex: 0 0 auto; white-space: nowrap; }

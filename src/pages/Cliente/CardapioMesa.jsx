@@ -25,6 +25,8 @@ import { sugestoesBebida, abreEscolha } from "../../utils/montagem";
 import PedidoRapido from "../../components/PedidoRapido";
 import { useRecurso } from "../../recursos";
 import { repassaAlguma, useTaxas } from "../../utils/taxas";
+import QuerMais, { sugestoesComplemento } from "../../components/QuerMais";
+import { linkWhats, useWhatsLoja } from "../../utils/contato";
 
 function CardapioMesa() {
   const nomeLoja = useNomeLoja();
@@ -52,6 +54,10 @@ function CardapioMesa() {
   const garcomLigado = useRecurso("chamar-garcom");
   const contaLigada = useRecurso("pedir-conta");
   const montarLigado = useRecurso("montar-prato");
+  const whatsLoja = useWhatsLoja();
+  // "Vai querer mais alguma coisa?": oferecido uma vez em cada pedido, antes de enviar.
+  const [querMais, setQuerMais] = useState(null); // sugestões guardadas ao abrir (o que o cliente toca não some)
+  const [ofereceu, setOfereceu] = useState(false);
   // Aviso da taxa da maquininha repassada ao cliente (Configurações → Taxas da maquininha).
   const taxas = useTaxas();
   const estoqueLigado = useRecurso("estoque");
@@ -361,6 +367,14 @@ function CardapioMesa() {
     }
   }
 
+  const qtdNoPedido = (item) => Object.values(carrinho).filter((l) => l.produtoId === item.id).reduce((t, l) => t + l.quantidade, 0);
+  function finalizarPedido() {
+    const noPedido = new Set(Object.values(carrinho).map((l) => l.produtoId));
+    const sugestoes = sugestoesComplemento(produtos, noPedido, esgotado, montarLigado);
+    if (itensSelecionados.length && !ofereceu && sugestoes.length) return setQuerMais(sugestoes);
+    fazerPedido();
+  }
+
   async function fazerPedido() {
     if (itensSelecionados.length === 0) {
       setMensagem("Escolha pelo menos um produto.");
@@ -383,6 +397,7 @@ function CardapioMesa() {
           false
         );
         setCarrinho({});
+        setOfereceu(false);
         setMensagem("Pedido enviado com sucesso!");
         setTimeout(() => setMensagem(""), 3000);
       } catch (erro) {
@@ -493,6 +508,7 @@ function CardapioMesa() {
       });
 
       setCarrinho({});
+      setOfereceu(false);
       setMensagem("Pedido enviado com sucesso!");
 
       setTimeout(() => {
@@ -677,6 +693,12 @@ function CardapioMesa() {
               🛎️ Chamar Garcom
             </button>
           )}
+
+          {whatsLoja && (
+            <a className="whats-btn claro cardapio-whats" href={linkWhats(whatsLoja, `Olá! Estou na Mesa ${mesa}.`)} target="_blank" rel="noopener noreferrer">
+              💬 WhatsApp da loja
+            </a>
+          )}
         </div>
 
         {produtosDisponiveis.length === 0 && (
@@ -747,6 +769,17 @@ function CardapioMesa() {
 
         {mensagem && <p className="cardapio-mensagem">{mensagem}</p>}
 
+      {querMais && (
+        <QuerMais
+          sugestoes={querMais}
+          contagem={qtdNoPedido}
+          onAdicionar={(i) => alterarQuantidade(i, 1)}
+          total={total}
+          textoContinuar="Enviar pedido"
+          onContinuar={() => { setQuerMais(null); setOfereceu(true); fazerPedido(); }}
+          onFechar={() => setQuerMais(null)}
+        />
+      )}
         {montando && (
           <MontarPrato
             key={editando || "novo"}
@@ -780,7 +813,7 @@ function CardapioMesa() {
           {pedidoLigado && (
             <button
               className="cardapio-btn-principal"
-              onClick={fazerPedido}
+              onClick={finalizarPedido}
               disabled={enviando}
             >
               FINALIZAR PEDIDO
