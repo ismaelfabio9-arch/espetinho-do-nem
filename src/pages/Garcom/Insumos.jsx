@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { addDoc, collection, limit, onSnapshot, orderBy, query, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../../firebase";
-import { ajustarInsumo, entradaInsumo, inventario, mostrarQtd, perdasNoPeriodo, previsao, unidadeDe } from "../../utils/insumos";
+import { ajustarInsumo, entradaInsumo, novoCustoCompra, inventario, mostrarQtd, perdasNoPeriodo, previsao, unidadeDe } from "../../utils/insumos";
 import { NovoInsumo } from "../../components/FichaTecnica";
 import { isoDia, periodo } from "../../utils/financas";
 import { lerValor } from "../../utils/financas";
@@ -143,6 +143,11 @@ function Estoque({ insumos, prev, perdasMes, verPerdas }) {
                       {min > 0 ? ` · mínimo ${mostrarQtd(min, i.unidade)}` : ""}
                       {typeof i.custo === "number" && q > 0 ? ` · vale ${R(q * i.custo)}` : ""}
                     </small>
+                    {i.ultimaCompra && (
+                      <small className="ins-ultima">
+                        Última compra: {mostrarQtd(i.ultimaCompra.qtd, i.unidade)} por {R(i.ultimaCompra.valor)} em {new Date(i.ultimaCompra.em).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                      </small>
+                    )}
                     {prev[i.id]?.porDia > 0 && (
                       <small className={`ins-prev ${prev[i.id].acabaEm <= 3 ? "perto" : ""}`}>
                         Gasta ~{mostrarQtd(prev[i.id].porDia, i.unidade)} por dia · {prev[i.id].acabaEm === 0 ? "já acabou" : `dá para ~${prev[i.id].acabaEm} ${prev[i.id].acabaEm === 1 ? "dia" : "dias"}`}
@@ -178,6 +183,8 @@ function Movimentar({ acao, fechar }) {
   const [valor, setValor] = useState("");
   const [motivo, setMotivo] = useState("");
   const [lancar, setLancar] = useState(true);
+  const temAntes = Number(insumo.quantidade || 0) > 0 && typeof insumo.custo === "number";
+  const [modo, setModo] = useState(temAntes ? "media" : "ultimo");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
   const titulo = tipo === "compra" ? `Compra de ${insumo.nome}` : tipo === "perda" ? `Perda de ${insumo.nome}` : `Contagem de ${insumo.nome}`;
@@ -191,7 +198,7 @@ function Movimentar({ acao, fechar }) {
     try {
       if (tipo === "compra") {
         const v = lerValor(valor);
-        await entradaInsumo(insumo, q, v, quem());
+        await entradaInsumo(insumo, q, v, quem(), modo);
         // A compra também vai para Finanças (Compras de mercadoria), se o dono quiser.
         if (v > 0 && lancar) {
           const hoje = new Date();
@@ -213,12 +220,12 @@ function Movimentar({ acao, fechar }) {
         <p className="fin-explica">Tem agora: {mostrarQtd(insumo.quantidade, insumo.unidade)}</p>
         <div className="fin-campos">
           <label className={tipo === "compra" ? "" : "fin-largo"}>
-            {tipo === "contagem" ? `Quanto tem de verdade (${u.id})` : `Quantidade (${u.id})`}
+            {tipo === "contagem" ? `Quanto tem de verdade (${u.id})` : tipo === "compra" ? `Quanto comprou (${u.id === "un" ? "unidades" : u.id})` : `Quantidade (${u.id})`}
             <input autoFocus inputMode="decimal" placeholder="0" value={qtd} onChange={(e) => setQtd(e.target.value)} />
           </label>
           {tipo === "compra" && (
             <label>
-              Valor pago (R$)
+              Quanto pagou por tudo (R$)
               <input inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} />
             </label>
           )}
@@ -234,7 +241,39 @@ function Movimentar({ acao, fechar }) {
             <input type="checkbox" checked={lancar} onChange={(e) => setLancar(e.target.checked)} /> Lançar em Finanças como compra de mercadoria
           </label>
         )}
-        {tipo === "compra" && <p className="fin-explica">O preço do {u.nomeLongo} é atualizado pela média do que já tinha com essa compra.</p>}
+        {tipo === "compra" && (() => {
+          const q = num(qtd);
+          const v = lerValor(valor);
+          if (!(q > 0) || !(v > 0)) return <p className="fin-explica">Diga quanto comprou e quanto pagou: o sistema calcula o preço {insumo.unidade === "un" ? "da unidade" : `do ${u.nomeLongo}`} e todos os pratos com {insumo.nome} recalculam sozinhos.</p>;
+          const desta = v / q;
+          const media = novoCustoCompra(insumo, q, v, "media");
+          const nomeUn = insumo.unidade === "un" ? "a unidade" : `o ${u.nomeLongo}`;
+          return (
+            <div className="ins-compra-conta">
+              <p>
+                {R(v)} ÷ {mostrarQtd(q, insumo.unidade)} = <b>{R(desta)} {nomeUn}</b>
+              </p>
+              {temAntes && Math.abs(media - desta) > 0.005 && (
+                <div className="ins-compra-modo" role="radiogroup" aria-label="Qual preço usar">
+                  <label>
+                    <input type="radio" name="modo" checked={modo === "ultimo"} onChange={() => setModo("ultimo")} />
+                    <span>
+                      Usar o preço desta compra: <b>{R(desta)}</b>
+                      <small>Bom quando o preço muda muito (ex.: carne).</small>
+                    </span>
+                  </label>
+                  <label>
+                    <input type="radio" name="modo" checked={modo === "media"} onChange={() => setModo("media")} />
+                    <span>
+                      Média com o que já tinha: <b>{R(media)}</b>
+                      <small>Você tinha {mostrarQtd(insumo.quantidade, insumo.unidade)} a {R(insumo.custo)}.</small>
+                    </span>
+                  </label>
+                </div>
+              )}
+            </div>
+          );
+        })()}
         {erro && <p className="fin-erro">{erro}</p>}
         <div className="ins-modal-botoes">
           <button type="button" className="ins-btn" onClick={fechar}>Cancelar</button>

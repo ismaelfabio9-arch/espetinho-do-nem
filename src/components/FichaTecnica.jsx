@@ -19,6 +19,17 @@ const num = (v) => {
   return Number.isFinite(n) ? n : NaN;
 };
 const quem = () => auth.currentUser?.email || "";
+/** Nome sem acento e minúsculo, para achar "Feijão" em "Feijão carioca". */
+const sem = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+/** O que vem no prato pelo cadastro dele (vem no prato + os grupos de escolha, ex.: Feijão). */
+function doCadastro(produto) {
+  const m = produto?.montagem;
+  if (!m) return [];
+  const nomes = [...(m.vem || []), ...(m.escolhas || []).map((e) => e.nome)].map((n) => String(n || "").trim()).filter(Boolean);
+  return nomes.filter((n, i) => nomes.findIndex((x) => sem(x) === sem(n)) === i);
+}
+/** O ingrediente que corresponde a um item do prato ("Arroz" → "Arroz branco"). */
+const acharInsumo = (lista, nome) => lista.find((i) => sem(i.nome) === sem(nome)) || lista.find((i) => sem(i.nome).startsWith(sem(nome)) || sem(nome).startsWith(sem(i.nome)));
 
 const SUGESTOES = [
   { nome: "Carne moída", unidade: "kg", icone: "🥩" },
@@ -41,11 +52,11 @@ const COMO = [
 ];
 
 /** Cadastro (ou edição) de um ingrediente, em perguntas simples. aoCriar(insumo) recebe o novo. */
-export function NovoInsumo({ insumos, editar, fechar, aoCriar }) {
+export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" }) {
   const ed = !!editar;
   const [f, setF] = useState(() => ({
-    nome: editar?.nome || "",
-    unidade: editar?.unidade || "kg",
+    nome: editar?.nome || nomeInicial,
+    unidade: editar?.unidade || SUGESTOES.find((x) => sem(x.nome) === sem(nomeInicial))?.unidade || "kg",
     preco: typeof editar?.custo === "number" ? fmt(editar.custo) : "",
     quantidade: "",
     minimo: editar && Number(editar.minimo) > 0 ? String(editar.minimo).replace(".", ",") : "",
@@ -298,6 +309,35 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
         );
       })}
 
+      {(() => {
+        const todosIns = [...insumos, ...Object.values(criados).filter((c) => !porId[c.id])];
+        const faltam = doCadastro(produto).filter((n) => {
+          const ins = acharInsumo(todosIns, n);
+          return !ins || !linhas.some((l) => l.insumoId === ins.id);
+        });
+        if (!faltam.length) return null;
+        return (
+          <div className="ficha-por ficha-cadastro">
+            <span>Vem neste prato (do cadastro dele):</span>
+            <div className="ni-sug">
+              {faltam.map((n) => {
+                const ins = acharInsumo(todosIns, n);
+                return ins ? (
+                  <button type="button" key={n} className="ficha-do-prato" onClick={() => muda([...linhas, { insumoId: ins.id, qtd: padrao(ins) }])}>
+                    + {ins.nome}
+                  </button>
+                ) : (
+                  <button type="button" key={n} className="ficha-do-prato novo" onClick={() => setNovo({ nome: n })}>
+                    + {n} <small>(cadastrar o preço)</small>
+                  </button>
+                );
+              })}
+            </div>
+            <small className="ficha-dica">Falta a carne ou outro item principal? Toque em + Novo ingrediente abaixo.</small>
+          </div>
+        );
+      })()}
+
       <div className="ficha-por">
         <span>Pôr ingrediente:</span>
         <div className="ni-sug">
@@ -334,6 +374,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
       {novo && (
         <NovoInsumo
           insumos={[...insumos, ...Object.values(criados)]}
+          nomeInicial={typeof novo === "object" ? novo.nome : ""}
           fechar={() => setNovo(false)}
           aoCriar={(ins) => {
             setCriados((c) => ({ ...c, [ins.id]: ins }));

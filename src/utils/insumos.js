@@ -124,17 +124,33 @@ export async function baixarInsumos(itens, origem = "venda") {
 }
 
 /** Entrada de compra: soma no estoque e atualiza o custo pela média (estoque antigo + compra). */
-export async function entradaInsumo(insumo, qtd, valorPago, por) {
+/**
+ * Entrada de compra: soma no estoque e atualiza o preço. modo "media": média do que já tinha com a compra
+ * (o certo para o estoque); modo "ultimo": o preço desta compra (quando o preço muda muito, como a carne).
+ * Guarda a última compra para mostrar ("5 kg por R$ 150,00 em 21/11").
+ */
+export async function entradaInsumo(insumo, qtd, valorPago, por, modo = "media") {
   const q = r3(Number(qtd || 0));
   if (!(q > 0)) throw new Error("quantidade");
+  const valor = Math.round(Number(valorPago || 0) * 100) / 100;
+  const custo = novoCustoCompra(insumo, q, valor, modo);
+  const agora = new Date().toISOString();
+  await updateDoc(doc(db, ...L(), "insumos", insumo.id), {
+    quantidade: increment(q),
+    ...(custo !== null ? { custo: Math.round(custo * 10000) / 10000 } : {}),
+    ...(valor > 0 ? { ultimaCompra: { qtd: q, valor, em: agora, porUnidade: Math.round((valor / q) * 10000) / 10000 } } : {}),
+    atualizadoEm: agora,
+  });
+  await addDoc(collection(db, ...L(), "insumosMov"), { insumoId: insumo.id, nome: insumo.nome, tipo: "compra", qtd: q, valor, em: agora, por: por || "", criadoEm: serverTimestamp() });
+}
+
+/** Preço por unidade depois da compra (null quando não muda: compra sem valor). */
+export function novoCustoCompra(insumo, q, valor, modo = "media") {
   const atual = Math.max(0, Number(insumo.quantidade || 0));
   const custoAtual = typeof insumo.custo === "number" ? insumo.custo : null;
-  const valor = Math.round(Number(valorPago || 0) * 100) / 100;
-  let custo = custoAtual;
-  if (valor > 0) custo = custoAtual === null || atual <= 0 ? valor / q : (atual * custoAtual + valor) / (atual + q);
-  const agora = new Date().toISOString();
-  await updateDoc(doc(db, ...L(), "insumos", insumo.id), { quantidade: increment(q), ...(custo !== null ? { custo: Math.round(custo * 10000) / 10000 } : {}), atualizadoEm: agora });
-  await addDoc(collection(db, ...L(), "insumosMov"), { insumoId: insumo.id, nome: insumo.nome, tipo: "compra", qtd: q, valor, em: agora, por: por || "", criadoEm: serverTimestamp() });
+  if (!(valor > 0) || !(q > 0)) return custoAtual;
+  if (modo === "ultimo" || custoAtual === null || atual <= 0) return valor / q;
+  return (atual * custoAtual + valor) / (atual + q);
 }
 
 /** Valor em R$ do que saiu/entrou num ajuste (pelo preço do insumo na hora). Negativo = prejuízo. */

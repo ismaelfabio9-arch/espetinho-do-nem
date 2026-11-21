@@ -140,3 +140,14 @@
 .pnp-conta b { text-align: right; font-size: 15px; }
 .pnp-conta .pnp-total { font-weight: 800; font-size: 16px; border-top: 1px solid currentColor; padding-top: 4px; }
 .pnp-aviso { display: block; margin: 0; font-size: 13.5px; }
+.ins-ultima { display: block; color: var(--muted); }
+.ins-compra-conta { background: var(--green-bg); color: #166534; border-radius: 12px; padding: 10px 12px; margin: 0 0 10px; }
+.ins-compra-conta p { margin: 0; font-size: 15px; }
+.ins-compra-modo { display: grid; gap: 8px; margin-top: 10px; color: var(--text); }
+.ins-compra-modo label { display: flex; gap: 8px; align-items: flex-start; font-size: 14px; }
+.ins-compra-modo small { display: block; color: var(--muted); font-size: 12.5px; }
+.ins-compra-modo input { margin-top: 3px; width: 18px; height: 18px; }
+.ficha-cadastro { background: var(--green-bg); border-radius: 12px; padding: 10px; }
+.ficha-do-prato { border-color: var(--green) !important; font-weight: 800 !important; }
+.ficha-do-prato.novo small { font-weight: 500; color: var(--muted); }
+.ficha-dica { display: block; margin-top: 6px; color: var(--muted); font-size: 12.5px; }
