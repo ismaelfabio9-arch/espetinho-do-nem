@@ -175,3 +175,5 @@
 .tv-ideal { color: var(--orange) !important; font-weight: 700; }
 .pc-item .tv { margin: 6px 0 4px; }
 .pnp-titulo { margin: 0 0 6px; font-weight: 700; font-size: 14px; }
+.ficha-estoque { display: block; color: var(--muted); font-size: 12px; margin-top: 1px; }
+.ni-troca { margin: 8px 0 0; }

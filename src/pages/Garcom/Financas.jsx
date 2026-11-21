@@ -6,8 +6,8 @@ import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, 
 import { db } from "../../firebase";
 import { useTaxas } from "../../utils/taxas";
 import { GRUPOS, TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
-import { custoDaEscolha, custoDaFicha, custoPadrao, perdasNoPeriodo, variacoesDoProduto } from "../../utils/insumos";
-import { FichaDoProduto, TabelaVariacoes } from "../../components/FichaTecnica";
+import { custoDaEscolha, custoDaFicha, custoPadrao, perdasNoPeriodo } from "../../utils/insumos";
+import { FichaDoProduto } from "../../components/FichaTecnica";
 import { pctDoMes, percentuaisDaLoja, precoDoProduto, somaPct } from "../../utils/precificacao";
 import "../../styles/Garcom/RelatorioGerencial.css";
 import "../../styles/Garcom/Financas.css";
@@ -69,7 +69,7 @@ function Financas({ abas = ["resumo", "lancamentos"], titulo = "Dinheiro", texto
   // Custo de cada produto: o da ficha técnica (matéria-prima) quando tem; senão, o digitado.
   // Com recheio, tamanho ou adicional: o custo padrão é o do produto como está no cardápio (1ª opção de cada grupo)
   // e, nas vendas, o custo segue o que o cliente escolheu.
-  const { custos, daFicha, custoDoItem, porIdIns, fichaDe } = useMemo(() => {
+  const { custos, daFicha, custoDoItem } = useMemo(() => {
     const m = {};
     (custosDocs || []).forEach((c) => {
       if (typeof c.custo === "number") m[c.id] = c.custo;
@@ -87,7 +87,7 @@ function Financas({ abas = ["resumo", "lancamentos"], titulo = "Dinheiro", texto
       if (!fi || !item.montagem) return null;
       return custoDaEscolha(fi, item.montagem, porId);
     };
-    return { custos: { ...m, ...f }, daFicha: f, custoDoItem: doItem, porIdIns: porId, fichaDe: fichaPorId };
+    return { custos: { ...m, ...f }, daFicha: f, custoDoItem: doItem };
   }, [custosDocs, fichas, insumos, produtos]);
   const carregando = dias === null || hoje === null || produtos === null || custosDocs === null || lancamentos === null || fichas === null || insumos === null || movs === null;
   // Últimos 30 dias: base dos percentuais do Preço certo (quanto de cada venda vai para taxas e despesas).
@@ -154,7 +154,7 @@ function Financas({ abas = ["resumo", "lancamentos"], titulo = "Dinheiro", texto
       ) : aba === "lancamentos" ? (
         <Lancamentos f={f} categorias={categorias} />
       ) : aba === "preco" ? (
-        <PrecoCerto produtos={produtos} custos={custos} daFicha={daFicha} f30={f30} taxas={taxas} variacoes={(x) => variacoesDoProduto(x, fichaDe[x.id], porIdIns)} />
+        <PrecoCerto produtos={produtos} custos={custos} daFicha={daFicha} f30={f30} taxas={taxas} />
       ) : (
         <Resumo f={f} nomeLoja={nomeLoja} faixa={faixa} />
       )}
@@ -466,7 +466,7 @@ function Lancamentos({ f, categorias }) {
 }
 
 /** Preço certo: por quanto vender cada produto para pagar tudo e sobrar o lucro que o dono quer. */
-function PrecoCerto({ produtos, custos, daFicha, f30, taxas, variacoes }) {
+function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
   const auto = percentuaisDaLoja(f30, taxas);
   const [salvo, setSalvo] = useState(null); // configuracoes/precificacao
   const [form, setForm] = useState(null);
@@ -739,10 +739,6 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, variacoes }) {
                   {r.situacao === "impossivel" && <b className="pc-chip baixo">⚠️ Confira as despesas</b>}
                 </span>
               </button>
-              {(() => {
-                const v = ficha && variacoes ? variacoes(x) : null;
-                return v && (v.linhas.length > 1 || v.extras.length > 0) ? <TabelaVariacoes produto={x} variacoes={v} p={p} /> : null;
-              })()}
               <div className="pc-acoes">
                 <button type="button" className="ins-btn entrada" onClick={() => { setFila(null); setMontar(x); }}>
                   🧮 {ficha ? "Ver os ingredientes" : "Montar o custo com os ingredientes"}

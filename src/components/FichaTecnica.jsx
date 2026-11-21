@@ -4,10 +4,10 @@ import { useCallback, useEffect, useState } from "react";
 import { addDoc, collection, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { L } from "../loja";
-import { GRUPO_ADICIONAL, custoDaFicha, escolhaInicial, custoPadrao, daFicha, daParaQuantos, paraFicha, unidadeDe, variacoesDoProduto } from "../utils/insumos";
+import { custoDaFicha, daFicha, daParaQuantos, mostrarQtd, paraFicha, unidadeDe } from "../utils/insumos";
 import { tipoDe } from "../utils/montagem";
 import { calcularFinancas, isoDia, juntarVendas, lerValor } from "../utils/financas";
-import { percentuaisDaLoja, percentuaisFinais, precoDoProduto, somaPct } from "../utils/precificacao";
+import { percentuaisDaLoja, percentuaisFinais, precoDoProduto } from "../utils/precificacao";
 import { useTaxas } from "../utils/taxas";
 import "../styles/Garcom/Financas.css";
 import "../styles/Garcom/Insumos.css";
@@ -61,7 +61,7 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
     nome: editar?.nome || nomeInicial,
     unidade: editar?.unidade || SUGESTOES.find((x) => sem(x.nome) === sem(nomeInicial))?.unidade || "kg",
     preco: typeof editar?.custo === "number" ? fmt(editar.custo) : "",
-    quantidade: "",
+    quantidade: editar && Number(editar.quantidade) > 0 ? String(editar.quantidade).replace(".", ",") : "",
     minimo: editar && Number(editar.minimo) > 0 ? String(editar.minimo).replace(".", ",") : "",
   }));
   const [pacote, setPacote] = useState(null); // { pagou, qtd } calcular o preço de um pacote
@@ -69,6 +69,8 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
   const [salvando, setSalvando] = useState(false);
   const [tirar, setTirar] = useState(false);
   const u = unidadeDe(f.unidade);
+  // Editando: dá para trocar a unidade (cadastrou por kg, mas era por unidade).
+  const trocouUnidade = ed && f.unidade !== (editar.unidade || "un");
   const nomeUn = f.unidade === "un" ? "unidade" : u.nomeLongo;
   const sufixo = f.unidade === "un" ? "unidades" : u.id;
 
@@ -95,7 +97,14 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
     try {
       const agora = new Date().toISOString();
       if (ed) {
-        await setDoc(doc(db, ...L(), "insumos", editar.id), { nome: nome.slice(0, 60), ...(preco > 0 ? { custo: preco } : {}), minimo, atualizadoEm: agora }, { merge: true });
+        const antes = Number(editar.quantidade || 0);
+        await setDoc(
+          doc(db, ...L(), "insumos", editar.id),
+          { nome: nome.slice(0, 60), ...(preco > 0 ? { custo: preco } : {}), minimo, ...(trocouUnidade ? { unidade: f.unidade, quantidade } : {}), atualizadoEm: agora },
+          { merge: true }
+        );
+        if (trocouUnidade && quantidade !== antes)
+          await addDoc(collection(db, ...L(), "insumosMov"), { insumoId: editar.id, nome, tipo: "contagem", qtd: quantidade - antes, antes, depois: quantidade, motivo: `Trocou a unidade para ${unidadeDe(f.unidade).nome}`, em: agora, por: quem(), criadoEm: serverTimestamp() });
         fechar();
         return;
       }
@@ -142,9 +151,7 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
           <span className="ni-num">2</span>
           <div>
             <span className="ni-rot">Como você compra e usa?</span>
-            {ed ? (
-              <p className="ni-fixo">{COMO.find((c) => c.id === f.unidade)?.titulo} ({COMO.find((c) => c.id === f.unidade)?.sub})</p>
-            ) : (
+            {(
               <div className="ni-como" role="radiogroup" aria-label="Como você compra e usa?">
                 {COMO.map((c) => (
                   <button type="button" role="radio" aria-checked={f.unidade === c.id} key={c.id} className={f.unidade === c.id ? "ativo" : ""} onClick={() => setF({ ...f, unidade: c.id })}>
@@ -154,6 +161,11 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
                   </button>
                 ))}
               </div>
+            )}
+            {trocouUnidade && (
+              <p className="fin-aviso ni-troca">
+                Trocando de {unidadeDe(editar.unidade).nomeLongo} para {nomeUn}: confira o preço e o quanto tem abaixo, e a quantidade de {f.nome || "dele"} nos produtos que usam (Preço certo → Ver os ingredientes).
+              </p>
             )}
           </div>
         </div>
@@ -203,7 +215,7 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
           </div>
         </div>
 
-        {!ed && (
+        {(!ed || trocouUnidade) && (
           <div className="ni-passo">
             <span className="ni-num">4</span>
             <div>
@@ -217,7 +229,7 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
         )}
 
         <div className="ni-passo">
-          <span className="ni-num">{ed ? 4 : 5}</span>
+          <span className="ni-num">{ed && !trocouUnidade ? 4 : 5}</span>
           <div>
             <label htmlFor="ni-min">Me avise quando ficar com menos de <small>(opcional)</small></label>
             <div className="ni-linha">
@@ -244,7 +256,7 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
   );
 }
 
-/** Linhas de ingredientes (quanto de cada) + os botões para pôr mais. Usada no que vai em todos e em cada opção. */
+/** Linhas de ingredientes (quanto de cada, quanto custa e para quantos o estoque dá) + os botões para pôr mais. */
 function LinhasFicha({ linhas, muda, todos, lista, novo, extra = null, vazio, preco = 0 }) {
   const fora = lista.filter((i) => !linhas.some((l) => l.insumoId === i.id));
   const passo = (un) => (un === "un" ? 1 : 10);
@@ -262,6 +274,13 @@ function LinhasFicha({ linhas, muda, todos, lista, novo, extra = null, vazio, pr
             <div className="ficha-nome">
               <strong>{ins?.nome || "Ingrediente"}</strong>
               <small>{linhaCusto !== null ? `= ${R(linhaCusto)}${preco > 0 ? ` · ${pctPreco(linhaCusto, preco)} do preço` : ""}` : ins && typeof ins.custo !== "number" ? "sem preço (edite o ingrediente)" : ""}</small>
+              {ins && q > 0 && (
+                <small className="ficha-estoque">
+                  {Number(ins.quantidade || 0) > 0
+                    ? `Estoque ${mostrarQtd(ins.quantidade, ins.unidade)} → dá para ${Math.floor(Number(ins.quantidade) / daFicha(l.qtd, ins.unidade) + 1e-9)}`
+                    : "Sem estoque registrado"}
+                </small>
+              )}
             </div>
             <div className="ficha-qtd">
               <button type="button" aria-label={`Menos ${ins?.nome || ""}`} onClick={() => ajustar(-passo(ins?.unidade))}>−</button>
@@ -294,113 +313,37 @@ const pctPreco = (v, preco) => {
   const x = (v / preco) * 100;
   return x > 0 && x < 1 ? "menos de 1%" : `${Math.round(x)}%`;
 };
-const SEP = "\u0001";
-const chaveOp = (grupo, opcao) => `${grupo}${SEP}${opcao}`;
-/** Recheios, sabores, tamanhos e adicionais do cadastro do produto (cada um pode ter os ingredientes dele). */
-function opcoesDoCadastro(produto) {
-  const m = produto?.montagem || {};
-  const out = [];
-  // No prato de almoço o feijão e a salada já vão no prato (lá em cima): aqui só os adicionais cobrados.
-  if (tipoDe(produto) !== "prato") (m.escolhas || []).forEach((g) => (g.opcoes || []).forEach((op) => out.push({ grupo: g.nome, opcao: op, preco: Number(g.precos?.[op]) > 0 ? Number(g.precos[op]) : 0 })));
-  (m.extras || []).forEach((e) => out.push({ grupo: GRUPO_ADICIONAL, opcao: e.nome, preco: Number(e.preco || 0) }));
-  return out;
-}
 const paraLinhas = (itens, porId) => (itens || []).map((it) => ({ insumoId: it.insumoId, qtd: String(paraFicha(it.qtd, porId[it.insumoId]?.unidade)).replace(".", ",") }));
-
-/** Cada jeito de vender (Pastel de queijo, de carne…) e cada adicional: custo, preço e o que sobra limpo. */
-export function TabelaVariacoes({ produto, variacoes, p }) {
-  const { linhas, extras } = variacoes;
-  if (!linhas.length && !extras.length) return null;
-  const conta = (custo, preco) => (p && typeof custo === "number" ? precoDoProduto(custo, preco, p) : null);
-  const Linha = ({ nome, custo, preco, adicional }) => {
-    const r = conta(custo, preco);
-    const ok = r && (r.situacao === "bom" || r.situacao === "baixo");
-    return (
-      <li className={`tv-linha ${ok ? r.situacao : "sem"}`}>
-        <span className="tv-nome">
-          <b>{adicional ? `+ ${nome}` : nome}</b>
-          <small>
-            {typeof custo === "number" ? `custo ${R(custo)} · ${adicional ? "cobra" : "vende"} ${R(preco)}` : adicional ? `cobra ${R(preco)} · falta pôr os ingredientes` : `vende ${R(preco)} · falta o preço de algum ingrediente`}
-          </small>
-        </span>
-        {ok ? (
-          <span className="tv-lucro">
-            <small>lucro limpo</small>
-            <b className={r.lucroReal < 0 ? "fin-neg" : "pc-verde"}>{R(r.lucroReal)}</b>
-            {r.situacao === "baixo" && <small className="tv-ideal">ideal {R(r.sugerido)}</small>}
-          </span>
-        ) : typeof custo === "number" && !p ? (
-          <span className="tv-lucro"><small>sobra</small><b>{R(preco - custo)}</b></span>
-        ) : null}
-      </li>
-    );
-  };
-  return (
-    <div className="tv">
-      <p className="ficha-titulo">Quanto custa e quanto sobra em cada um</p>
-      {linhas.length > 0 && (
-        <ul className="tv-lista" aria-label={`Cada ${produto.nome}`}>
-          {linhas.map((l) => <Linha key={l.nome} nome={`${produto.nome} ${l.nome}`} custo={l.custo} preco={l.preco} />)}
-        </ul>
-      )}
-      {extras.length > 0 && (
-        <ul className="tv-lista" aria-label="Adicionais">
-          {extras.map((e) => <Linha key={e.nome} adicional nome={e.nome} custo={e.custo} preco={e.preco} />)}
-        </ul>
-      )}
-      <small className="ficha-dica">{p && somaPct({ ...p, lucro: 0, lucroValor: 1 }) === 0 ? "Lucro = preço menos os ingredientes (conta só com os ingredientes, sem despesas)." : "O lucro limpo já tira a maquininha, os impostos e a parte das despesas da loja (as contas do Preço certo)."}</small>
-    </div>
-  );
-}
 
 function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
   const [criados, setCriados] = useState({}); // ingredientes criados aqui (até o banco devolver)
   const todos = { ...criados, ...porId };
   const [linhas, setLinhas] = useState(() => paraLinhas(ficha?.itens, porId));
-  const [opc, setOpc] = useState(() => Object.fromEntries((ficha?.opcoes || []).map((o) => [chaveOp(o.grupo, o.opcao), paraLinhas(o.itens, porId)])));
-  const [aberta, setAberta] = useState(null);
   const [mudou, setMudou] = useState(false);
-  const [novo, setNovo] = useState(false); // { nome?, destino: chave da opção | null }
+  const [novo, setNovo] = useState(false); // { nome? }
   const [msg, setMsg] = useState("");
-  const p = usePercentuaisPreco();
-  const opcoes = opcoesDoCadastro(produto);
-  const temOpcoes = opcoes.length > 0;
-  const temGrupos = opcoes.some((o) => o.grupo !== GRUPO_ADICIONAL); // recheio, sabor, tamanho
-  const tocou = () => {
+  const muda = (l) => {
+    setLinhas(l);
     setMudou(true);
     setMsg("");
   };
-  const muda = (l) => {
-    setLinhas(l);
-    tocou();
-  };
-  const mudaOp = (k) => (l) => {
-    setOpc((o) => ({ ...o, [k]: l }));
-    tocou();
-  };
-  const paraItens = (ls) => (ls || []).filter((l) => l.insumoId && num(l.qtd) > 0).map((l) => ({ insumoId: l.insumoId, qtd: daFicha(l.qtd, todos[l.insumoId]?.unidade) }));
-  const itens = paraItens(linhas);
-  const fichaAtual = {
-    itens,
-    opcoes: opcoes.map((o) => ({ grupo: o.grupo, opcao: o.opcao, itens: paraItens(opc[chaveOp(o.grupo, o.opcao)]) })).filter((o) => o.itens.length),
-  };
-  const custoBase = custoDaFicha({ itens }, todos);
-  const custo = temGrupos ? custoPadrao(fichaAtual, produto, todos) : custoBase;
+  const itens = linhas.filter((l) => l.insumoId && num(l.qtd) > 0).map((l) => ({ insumoId: l.insumoId, qtd: daFicha(l.qtd, todos[l.insumoId]?.unidade) }));
+  const custo = custoDaFicha({ itens }, todos);
   const preco = Number(String(precoAtual ?? produto.preco ?? "").replace(",", ".")) || 0;
-  const custoTxt = custo === null || custo === undefined ? "" : String(custo);
-  const temItens = itens.length > 0 || fichaAtual.opcoes.length > 0;
+  const custoTxt = custo === null ? "" : String(custo);
+  const temItens = itens.length > 0;
   useEffect(() => {
     onCusto?.(custoTxt === "" ? null : Number(custoTxt), temItens);
   }, [custoTxt, temItens, onCusto]);
   const lista = [...insumos, ...Object.values(criados).filter((c) => !porId[c.id])];
 
   // Salva sozinha um instante depois de cada mudança (sem botão a mais na tela do produto).
-  const fichaJson = JSON.stringify(fichaAtual);
+  const itensJson = JSON.stringify(itens);
   useEffect(() => {
     if (!mudou) return undefined;
     const t = setTimeout(async () => {
       try {
-        await setDoc(doc(db, ...L(), "fichas", produto.id), { ...JSON.parse(fichaJson), nome: produto.nome, atualizadoEm: new Date().toISOString() });
+        await setDoc(doc(db, ...L(), "fichas", produto.id), { itens: JSON.parse(itensJson), nome: produto.nome, atualizadoEm: new Date().toISOString() });
         setMudou(false);
         setMsg("✓ Ingredientes salvos");
       } catch {
@@ -408,7 +351,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
       }
     }, 700);
     return () => clearTimeout(t);
-  }, [fichaJson, mudou, produto.id, produto.nome]);
+  }, [itensJson, mudou, produto.id, produto.nome]);
 
   const doPrato = (() => {
     const faltam = doCadastro(produto).filter((n) => {
@@ -427,7 +370,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
                 + {ins.nome}
               </button>
             ) : (
-              <button type="button" key={n} className="ficha-do-prato novo" onClick={() => setNovo({ nome: n, destino: null })}>
+              <button type="button" key={n} className="ficha-do-prato novo" onClick={() => setNovo({ nome: n })}>
                 + {n} <small>(cadastrar o preço)</small>
               </button>
             );
@@ -438,104 +381,40 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
     );
   })();
 
-  const nomeGrupo = (g) => (g === GRUPO_ADICIONAL ? "Adicional" : g);
-  const semIngredientes = opcoes.filter((o) => o.grupo !== GRUPO_ADICIONAL && !paraItens(opc[chaveOp(o.grupo, o.opcao)]).length);
-
   return (
     <div className="ins-ficha">
-      {temGrupos ? (
-        <>
-          <p className="ficha-titulo">O que vai em <b>todo</b> {produto.nome}, seja qual for {[...new Set(opcoes.filter((o) => o.grupo !== GRUPO_ADICIONAL).map((o) => `o ${String(o.grupo).toLowerCase()}`))].join(" ou ")}?</p>
-          <small className="ficha-dica">Ex.: embalagem, copo, colher (no pastel: a massa e o óleo). O que muda de um para o outro vai logo abaixo.</small>
-        </>
-      ) : (
-        <p className="ficha-titulo">O que vai em 1 <b>{produto.nome}</b>?</p>
-      )}
-      <LinhasFicha
-        linhas={linhas}
-        muda={muda}
-        todos={todos}
-        lista={lista}
-        novo={() => setNovo({ destino: null })}
-        extra={doPrato}
-        preco={temGrupos ? 0 : preco}
-        vazio={temGrupos ? "Se não tiver nada em comum, pode deixar vazio." : "Toque nos ingredientes abaixo para pôr na ficha."}
-      />
+      <p className="ficha-titulo">O que vai em 1 <b>{produto.nome}</b>?</p>
+      <LinhasFicha linhas={linhas} muda={muda} todos={todos} lista={lista} novo={() => setNovo({})} extra={doPrato} preco={preco} vazio="Toque nos ingredientes abaixo para pôr na ficha." />
 
-      {temOpcoes && (
-        <div className="ficha-opcoes">
-          <p className="ficha-titulo">{temGrupos ? "O que vai a mais em cada um" : "Adicionais cobrados à parte"}</p>
-          <small className="ficha-dica">Toque em cada {temGrupos ? "recheio, sabor ou tamanho" : "adicional"}{temGrupos && opcoes.some((o) => o.grupo === GRUPO_ADICIONAL) ? " e adicional" : ""} e ponha o que ele leva.</small>
-          {opcoes.map((o) => {
-            const k = chaveOp(o.grupo, o.opcao);
-            const its = paraItens(opc[k]);
-            const c = its.length ? custoDaFicha({ itens: its }, todos) : null;
-            const ab = aberta === k;
-            return (
-              <div key={k} className={`ficha-op ${ab ? "aberta" : ""}`}>
-                <button type="button" className="ficha-op-topo" aria-expanded={ab} onClick={() => setAberta(ab ? null : k)}>
-                  <span>
-                    <b>{nomeGrupo(o.grupo)}: {o.opcao}</b>
-                    <small>{o.preco > 0 ? `+ ${R(o.preco)} no preço` : o.grupo === GRUPO_ADICIONAL ? "sem preço" : "preço do produto"}</small>
-                  </span>
-                  <span className={its.length ? "ficha-op-custo" : "ficha-op-falta"}>
-                    {its.length ? (c !== null ? `${R(c)} de ingredientes` : "falta preço") : "pôr ingredientes"} {ab ? "▲" : "▼"}
-                  </span>
-                </button>
-                {ab && (
-                  <div className="ficha-op-corpo">
-                    <p className="ficha-op-titulo">O que vai a mais {o.grupo === GRUPO_ADICIONAL ? "no adicional" : "em"} <b>{o.opcao}</b>?</p>
-                    <LinhasFicha linhas={opc[k] || []} muda={mudaOp(k)} todos={todos} lista={lista} novo={() => setNovo({ destino: k })} />
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {temGrupos ? (
-        <>
-          {semIngredientes.length > 0 && (
-            <p className="fin-aviso">Ainda sem ingredientes: {semIngredientes.map((o) => o.opcao).join(", ")}. Enquanto isso, o custo deles conta só o que vai em todos.</p>
-          )}
-          <TabelaVariacoes produto={produto} variacoes={variacoesDoProduto(produto, fichaAtual, todos)} p={p} />
-        </>
-      ) : (
-        <div className={`ficha-custo ${custo !== null && preco > 0 && preco - custo < 0 ? "ruim" : ""}`}>
-          {custo !== null ? (
-            <>
-              <span>Só de ingredientes, 1 {produto.nome} custa</span>
-              <strong>{R(custo)}</strong>
-              {(() => {
-                const da = daParaQuantos({ itens }, todos);
-                return da ? <small className="ficha-da">{da.quantos === 0 ? `${da.limitante} está sem estoque registrado (registre a compra em Estoque para o sistema contar quantos dá para fazer)` : `Com o estoque de hoje dá para fazer mais ${da.quantos}${da.quantos <= 5 ? ` (${da.limitante} acabando)` : ""}`}</small> : null;
-              })()}
-              {preco > 0 && (
-                <small>
-                  vende por {R(preco)} · sobra {R(preco - custo)} ({Math.round(((preco - custo) / preco) * 100)}%) depois do custo
-                </small>
-              )}
-              {(() => {
-                // O que mais pesa no preço: os 3 ingredientes mais caros deste produto.
-                if (!(preco > 0) || itens.length < 3) return null;
-                const caros = itens
-                  .map((it) => ({ nome: todos[it.insumoId]?.nome, v: Number(it.qtd) * Number(todos[it.insumoId]?.custo || 0) }))
-                  .filter((x) => x.nome && x.v > 0)
-                  .sort((a, b) => b.v - a.v)
-                  .slice(0, 3);
-                return caros.length ? (
-                  <small className="ficha-pesa">O que mais pesa: {caros.map((x) => `${x.nome} ${R(x.v)} (${pctPreco(x.v, preco)})`).join(" · ")}</small>
-                ) : null;
-              })()}
-            </>
-          ) : (
-            <span>{itens.length ? "O custo aparece quando todos os ingredientes tiverem preço." : "Ponha os ingredientes para ver quanto custa."}</span>
-          )}
-        </div>
-      )}
-
-      {!temGrupos && temOpcoes && <TabelaVariacoes produto={produto} variacoes={variacoesDoProduto(produto, fichaAtual, todos)} p={p} />}
+      <div className={`ficha-custo ${custo !== null && preco > 0 && preco - custo < 0 ? "ruim" : ""}`}>
+        {custo !== null ? (
+          <>
+            <span>Só de ingredientes, 1 {produto.nome} custa</span>
+            <strong>{R(custo)}</strong>
+            {(() => {
+              const da = daParaQuantos({ itens }, todos);
+              return da ? <small className="ficha-da">{da.quantos === 0 ? `${da.limitante} está sem estoque registrado (registre a compra em Estoque para o sistema contar quantos dá para fazer)` : `Com o estoque de hoje dá para fazer mais ${da.quantos}${da.limitante ? ` (quem acaba primeiro: ${da.limitante})` : ""}`}</small> : null;
+            })()}
+            {preco > 0 && (
+              <small>
+                vende por {R(preco)} · sobra {R(preco - custo)} ({Math.round(((preco - custo) / preco) * 100)}%) depois do custo
+              </small>
+            )}
+            {(() => {
+              // O que mais pesa no preço: os 3 ingredientes mais caros deste produto.
+              if (!(preco > 0) || itens.length < 3) return null;
+              const caros = itens
+                .map((it) => ({ nome: todos[it.insumoId]?.nome, v: Number(it.qtd) * Number(todos[it.insumoId]?.custo || 0) }))
+                .filter((x) => x.nome && x.v > 0)
+                .sort((a, b) => b.v - a.v)
+                .slice(0, 3);
+              return caros.length ? <small className="ficha-pesa">O que mais pesa: {caros.map((x) => `${x.nome} ${R(x.v)} (${pctPreco(x.v, preco)})`).join(" · ")}</small> : null;
+            })()}
+          </>
+        ) : (
+          <span>{itens.length ? "O custo aparece quando todos os ingredientes tiverem preço." : "Ponha os ingredientes para ver quanto custa."}</span>
+        )}
+      </div>
 
       <p className={mudou ? "ficha-pendente" : "fin-ok ficha-ok"} aria-live="polite">{mudou ? "Salvando…" : msg}</p>
       {novo && (
@@ -545,9 +424,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
           fechar={() => setNovo(false)}
           aoCriar={(ins) => {
             setCriados((c) => ({ ...c, [ins.id]: ins }));
-            const linha = { insumoId: ins.id, qtd: ins.unidade === "un" ? "1" : "100" };
-            if (novo.destino) mudaOp(novo.destino)([...(opc[novo.destino] || []), linha]);
-            else muda([...linhas, linha]);
+            muda([...linhas, { insumoId: ins.id, qtd: ins.unidade === "un" ? "1" : "100" }]);
           }}
         />
       )}
@@ -574,7 +451,7 @@ export function usePercentuaisPreco() {
 }
 
 /** Resumo do preço certo de um produto (custo, preço de hoje e o sugerido). */
-export function PrecoNoProduto({ custo, preco, titulo }) {
+export function PrecoNoProduto({ custo, preco }) {
   const p = usePercentuaisPreco();
   if (p === null || typeof custo !== "number") return null;
   const r = precoDoProduto(custo, Number(String(preco ?? "").replace(",", ".")) || 0, p);
@@ -584,7 +461,6 @@ export function PrecoNoProduto({ custo, preco, titulo }) {
   const d = r.noSugerido;
   return (
     <div className={`pnp ${r.situacao}`}>
-      {titulo && <p className="pnp-titulo">{titulo}</p>}
       <div className="pnp-conta">
         <span>Só de ingredientes (comida)</span><b>{R(d.custo)}</b>
         {d.taxas > 0 && (<><span>+ Maquininha e impostos</span><b>{R(d.taxas)}</b></>)}
@@ -632,10 +508,7 @@ export function FichaDoProduto({ produto, precoAtual }) {
           </span>
         </label>
       )}
-      <PrecoNoProduto custo={custo} preco={precoAtual ?? produto.preco} titulo={(() => {
-        const ini = Object.values(escolhaInicial(produto).escolhas);
-        return ini.length ? `A conta inteira de 1 ${produto.nome} ${ini.join(" · ")} (o preço do cardápio)` : "";
-      })()} />
+      <PrecoNoProduto custo={custo} preco={precoAtual ?? produto.preco} />
     </div>
   );
 }
