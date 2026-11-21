@@ -2,3 +2,4 @@
 export function initializeApp(config) {
   return { name: "[demo]", options: config };
 }
+export const getApps = () => [];
