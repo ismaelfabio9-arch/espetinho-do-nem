@@ -129,3 +129,7 @@
 .pc-item-novo input { flex: 1; min-width: 0; padding: 9px; border-radius: 10px; border: 1px solid var(--border); background: var(--card-2); color: var(--text); font-size: 15px; }
 .pc-itens-total { margin: 4px 0 0; text-align: right; font-size: 14px; }
 .pc-campo .pc-input input { width: 104px; }
+.pc-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin: -2px 0 10px; }
+.pc-montar { max-width: 560px; }
+.pc-montar-topo { display: flex; justify-content: space-between; align-items: center; }
+.pc-montar .ficha-qtd input { width: 62px; }

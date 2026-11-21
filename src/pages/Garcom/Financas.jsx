@@ -7,6 +7,7 @@ import { db } from "../../firebase";
 import { useTaxas } from "../../utils/taxas";
 import { GRUPOS, TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
 import { custoDaFicha, perdasNoPeriodo } from "../../utils/insumos";
+import { FichaDoProduto } from "../../components/FichaTecnica";
 import { pctDoMes, percentuaisDaLoja, precoDoProduto, somaPct } from "../../utils/precificacao";
 import "../../styles/Garcom/RelatorioGerencial.css";
 import "../../styles/Garcom/Financas.css";
@@ -464,6 +465,8 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
   const [soAbaixo, setSoAbaixo] = useState(false);
   const [msg, setMsg] = useState("");
   const [detalhe, setDetalhe] = useState({}); // { fixas: true } lista aberta
+  const [montar, setMontar] = useState(null); // produto com a janela de ingredientes aberta
+  const [digitar, setDigitar] = useState({});
   useEffect(
     () =>
       onSnapshot(
@@ -642,7 +645,13 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
       <div className="relatorio-documento">
         <h2>Preço de cada produto</h2>
         <p className="fin-explica">
-          {abaixo > 0 ? `${abaixo} ${abaixo === 1 ? "produto está" : "produtos estão"} abaixo do preço ideal.` : "Todos os produtos com custo estão com o preço bom."}
+          {total >= 100
+            ? "As despesas e o lucro passaram de 100% de cada venda: confira os valores acima antes de olhar os preços."
+            : abaixo > 0
+            ? `${abaixo} ${abaixo === 1 ? "produto está" : "produtos estão"} abaixo do preço ideal.`
+            : linhas.some((l) => l.r.situacao === "bom")
+            ? "Todos os produtos com custo estão com o preço bom."
+            : ""}
           {semCusto > 0 ? ` ${semCusto} sem custo cadastrado.` : ""}
         </p>
         {semCusto > 0 && (
@@ -677,10 +686,18 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
                     </>
                   )}
                   {r.situacao === "sem-custo" && <b className="pc-chip">Sem custo</b>}
-                  {r.situacao === "impossivel" && <b className="pc-chip baixo">—</b>}
+                  {r.situacao === "impossivel" && <b className="pc-chip baixo">⚠️ Confira as despesas</b>}
                 </span>
               </button>
-              {!ficha && <CustoDigitado produto={x} custo={custo} />}
+              <div className="pc-acoes">
+                <button type="button" className="ins-btn entrada" onClick={() => setMontar(x)}>
+                  🧮 {ficha ? "Ver os ingredientes" : "Montar o custo com os ingredientes"}
+                </button>
+                {!ficha && typeof custo !== "number" && !digitar[x.id] && (
+                  <button type="button" className="ni-link" onClick={() => setDigitar({ ...digitar, [x.id]: true })}>ou digitar o custo</button>
+                )}
+              </div>
+              {!ficha && (typeof custo === "number" || digitar[x.id]) && <CustoDigitado produto={x} custo={custo} />}
               {aberto === x.id && (r.situacao === "bom" || r.situacao === "baixo") && (
                 <div className="pc-detalhe">
                   <p>
@@ -701,6 +718,18 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
           ))}
         </ul>
       </div>
+      {montar && (
+        <div className="ins-modal" role="dialog" aria-modal="true" aria-label={`Custo de ${montar.nome}`} onClick={() => setMontar(null)}>
+          <div className="ins-modal-caixa pc-montar" onClick={(e) => e.stopPropagation()}>
+            <div className="pc-montar-topo">
+              <h2>{montar.nome}</h2>
+              <button type="button" className="prod-ficha-x" aria-label="Fechar" onClick={() => setMontar(null)}>✕</button>
+            </div>
+            <p className="fin-explica">Diga o que vai em 1 {montar.nome} e quanto de cada. O sistema soma a comida, põe a parte das despesas e diz o preço para vender.</p>
+            <FichaDoProduto produto={montar} precoAtual={montar.preco} />
+          </div>
+        </div>
+      )}
     </>
   );
 }

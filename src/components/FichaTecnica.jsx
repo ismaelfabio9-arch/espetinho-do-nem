@@ -58,13 +58,14 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar }) {
   const nomeUn = f.unidade === "un" ? "unidade" : u.nomeLongo;
   const sufixo = f.unidade === "un" ? "unidades" : u.id;
 
+  // Compra em fardo/saco/caixa: "veio 20 pacotes de 1 kg por R$ 120" → cada quilo saiu por R$ 6,00.
+  const pacoteTotal = pacote ? (num(pacote.n) || 0) * (f.unidade === "un" ? 1 : num(pacote.tam) || 0) : 0;
+  const pacotePagou = pacote ? lerValor(pacote.pagou) : 0;
+  const pacoteCada = pacoteTotal > 0 && pacotePagou > 0 ? pacotePagou / pacoteTotal : null;
   function calcularPacote() {
-    const pagou = lerValor(pacote?.pagou);
-    const q = num(pacote?.qtd);
-    if (pagou > 0 && q > 0) {
-      setF({ ...f, preco: fmt(pagou / q), quantidade: f.quantidade || String(q).replace(".", ",") });
-      setPacote(null);
-    }
+    if (pacoteCada === null) return;
+    setF({ ...f, preco: fmt(pacoteCada), quantidade: f.quantidade || String(Math.round(pacoteTotal * 1000) / 1000).replace(".", ",") });
+    setPacote(null);
   }
 
   async function salvar(e) {
@@ -154,16 +155,35 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar }) {
             </div>
             {pacote ? (
               <div className="ni-pacote">
-                <span>Paguei R$</span>
-                <input aria-label="Quanto pagou (R$)" inputMode="decimal" placeholder="0,00" value={pacote.pagou} onChange={(e) => setPacote({ ...pacote, pagou: e.target.value })} />
-                <span>em</span>
-                <input aria-label={`Quantidade do pacote (${sufixo})`} inputMode="decimal" placeholder="0" value={pacote.qtd} onChange={(e) => setPacote({ ...pacote, qtd: e.target.value })} />
-                <span>{sufixo}</span>
-                <button type="button" className="ins-btn entrada" onClick={calcularPacote}>Calcular</button>
+                <strong>Comprei em fardo, saco ou caixa:</strong>
+                <span className="ni-pac-linha">
+                  Veio
+                  <input aria-label={f.unidade === "un" ? "Quantas unidades vieram" : "Quantos pacotes vieram"} inputMode="decimal" placeholder="20" value={pacote.n} onChange={(e) => setPacote({ ...pacote, n: e.target.value })} />
+                  {f.unidade === "un" ? (
+                    "unidades"
+                  ) : (
+                    <>
+                      pacotes de
+                      <input aria-label={`Tamanho de cada pacote (${u.id})`} inputMode="decimal" placeholder="1" value={pacote.tam} onChange={(e) => setPacote({ ...pacote, tam: e.target.value })} />
+                      {u.id}
+                    </>
+                  )}
+                </span>
+                <span className="ni-pac-linha">
+                  e paguei R$
+                  <input aria-label="Quanto pagou por tudo (R$)" inputMode="decimal" placeholder="0,00" value={pacote.pagou} onChange={(e) => setPacote({ ...pacote, pagou: e.target.value })} />
+                  por tudo
+                </span>
+                {pacoteCada !== null && (
+                  <p className="ni-pac-res">
+                    {f.unidade === "un" ? `${fmt(pacoteTotal)} unidades` : `${String(Math.round(pacoteTotal * 1000) / 1000).replace(".", ",")} ${u.id} no total`} → <b>cada {nomeUn} saiu por {R(pacoteCada)}</b>
+                  </p>
+                )}
+                <button type="button" className="ins-btn entrada" disabled={pacoteCada === null} onClick={calcularPacote}>Usar esse preço</button>
               </div>
             ) : (
-              <button type="button" className="ni-link" onClick={() => setPacote({ pagou: "", qtd: "" })}>
-                Comprou em pacote, fardo ou saco? Calcular o preço
+              <button type="button" className="ni-link" onClick={() => setPacote({ pagou: "", n: "", tam: "1" })}>
+                Comprou em fardo, saco ou caixa? Toque aqui que o sistema calcula
               </button>
             )}
           </div>
@@ -293,11 +313,11 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
       <div className={`ficha-custo ${custo !== null && preco > 0 && preco - custo < 0 ? "ruim" : ""}`}>
         {custo !== null ? (
           <>
-            <span>Custo de 1 {produto.nome}</span>
+            <span>Só de ingredientes, 1 {produto.nome} custa</span>
             <strong>{R(custo)}</strong>
             {(() => {
               const da = daParaQuantos({ itens }, todos);
-              return da ? <small className="ficha-da">{da.quantos === 0 ? `Com o estoque de hoje não dá para fazer: acabou ${da.limitante}` : `Com o estoque de hoje dá para fazer mais ${da.quantos}${da.quantos <= 5 ? ` (${da.limitante} acabando)` : ""}`}</small> : null;
+              return da ? <small className="ficha-da">{da.quantos === 0 ? `${da.limitante} está sem estoque registrado (registre a compra em Estoque para o sistema contar quantos dá para fazer)` : `Com o estoque de hoje dá para fazer mais ${da.quantos}${da.quantos <= 5 ? ` (${da.limitante} acabando)` : ""}`}</small> : null;
             })()}
             {preco > 0 && (
               <small>
@@ -349,18 +369,22 @@ export function PrecoNoProduto({ custo, preco }) {
   const p = usePercentuaisPreco();
   if (p === null || typeof custo !== "number") return null;
   const r = precoDoProduto(custo, Number(String(preco ?? "").replace(",", ".")) || 0, p);
+  if (r.situacao === "impossivel")
+    return <p className="pnp baixo pnp-aviso">⚠️ As despesas e o lucro que você quer passaram de 100% de cada venda: não tem preço que pague. Confira em Cardápio e estoque → Preço certo (e o "Quanto a loja vende por mês").</p>;
   if (r.situacao !== "bom" && r.situacao !== "baixo") return null;
+  const d = r.noSugerido;
   return (
     <div className={`pnp ${r.situacao}`}>
-      <div>
-        <span>Preço certo</span>
-        <strong>{R(r.sugerido)}</strong>
+      <div className="pnp-conta">
+        <span>Só de ingredientes (comida)</span><b>{R(d.custo)}</b>
+        {d.taxas > 0 && (<><span>+ Maquininha e impostos</span><b>{R(d.taxas)}</b></>)}
+        {d.fixas > 0 && (<><span>+ Parte do aluguel, funcionários e contas</span><b>{R(d.fixas)}</b></>)}
+        <span>+ Seu lucro</span><b>{R(d.lucro)}</b>
+        <span className="pnp-total">= Preço para vender</span><b className="pnp-total">{R(r.sugerido)}</b>
       </div>
-      <div>
-        <span>Lucro limpo vendendo a {R(r.hoje.preco)}</span>
-        <strong className={r.lucroReal < 0 ? "fin-neg" : ""}>{R(r.lucroReal)}</strong>
-      </div>
-      <p>{r.situacao === "bom" ? "✓ O preço de hoje está bom." : `Abaixo: para ter o lucro que você quer, venda por ${R(r.sugerido)}.`} Taxas, despesas e lucro desejado: Cardápio e estoque → Preço certo.</p>
+      <p>
+        {r.situacao === "bom" ? `✓ Vendendo a ${R(r.hoje.preco)} (hoje) está bom: lucro limpo de ${R(r.lucroReal)} em cada um.` : `Vendendo a ${R(r.hoje.preco)} (hoje) o lucro limpo é ${R(r.lucroReal)}: abaixo do que você quer.`}
+      </p>
     </div>
   );
 }

@@ -132,3 +132,11 @@
 .pnp p { grid-column: 1 / -1; margin: 0; font-size: 12.5px; }
 .ficha-ok { margin: 0; width: auto; } .ins-ficha .ficha-pendente { margin: 0; }
 .ficha-da { font-weight: 700; }
+.ni-pacote { display: grid !important; gap: 8px; }
+.ni-pac-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ni-pac-linha input { width: 74px !important; }
+.ni-pac-res { margin: 0; color: #15803d; }
+.pnp-conta { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; font-size: 14px; }
+.pnp-conta b { text-align: right; font-size: 15px; }
+.pnp-conta .pnp-total { font-weight: 800; font-size: 16px; border-top: 1px solid currentColor; padding-top: 4px; }
+.pnp-aviso { display: block; margin: 0; font-size: 13.5px; }
