@@ -1,6 +1,6 @@
 import { L } from "../../loja";
 import useNomeLoja from "../../hooks/useNomeLoja";
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "../../firebase";
@@ -8,6 +8,7 @@ import { useTaxas } from "../../utils/taxas";
 import { GRUPOS, TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
 import { custoDaFicha, perdasNoPeriodo } from "../../utils/insumos";
 import { FichaDoProduto } from "../../components/FichaTecnica";
+import { ehCategoriaDeBebida, ehCategoriaDePrato } from "../../utils/montagem";
 import { pctDoMes, percentuaisDaLoja, precoDoProduto, somaPct } from "../../utils/precificacao";
 import "../../styles/Garcom/RelatorioGerencial.css";
 import "../../styles/Garcom/Financas.css";
@@ -589,6 +590,16 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
   const semFicha = linhas.filter((l) => !l.ficha);
   const semCusto = linhas.filter((l) => l.r.situacao === "sem-custo").length;
   const mostrar = soAbaixo ? linhas.filter((l) => l.r.situacao === "baixo") : linhas;
+  // Em blocos por categoria: pratos (prato feito, do dia) primeiro, acompanhamentos e porções no meio, bebidas no fim.
+  const ordemCat = (c) => (ehCategoriaDePrato(c) ? 0 : ehCategoriaDeBebida(c) ? 2 : 1);
+  const grupos = Object.values(
+    mostrar.reduce((acc, l) => {
+      const nome = String(l.produto.categoria || "").trim() || "Sem categoria";
+      (acc[nome] = acc[nome] || { nome, itens: [], abaixo: 0 }).itens.push(l);
+      if (l.r.situacao === "baixo") acc[nome].abaixo += 1;
+      return acc;
+    }, {})
+  ).sort((a, b) => ordemCat(a.nome) - ordemCat(b.nome) || a.nome.localeCompare(b.nome, "pt-BR"));
 
   return (
     <>
@@ -702,7 +713,13 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
           <input type="checkbox" checked={soAbaixo} onChange={(e) => setSoAbaixo(e.target.checked)} /> Mostrar só os que estão abaixo
         </label>
         <ul className="pc-lista">
-          {mostrar.map(({ produto: x, custo, ficha, r }) => (
+          {grupos.map((g) => (
+            <Fragment key={g.nome}>
+            <li className="pc-grupo">
+              <h3>{g.nome}</h3>
+              <small>{g.itens.length} {g.itens.length === 1 ? "produto" : "produtos"}{g.abaixo > 0 ? ` · ${g.abaixo} abaixo do ideal` : ""}</small>
+            </li>
+          {g.itens.map(({ produto: x, custo, ficha, r }) => (
             <li key={x.id} className={`pc-item ${r.situacao}`}>
               <button type="button" className="pc-linha" aria-expanded={aberto === x.id} onClick={() => setAberto(aberto === x.id ? null : x.id)} disabled={r.situacao === "sem-custo" || r.situacao === "impossivel"}>
                 <span className="pc-nome">
@@ -756,6 +773,8 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
                 </div>
               )}
             </li>
+          ))}
+            </Fragment>
           ))}
         </ul>
       </div>
