@@ -1,0 +1,53 @@
+/* Painel do Dono: cada loja e o total. Usa as cores do sistema (claro e escuro). */
+@import "./Historico.css";
+@import "./Pedidos.css";
+.dono-entrar { margin-top: 24px; padding: 28px 22px; border-radius: 20px; border: 1px solid var(--border); background: var(--card); text-align: center; display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.dono-icone { width: 72px; height: 72px; border-radius: 22px; background: var(--green-bg); display: grid; place-items: center; font-size: 36px; }
+.dono-entrar h1 { margin: 0; font-size: 26px; color: var(--text); }
+.dono-entrar p { margin: 0; max-width: 440px; font-size: 15px; line-height: 1.45; color: var(--muted); }
+.dono-aviso { padding: 10px 14px; border-radius: 12px; background: var(--card-2); font-size: 13px !important; }
+.dono-btn { height: 46px; padding: 0 20px; border: none; border-radius: 12px; background: var(--green); color: #fff; font-size: 15px; font-weight: 800; cursor: pointer; }
+.dono-btn:disabled { opacity: .6; }
+.dono-btn.secundario { background: var(--card-2); color: var(--text); border: 1px solid var(--border); height: 40px; font-size: 14px; }
+.dono-btn.sair { background: transparent; color: var(--red); border: 1px solid var(--red); height: 40px; font-size: 14px; }
+.dono-erro { color: var(--red) !important; font-weight: 700; }
+.dono-carregando { margin-top: 30px; text-align: center; color: var(--muted); }
+.dono-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 14px; }
+.dono-topo span { font-size: 13px; font-weight: 700; color: var(--green); }
+.dono-topo h1 { margin: 4px 0 2px; font-size: 28px; color: var(--text); }
+.dono-topo small { font-size: 12px; color: var(--muted); }
+.dono-acoes { display: flex; gap: 8px; flex-wrap: wrap; }
+.dono-periodo { margin: 0 2px 14px; font-size: 13px; color: var(--muted); }
+.dono-periodo strong { color: var(--text); }
+.dono-cards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 22px; }
+.dono-cards > div { min-width: 0; padding: 14px; border-radius: 14px; border: 1px solid var(--border); background: var(--card); }
+.dono-cards span { display: block; font-size: 12px; color: var(--muted); }
+.dono-cards strong { display: block; margin-top: 4px; font-size: 20px; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.dono-cards .destaque { background: var(--green-bg); border-color: var(--green); }
+.dono-cards .destaque strong { color: var(--green); }
+.dono-h2 { margin: 22px 2px 10px; font-size: 18px; color: var(--text); }
+.dono-tabela-caixa { overflow-x: auto; border: 1px solid var(--border); border-radius: 14px; background: var(--card); }
+.dono-tabela { width: 100%; border-collapse: collapse; font-size: 14px; color: var(--text); }
+.dono-tabela th, .dono-tabela td { padding: 11px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
+.dono-tabela th:first-child, .dono-tabela td:first-child { text-align: left; white-space: normal; min-width: 130px; }
+.dono-tabela th { background: var(--card-2); font-size: 12px; color: var(--muted); font-weight: 700; }
+.dono-tabela tfoot td { font-weight: 800; background: var(--card-2); border-bottom: none; }
+.dono-lojas { display: flex; flex-direction: column; gap: 8px; }
+.dono-loja { border: 1px solid var(--border); border-radius: 14px; background: var(--card); overflow: hidden; }
+.dono-loja-topo { display: flex; align-items: center; justify-content: space-between; gap: 12px; width: 100%; padding: 14px 16px; border: none; background: transparent; color: var(--text); text-align: left; font: inherit; cursor: pointer; }
+.dono-loja-topo span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dono-loja-topo strong { font-size: 16px; color: var(--text); }
+.dono-loja-topo small { font-size: 12px; color: var(--muted); }
+.dono-loja-topo b { flex: none; font-size: 17px; color: var(--green); font-variant-numeric: tabular-nums; }
+.dono-loja-corpo { padding: 4px 16px 12px; border-top: 1px solid var(--border); }
+.dono-vazio { margin: 8px 2px; font-size: 13px; color: var(--muted); }
+.dono-rodape { margin: 22px 2px 0; font-size: 12px; color: var(--muted); }
+@media (min-width: 900px) { .container.dono-pagina { max-width: 1000px; } }
+@media print {
+  .no-print { display: none !important; }
+  .container.dono-pagina { max-width: none; padding: 0; }
+  .dono-tabela-caixa { overflow: visible; }
+  .dono-tabela th, .dono-tabela td { padding: 6px 8px; font-size: 11px; }
+}
+.dono-loja-corpo.fechado { display: none; }
+@media print { .dono-loja-corpo.fechado { display: block; } }

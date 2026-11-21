@@ -14,7 +14,7 @@ const configLojaUnica = {
 
 // Várias lojas (site da IFTech): Firebase da IFTech. Estes valores identificam o projeto e não
 // são senhas; quem protege os dados são as regras do Firestore.
-const configIftech = {
+export const configIftech = {
   apiKey: "AIzaSyD7bZRDzVEtQx76rILzIYCfRdakZVeYZsI",
   authDomain: "iftech-84f1f.firebaseapp.com",
   projectId: "iftech-84f1f",

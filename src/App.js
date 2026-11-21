@@ -26,6 +26,7 @@ import VersaoNova from "./components/VersaoNova";
 import ErroTela from "./components/ErroTela";
 import Atalhos from "./components/Atalhos";
 import NovoPedido from "./pages/Garcom/NovoPedido";
+import PainelDono from "./pages/Garcom/PainelDono";
 import { planoQueLibera, useRecurso } from "./recursos";
 
 
@@ -121,6 +122,7 @@ function TelasEquipe() {
       <Route path="/qrcodes" element={<QrCodes />} />
       <Route path="/cardapio-hoje" element={<CardapioHoje />} />
       <Route path="/novo" element={<NovoPedido />} />
+      {MULTI && <Route path="/dono" element={<PainelDono />} />}
     </Routes>
     </>
   );
