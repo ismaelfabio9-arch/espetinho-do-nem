@@ -24,7 +24,7 @@ function ajustesDemo() {
       // A demonstração é de uma loja só (sem login), mas com os textos do almoço.
       if (!id.endsWith("/src/loja.js")) out = out.replaceAll('process.env.REACT_APP_MULTI === "1"', "true");
       out = out.replaceAll('process.env.REACT_APP_EMULATOR === "1"', "false").replaceAll("process.env.REACT_APP_MULTI", '""');
-      if (id.endsWith("/src/firebase.js")) return { code: "export const db = { type: 'firestore' }; export const auth = {};", map: null };
+      if (id.endsWith("/src/firebase.js")) return { code: "export const db = { type: 'firestore' }; export const auth = {}; export const configIftech = {};", map: null };
       if (id.endsWith("/src/App.js")) out = out.replaceAll("BrowserRouter", "HashRouter");
       // No computador (mouse), prender o ponteiro na categoria impedia o clique de abrir a
       // categoria do cardápio do cliente. O arrastar só vale para toque, então só prende no toque.
