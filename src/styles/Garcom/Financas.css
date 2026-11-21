@@ -61,3 +61,18 @@
 @media print {
   .fin-conta { break-inside: avoid; }
 }
+
+/* Lucro e caixa (DRE simples + fluxo de caixa) */
+.fin-explica { color: var(--muted); font-size: 14px; margin: -6px 0 12px; }
+.fin-sub { background: var(--card-2); }
+.fin-sub span { font-weight: 700; }
+.fin-equilibrio { background: #fef3c7; color: #92400e; border-radius: 14px; padding: 12px 14px; font-size: 14px; margin: -8px 0 8px; }
+.fin-equilibrio.ok { background: var(--green-bg); color: #166534; }
+.fin-grupo { margin-bottom: 12px; }
+.fin-grupo-topo { display: flex; justify-content: space-between; font-weight: 800; padding: 6px 0; border-bottom: 2px solid var(--border); }
+.fin-grupo .fin-lista li { color: var(--muted); padding-left: 6px; }
+.fin-grupo-tipos { border: 0; padding: 0; margin: 0 0 10px; }
+.fin-grupo-tipos legend { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 6px; padding: 0; }
+.fin-tipos button.ativo.entrada { background: var(--blue); border-color: var(--blue); }
+.fin-dica { background: var(--card-2); border-radius: 12px; padding: 10px 12px; font-size: 14px; margin: 4px 0 14px; }
+.fin-totais { color: var(--muted); margin: -8px 0 8px; font-size: 14px; }

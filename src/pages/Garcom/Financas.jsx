@@ -6,7 +6,7 @@ import { addDoc, collection, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc
 import { db } from "../../firebase";
 import { useTaxas } from "../../utils/taxas";
 import { moeda } from "../../utils/tipoVenda";
-import { SEM_CATEGORIA_FIN, TIPOS_DESPESA, calcularFinancas, isoDia, juntarVendas, lerValor, nomeTipoDespesa, periodo } from "../../utils/financas";
+import { GRUPOS, SEM_CATEGORIA_FIN, TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
 import "../../styles/Garcom/RelatorioGerencial.css";
 import "../../styles/Garcom/Financas.css";
 
@@ -21,8 +21,8 @@ const br = (iso) => (iso ? iso.split("-").reverse().join("/") : "");
 const fmt = (v) => Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const R = (v) => (v < 0 ? `− R$ ${fmt(-v)}` : `R$ ${fmt(v)}`);
 const ABAS = [
-  { id: "resumo", nome: "Resumo" },
-  { id: "despesas", nome: "Despesas" },
+  { id: "resumo", nome: "Lucro e caixa" },
+  { id: "lancamentos", nome: "Lançamentos" },
   { id: "custos", nome: "Custos dos produtos" },
 ];
 
@@ -47,7 +47,7 @@ function Financas() {
   const hoje = useColecao("vendasDia");
   const produtos = useColecao("produtos");
   const custosDocs = useColecao("custos");
-  const despesas = useColecao("despesas");
+  const lancamentos = useColecao("despesas");
   const [aba, setAba] = useState("resumo");
   const [per, setPer] = useState("mes");
   const [faixa, setFaixa] = useState(() => periodo("mes"));
@@ -59,10 +59,10 @@ function Financas() {
     });
     return m;
   }, [custosDocs]);
-  const carregando = dias === null || hoje === null || produtos === null || custosDocs === null || despesas === null;
+  const carregando = dias === null || hoje === null || produtos === null || custosDocs === null || lancamentos === null;
   const f = useMemo(
-    () => (carregando ? null : calcularFinancas({ vendas: juntarVendas(dias, hoje), produtos, custos, despesas, taxas, de: faixa.de, ate: faixa.ate })),
-    [carregando, dias, hoje, produtos, custos, despesas, taxas, faixa]
+    () => (carregando ? null : calcularFinancas({ vendas: juntarVendas(dias, hoje), produtos, custos, lancamentos, taxas, de: faixa.de, ate: faixa.ate })),
+    [carregando, dias, hoje, produtos, custos, lancamentos, taxas, faixa]
   );
   const categorias = useMemo(() => [...new Set((produtos || []).map((p) => String(p.categoria || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR")), [produtos]);
 
@@ -77,7 +77,7 @@ function Financas() {
         <Link to="/config" className="voltar">← Voltar</Link>
         <div className="relatorio-filtros">
           <h1>Finanças</h1>
-          <p>O que entrou, o que saiu e o lucro, no geral e por categoria do cardápio.</p>
+          <p>O lucro do que a loja vende e o dinheiro que entrou e saiu, no geral e por categoria do cardápio.</p>
           <div className="fin-abas" role="tablist">
             {ABAS.map((a) => (
               <button key={a.id} role="tab" aria-selected={aba === a.id} className={aba === a.id ? "ativa" : ""} onClick={() => setAba(a.id)}>
@@ -114,8 +114,8 @@ function Financas() {
 
       {carregando ? (
         <p className="fin-carregando">Carregando…</p>
-      ) : aba === "despesas" ? (
-        <Despesas f={f} categorias={categorias} />
+      ) : aba === "lancamentos" ? (
+        <Lancamentos f={f} categorias={categorias} />
       ) : aba === "custos" ? (
         <Custos produtos={produtos} custos={custos} />
       ) : (
@@ -126,14 +126,14 @@ function Financas() {
 }
 
 function Resumo({ f, nomeLoja, faixa, irCustos }) {
-  const temDespesaPorCategoria = f.categorias.some((c) => c.despesas > 0);
+  const temCompraPorCategoria = f.categorias.some((c) => c.comprou > 0);
   return (
     <div className="relatorio-documento">
       <div className="relatorio-cabecalho">
         <div>
           <span>Finanças</span>
           <h1>{nomeLoja}</h1>
-          <p>Entradas, saídas e lucro do período</p>
+          <p>Lucro e caixa do período</p>
         </div>
         <div className="relatorio-emissao">
           <strong>Período</strong>
@@ -143,22 +143,42 @@ function Resumo({ f, nomeLoja, faixa, irCustos }) {
 
       {f.semCusto > 0 && (
         <button type="button" className="fin-aviso no-print" onClick={irCustos}>
-          ⚠️ {f.semCusto === 1 ? "1 produto vendido está" : `${f.semCusto} produtos vendidos estão`} sem custo cadastrado: o lucro deles não entra na conta. <u>Cadastrar custos</u>
+          ⚠️ {f.semCusto === 1 ? "1 produto vendido está" : `${f.semCusto} produtos vendidos estão`} sem custo cadastrado ({R(f.vendidoSemCusto)} em vendas): sem o custo, o lucro aparece maior do que é. <u>Cadastrar custos</u>
         </button>
       )}
 
-      <div className="fin-conta">
-        <Linha nome="Entrou (vendas)" valor={f.entrou} detalhe={`${f.pedidos} ${f.pedidos === 1 ? "pedido" : "pedidos"}${f.taxaEntrega > 0 ? ` · ${R(f.taxaEntrega)} de taxa de entrega` : ""}`} />
-        <Linha nome="Taxas da maquininha" valor={-f.maquininha} detalhe={f.taxaCartaoCliente > 0 ? `${R(f.taxaCartaoCliente)} o cliente pagou junto` : null} />
-        <Linha nome="Custo dos produtos vendidos" valor={-f.custoProdutos} />
-        <Linha nome="Despesas" valor={-f.despesas} />
-        <Linha nome="Lucro" valor={f.lucro} total detalhe={f.margem === null ? null : `${f.margem}% do que entrou`} />
-        {f.investimento > 0 && (
-          <>
-            <Linha nome="Investimento" valor={-f.investimento} detalhe="Equipamento, reforma… (fica fora do lucro)" />
-            <Linha nome="Sobrou depois do investimento" valor={f.sobra} total />
-          </>
+      <div className="relatorio-secao">
+        <h2>Lucro</h2>
+        <p className="fin-explica">O que a loja ganhou vendendo. Compras de mercadoria, investimentos e retiradas do dono não entram aqui.</p>
+        <div className="fin-conta">
+          <Linha nome="Vendas" valor={f.vendas} detalhe={`${f.pedidos} ${f.pedidos === 1 ? "pedido" : "pedidos"} · ticket médio ${R(f.ticket)}${f.taxaEntrega > 0 ? ` · ${R(f.taxaEntrega)} de taxa de entrega` : ""}`} />
+          <Linha nome="Taxas da maquininha" valor={-f.maquininha} detalhe={f.taxaCartaoCliente > 0 ? `${R(f.taxaCartaoCliente)} o cliente pagou junto` : null} />
+          <Linha nome="Custo dos produtos vendidos" valor={-f.custoProdutos} detalhe="Custo de cada produto × quantidade vendida" />
+          <Linha nome="Lucro bruto" valor={f.lucroBruto} sub detalhe={f.margemBruta === null ? null : `${f.margemBruta}% das vendas`} />
+          <Linha nome="Despesas variáveis" valor={-f.variaveis} detalhe="Entregador, divulgação, consertos, outras" />
+          <Linha nome="Despesas fixas" valor={-f.fixas} detalhe="Aluguel, funcionários, contas, contador" />
+          <Linha nome="Lucro líquido" valor={f.lucro} total detalhe={f.margem === null ? null : `${f.margem}% das vendas`} />
+        </div>
+        {f.equilibrio !== null && (
+          <p className={`fin-equilibrio ${f.vendas >= f.equilibrio ? "ok" : ""}`}>
+            <strong>Ponto de equilíbrio:</strong> para pagar as despesas fixas deste período, a loja precisa vender {R(f.equilibrio)}.{" "}
+            {f.vendas >= f.equilibrio ? `Vendeu ${R(f.vendas)}: passou ${R(f.vendas - f.equilibrio)}.` : `Vendeu ${R(f.vendas)}: faltam ${R(f.equilibrio - f.vendas)}.`}
+          </p>
         )}
+      </div>
+
+      <div className="relatorio-secao">
+        <h2>Caixa</h2>
+        <p className="fin-explica">O dinheiro que entrou e saiu de verdade no período.</p>
+        <div className="fin-conta">
+          <Linha nome="Vendas recebidas" valor={f.receitaLiquida} detalhe="Vendas sem a taxa da maquininha" />
+          {f.entradasExtras > 0 && <Linha nome="Outras entradas" valor={f.entradasExtras} detalhe="Dinheiro colocado pelo dono e outras" />}
+          <Linha nome="Compras de mercadoria" valor={-f.compras} detalhe="Comida, bebidas e embalagens" />
+          <Linha nome="Despesas (variáveis e fixas)" valor={-(f.variaveis + f.fixas)} />
+          {f.investimentos > 0 && <Linha nome="Investimentos" valor={-f.investimentos} detalhe="Equipamentos e reforma" />}
+          {f.retiradas > 0 && <Linha nome="Retirada do dono" valor={-f.retiradas} />}
+          <Linha nome="Saldo do período" valor={f.saldoCaixa} total />
+        </div>
       </div>
 
       <div className="relatorio-secao">
@@ -172,10 +192,12 @@ function Resumo({ f, nomeLoja, faixa, irCustos }) {
                 <tr>
                   <th>Categoria</th>
                   <th>Vendido</th>
+                  <th>% das vendas</th>
                   <th>Custo</th>
-                  {temDespesaPorCategoria && <th>Despesas</th>}
-                  <th>Lucro</th>
+                  <th>Maquininha</th>
+                  <th>Lucro bruto</th>
                   <th>Margem</th>
+                  {temCompraPorCategoria && <th>Comprou</th>}
                 </tr>
               </thead>
               <tbody>
@@ -183,10 +205,12 @@ function Resumo({ f, nomeLoja, faixa, irCustos }) {
                   <tr key={c.nome}>
                     <td>{c.nome}{c.semCusto > 0 && <small className="fin-sem"> · {c.semCusto} sem custo</small>}</td>
                     <td>{R(c.vendido)}</td>
+                    <td>{c.participacao === null ? "–" : `${c.participacao}%`}</td>
                     <td>{R(c.custo)}</td>
-                    {temDespesaPorCategoria && <td>{c.despesas ? R(c.despesas) : "–"}</td>}
+                    <td>{R(c.taxas)}</td>
                     <td className={c.lucro < 0 ? "fin-neg" : ""}>{R(c.lucro)}</td>
                     <td>{c.margem === null ? "–" : `${c.margem}%`}</td>
+                    {temCompraPorCategoria && <td>{c.comprou ? R(c.comprou) : "–"}</td>}
                   </tr>
                 ))}
               </tbody>
@@ -194,26 +218,31 @@ function Resumo({ f, nomeLoja, faixa, irCustos }) {
           </div>
         )}
         <p className="relatorio-nota">
-          Lucro da categoria = vendido − custo dos produtos{temDespesaPorCategoria ? " − despesas lançadas nela" : ""}. Taxas da maquininha
-          {f.despesasSemCategoria > 0 ? " e despesas sem categoria (aluguel, contas…)" : ""} entram só no lucro geral.
+          Lucro bruto da categoria = vendido − custo dos produtos − a parte dela na maquininha. As despesas da loja (aluguel, funcionários…) são
+          de tudo e entram só no lucro líquido.{temCompraPorCategoria ? " \"Comprou\" é o que foi comprado de mercadoria para a categoria no período (não entra no lucro)." : ""}
         </p>
       </div>
 
-      {(f.despesasPorTipo.length > 0 || f.formas.length > 0) && (
+      {(f.porGrupo.length > 0 || f.formas.length > 0) && (
         <div className="fin-duas">
-          {f.despesasPorTipo.length > 0 && (
+          {f.porGrupo.length > 0 && (
             <div className="relatorio-secao">
-              <h2>Saídas por tipo</h2>
-              <ul className="fin-lista">
-                {f.despesasPorTipo.map((t) => (
-                  <li key={t.id}><span>{t.icone} {t.nome}</span><strong>{R(t.valor)}</strong></li>
-                ))}
-              </ul>
+              <h2>Lançamentos por tipo</h2>
+              {f.porGrupo.map((gr) => (
+                <div key={gr.id} className="fin-grupo">
+                  <div className="fin-grupo-topo"><span>{gr.nome}</span><strong>{R(gr.valor)}</strong></div>
+                  <ul className="fin-lista">
+                    {gr.tipos.map((t) => (
+                      <li key={t.id}><span>{t.icone} {t.nome}</span><span>{R(t.valor)}</span></li>
+                    ))}
+                  </ul>
+                </div>
+              ))}
             </div>
           )}
           {f.formas.length > 0 && (
             <div className="relatorio-secao">
-              <h2>Entradas por pagamento</h2>
+              <h2>Vendas por pagamento</h2>
               <ul className="fin-lista">
                 {f.formas.map((x) => (
                   <li key={x.nome}><span>{x.nome}</span><strong>{R(x.valor)}</strong></li>
@@ -237,6 +266,7 @@ function Resumo({ f, nomeLoja, faixa, irCustos }) {
                   <th>Categoria</th>
                   <th>Qtd</th>
                   <th>Vendido</th>
+                  <th>% das vendas</th>
                   <th>Custo un.</th>
                   <th>Lucro</th>
                   <th>Margem</th>
@@ -249,6 +279,7 @@ function Resumo({ f, nomeLoja, faixa, irCustos }) {
                     <td>{p.categoria}</td>
                     <td>{p.qtd}</td>
                     <td>{R(p.vendido)}</td>
+                    <td>{p.participacao === null ? "–" : `${p.participacao}%`}</td>
                     <td>{p.custoUn === null ? <span className="fin-sem">sem custo</span> : R(p.custoUn)}</td>
                     <td className={p.lucro < 0 ? "fin-neg" : ""}>{p.lucro === null ? "–" : R(p.lucro)}</td>
                     <td>{p.margem === null ? "–" : `${p.margem}%`}</td>
@@ -258,34 +289,35 @@ function Resumo({ f, nomeLoja, faixa, irCustos }) {
             </table>
           </div>
         )}
+        <p className="relatorio-nota">Lucro do produto = vendido − custo. A taxa da maquininha entra no lucro da categoria.</p>
       </div>
       <div className="relatorio-rodape">
-        <p>Emitido em {new Date().toLocaleString("pt-BR")} · {nomeLoja}</p>
+        <p>Emitido em {new Date().toLocaleString("pt-BR")}{nomeLoja ? ` · ${nomeLoja}` : ""}</p>
       </div>
     </div>
   );
 }
 
-function Linha({ nome, valor, detalhe, total }) {
+function Linha({ nome, valor, detalhe, total, sub }) {
   return (
-    <div className={`fin-linha${total ? " fin-total" : ""}`}>
+    <div className={`fin-linha${total ? " fin-total" : sub ? " fin-sub" : ""}`}>
       <div>
         <span>{nome}</span>
         {detalhe && <small>{detalhe}</small>}
       </div>
-      <strong className={valor < 0 ? "fin-neg" : total ? (valor >= 0 ? "fin-pos" : "fin-neg") : ""}>
-        {valor < 0 ? "− " : ""}{R(Math.abs(valor))}
-      </strong>
+      <strong className={valor < 0 ? "fin-neg" : total ? "fin-pos" : ""}>{R(valor)}</strong>
     </div>
   );
 }
 
-function Despesas({ f, categorias }) {
+function Lancamentos({ f, categorias }) {
   const vazio = { data: isoDia(), tipo: "insumos", valor: "", descricao: "", categoria: "" };
   const [form, setForm] = useState(vazio);
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
   const [apagar, setApagar] = useState(null);
+  const tipo = tipoDe(form.tipo);
+  const grupo = grupoDe(form.tipo);
 
   async function salvar(e) {
     e.preventDefault();
@@ -298,12 +330,13 @@ function Despesas({ f, categorias }) {
       await addDoc(collection(db, ...L(), "despesas"), {
         data: form.data,
         tipo: form.tipo,
+        grupo: tipo.grupo,
         valor,
         descricao: form.descricao.trim().slice(0, 120),
-        categoria: form.tipo === "investimento" ? "" : form.categoria,
+        categoria: tipo.categoria ? form.categoria : "",
         criadoEm: serverTimestamp(),
       });
-      setForm({ ...vazio, data: form.data, tipo: form.tipo });
+      setForm({ ...vazio, data: form.data, tipo: form.tipo, categoria: form.categoria });
     } catch {
       setErro("Não foi possível salvar. Confira a internet e tente de novo.");
     }
@@ -313,14 +346,20 @@ function Despesas({ f, categorias }) {
   return (
     <>
       <form className="relatorio-documento fin-form no-print" onSubmit={salvar}>
-        <h2>Lançar despesa</h2>
-        <div className="fin-tipos" role="radiogroup" aria-label="Tipo de despesa">
-          {TIPOS_DESPESA.map((t) => (
-            <button type="button" key={t.id} role="radio" aria-checked={form.tipo === t.id} className={form.tipo === t.id ? "ativo" : ""} onClick={() => setForm({ ...form, tipo: t.id })}>
-              {t.icone} {t.nome}
-            </button>
-          ))}
-        </div>
+        <h2>Novo lançamento</h2>
+        {GRUPOS.map((gr) => (
+          <fieldset key={gr.id} className="fin-grupo-tipos">
+            <legend>{gr.saida ? "Saída · " : "Entrada · "}{gr.nome}</legend>
+            <div className="fin-tipos">
+              {TIPOS.filter((t) => t.grupo === gr.id).map((t) => (
+                <button type="button" key={t.id} aria-pressed={form.tipo === t.id} className={form.tipo === t.id ? (gr.saida ? "ativo" : "ativo entrada") : ""} onClick={() => setForm({ ...form, tipo: t.id })}>
+                  {t.icone} {t.nome}
+                </button>
+              ))}
+            </div>
+          </fieldset>
+        ))}
+        <p className="fin-dica"><strong>{tipo.icone} {tipo.nome}:</strong> {grupo.dica}</p>
         <div className="fin-campos">
           <label>
             Valor (R$)
@@ -332,13 +371,13 @@ function Despesas({ f, categorias }) {
           </label>
           <label className="fin-largo">
             Descrição (opcional)
-            <input placeholder="Ex.: carne do almoço, conta de luz" maxLength={120} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
+            <input placeholder={tipo.grupo === "compra" ? "Ex.: carne e frango no atacado" : "Ex.: conta de luz de outubro"} maxLength={120} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
           </label>
-          {form.tipo !== "investimento" && categorias.length > 0 && (
+          {tipo.categoria && categorias.length > 0 && (
             <label className="fin-largo">
-              É de qual categoria? (opcional)
+              Para qual categoria do cardápio? (opcional)
               <select value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })}>
-                <option value="">De tudo (aluguel, luz…)</option>
+                <option value="">Para tudo / várias</option>
                 {categorias.map((c) => (
                   <option key={c} value={c}>{c}</option>
                 ))}
@@ -346,37 +385,41 @@ function Despesas({ f, categorias }) {
             </label>
           )}
         </div>
-        {form.tipo === "investimento" && <p className="relatorio-nota">Investimento (equipamento, reforma…) aparece à parte e não diminui o lucro do período.</p>}
         {erro && <p className="fin-erro">{erro}</p>}
-        <button className="btn-verde" disabled={salvando}>{salvando ? "Salvando…" : "Salvar despesa"}</button>
+        <button className="btn-verde" disabled={salvando}>{salvando ? "Salvando…" : grupo.saida ? "Salvar saída" : "Salvar entrada"}</button>
       </form>
 
       <div className="relatorio-documento">
-        <h2>Despesas do período · {R(f.despesas + f.investimento)}</h2>
-        {f.listaDespesas.length === 0 ? (
-          <p>Nenhuma despesa lançada no período.</p>
+        <h2>Lançamentos do período</h2>
+        <p className="fin-totais">Saiu {R(f.saiuCaixa)} · entrou fora as vendas {R(f.entradasExtras)}</p>
+        {f.lancamentos.length === 0 ? (
+          <p>Nenhum lançamento no período.</p>
         ) : (
           <ul className="fin-despesas">
-            {f.listaDespesas.map((d) => (
-              <li key={d.id}>
-                <div>
-                  <strong>{d.descricao || nomeTipoDespesa(d.tipo)}</strong>
-                  <small>
-                    {br(d.data)} · {nomeTipoDespesa(d.tipo)}
-                    {d.categoria ? ` · ${d.categoria}` : ""}
-                  </small>
-                </div>
-                <span className="fin-valor">{R(d.valor)}</span>
-                {apagar === d.id ? (
-                  <span className="fin-confirma">
-                    <button type="button" className="fin-btn-perigo" onClick={() => deleteDoc(doc(db, ...L(), "despesas", d.id)).finally(() => setApagar(null))}>Apagar</button>
-                    <button type="button" onClick={() => setApagar(null)}>Não</button>
-                  </span>
-                ) : (
-                  <button type="button" className="fin-btn-x" aria-label={`Apagar ${d.descricao || nomeTipoDespesa(d.tipo)}`} onClick={() => setApagar(d.id)}>✕</button>
-                )}
-              </li>
-            ))}
+            {f.lancamentos.map((d) => {
+              const t = tipoDe(d.tipo);
+              const gr = grupoDe(d.tipo);
+              return (
+                <li key={d.id}>
+                  <div>
+                    <strong>{d.descricao || t.nome}</strong>
+                    <small>
+                      {br(d.data)} · {gr.nome} · {t.nome}
+                      {d.categoria ? ` · ${d.categoria}` : ""}
+                    </small>
+                  </div>
+                  <span className={`fin-valor ${gr.saida ? "" : "fin-pos"}`}>{gr.saida ? "−" : "+"} {R(d.valor)}</span>
+                  {apagar === d.id ? (
+                    <span className="fin-confirma">
+                      <button type="button" className="fin-btn-perigo" onClick={() => deleteDoc(doc(db, ...L(), "despesas", d.id)).finally(() => setApagar(null))}>Apagar</button>
+                      <button type="button" onClick={() => setApagar(null)}>Não</button>
+                    </span>
+                  ) : (
+                    <button type="button" className="fin-btn-x" aria-label={`Apagar ${d.descricao || t.nome}`} onClick={() => setApagar(d.id)}>✕</button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       </div>
