@@ -76,3 +76,4 @@
 .fin-tipos button.ativo.entrada { background: var(--blue); border-color: var(--blue); }
 .fin-dica { background: var(--card-2); border-radius: 12px; padding: 10px 12px; font-size: 14px; margin: 4px 0 14px; }
 .fin-totais { color: var(--muted); margin: -8px 0 8px; font-size: 14px; }
+.fin-ficha { font-weight: 800; text-align: right; } .fin-ficha small { display: block; font-weight: 500; color: var(--muted); font-size: 12px; }

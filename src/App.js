@@ -19,6 +19,8 @@ import Produtos from "./pages/Garcom/Produtos";
 import HistoricoMesas from "./pages/Garcom/HistoricoMesas";
 import RelatorioGerencial from "./pages/Garcom/RelatorioGerencial";
 import Financas from "./pages/Garcom/Financas";
+import Caixa from "./pages/Garcom/Caixa";
+import Insumos from "./pages/Garcom/Insumos";
 import CardapioMesa from "./pages/Cliente/CardapioMesa";
 import Estoque from "./pages/Garcom/Estoque";
 import QrCodes from "./pages/Garcom/QrCodes";
@@ -116,6 +118,8 @@ function TelasEquipe() {
       <Route path="/notificacoes" element={<Notificacoes />} />
       <Route path="/historico" element={<Historico />} />
       <Route path="/historico-mesas" element={<HistoricoMesas />} />
+      <Route path="/caixa" element={<SeLigado recurso="financas"><Caixa /></SeLigado>} />
+      <Route path="/materia-prima" element={<SeLigado recurso="financas"><Insumos /></SeLigado>} />
       <Route path="/financas" element={<SeLigado recurso="financas"><Financas /></SeLigado>} />
       <Route path="/relatorio" element={<SeLigado recurso="relatorios"><RelatorioGerencial /></SeLigado>} />
       <Route path="/mesa/:id" element={<MesaDetalhe />} />

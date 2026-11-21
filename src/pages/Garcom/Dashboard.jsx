@@ -34,6 +34,7 @@ import {
   writeBatch,
 } from "firebase/firestore";
 import { db } from "../../firebase";
+import { baixarInsumos } from "../../utils/insumos";
 
 function Dashboard() {
   // Funções que a IFTech pode desligar só nesta loja (Central da Loja).
@@ -301,6 +302,8 @@ function Dashboard() {
 
         await deleteDoc(doc(db, ...L(), "pedidos", documento.id));
       }
+      // Matéria-prima: desconta o que a ficha técnica de cada produto usa.
+      baixarInsumos(resultado.docs.flatMap((d) => d.data().itens || []));
 
       await setDoc(
         doc(db, ...L(), "mesas", String(numeroMesa)),

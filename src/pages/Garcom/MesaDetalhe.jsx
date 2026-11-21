@@ -33,6 +33,7 @@ import PratoNoPedido from "../../components/PratoNoPedido";
 import { totalNoCartao, useTaxas } from "../../utils/taxas";
 import { useRecurso } from "../../recursos";
 import { MONTAGEM_ALMOCO, emojiCategoria, pratosSemMontagem, sugestoesBebida, abreEscolha } from "../../utils/montagem";
+import { baixarInsumos } from "../../utils/insumos";
 
 
 const FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Débito", "Crédito"];
@@ -660,18 +661,24 @@ if (pedidosDaMesa.length === 0) {
     marcarComoImpresso(chave);
   }
 
+  const [comComprovante, setComComprovante] = useState(true);
+
   function abrirModalEncerrar() {
     setEtapaEncerrar("opcoes");
     setFormaPagamentoEncerrar("");
     setMostrarModalEncerrarMesa(true);
   }
 
+  // Com ou sem comprovante, a forma de pagamento é sempre perguntada: o Caixa e as Finanças precisam
+  // saber o que entrou em dinheiro, Pix ou cartão.
   function escolherEmitirComprovante() {
+    setComComprovante(true);
     setEtapaEncerrar("pagamento");
   }
 
-  async function confirmarEncerrarSemComprovante() {
-    await encerrarMesa({ emitirComprovante: false, formaPagamento: "" });
+  function confirmarEncerrarSemComprovante() {
+    setComComprovante(false);
+    setEtapaEncerrar("pagamento");
   }
 
   async function confirmarEncerrarComComprovante() {
@@ -681,7 +688,7 @@ if (pedidosDaMesa.length === 0) {
     }
 
     await encerrarMesa({
-      emitirComprovante: true,
+      emitirComprovante: comComprovante,
       formaPagamento: formaPagamentoEncerrar,
     });
   }
@@ -789,6 +796,8 @@ if (pedidosDaMesa.length === 0) {
 
         await deleteDoc(doc(db, ...L(), "pedidos", documento.id));
       }
+      // Matéria-prima: desconta o que a ficha técnica de cada produto usa (não trava o fechamento).
+      baixarInsumos(resultado.docs.flatMap((d) => d.data().itens || []));
 
       await setDoc(
         doc(db, ...L(), "mesas", String(id)),
@@ -955,7 +964,7 @@ if (pedidosDaMesa.length === 0) {
                 onClick={confirmarEncerrarComComprovante}
                 disabled={encerrando}
               >
-                {encerrando ? "Encerrando..." : "Imprimir e encerrar"}
+                {encerrando ? "Encerrando..." : comComprovante ? "Imprimir e encerrar" : "Confirmar e encerrar"}
               </button>
             </div>
           </div>

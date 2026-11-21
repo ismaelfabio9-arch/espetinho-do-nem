@@ -232,6 +232,32 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
       </Link>
 
       {(financasLigado || financasPlano) && (
+        <Link to="/caixa" style={{ textDecoration: "none" }}>
+          <div className="config-card">
+            <div className="config-icon">🧾</div>
+            <div>
+              <h2>Caixa</h2>
+              <p>Abrir e fechar o caixa, sangria, troco e conferência do dinheiro da gaveta.</p>
+              <strong>{financasLigado ? "Abrir o caixa" : `Disponível no plano ${financasPlano}`}</strong>
+            </div>
+          </div>
+        </Link>
+      )}
+
+      {(financasLigado || financasPlano) && (
+        <Link to="/materia-prima" style={{ textDecoration: "none" }}>
+          <div className="config-card">
+            <div className="config-icon">🥩</div>
+            <div>
+              <h2>Matéria-prima</h2>
+              <p>Estoque de carne, arroz, pão… com ficha técnica: cada venda desconta sozinha.</p>
+              <strong>{financasLigado ? "Abrir matéria-prima" : `Disponível no plano ${financasPlano}`}</strong>
+            </div>
+          </div>
+        </Link>
+      )}
+
+      {(financasLigado || financasPlano) && (
         <Link to="/financas" style={{ textDecoration: "none" }}>
           <div className="config-card">
             <div className="config-icon">💰</div>

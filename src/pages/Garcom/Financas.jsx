@@ -7,6 +7,7 @@ import { db } from "../../firebase";
 import { useTaxas } from "../../utils/taxas";
 import { moeda } from "../../utils/tipoVenda";
 import { GRUPOS, SEM_CATEGORIA_FIN, TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
+import { custoDaFicha } from "../../utils/insumos";
 import "../../styles/Garcom/RelatorioGerencial.css";
 import "../../styles/Garcom/Financas.css";
 
@@ -48,18 +49,27 @@ function Financas() {
   const produtos = useColecao("produtos");
   const custosDocs = useColecao("custos");
   const lancamentos = useColecao("despesas");
+  const fichas = useColecao("fichas");
+  const insumos = useColecao("insumos");
   const [aba, setAba] = useState("resumo");
   const [per, setPer] = useState("mes");
   const [faixa, setFaixa] = useState(() => periodo("mes"));
 
-  const custos = useMemo(() => {
+  // Custo de cada produto: o da ficha técnica (matéria-prima) quando tem; senão, o digitado.
+  const { custos, daFicha } = useMemo(() => {
     const m = {};
     (custosDocs || []).forEach((c) => {
       if (typeof c.custo === "number") m[c.id] = c.custo;
     });
-    return m;
-  }, [custosDocs]);
-  const carregando = dias === null || hoje === null || produtos === null || custosDocs === null || lancamentos === null;
+    const porId = Object.fromEntries((insumos || []).map((i) => [i.id, i]));
+    const f = {};
+    (fichas || []).forEach((fi) => {
+      const c = custoDaFicha(fi, porId);
+      if (c !== null) f[fi.id] = c;
+    });
+    return { custos: { ...m, ...f }, daFicha: f };
+  }, [custosDocs, fichas, insumos]);
+  const carregando = dias === null || hoje === null || produtos === null || custosDocs === null || lancamentos === null || fichas === null || insumos === null;
   const f = useMemo(
     () => (carregando ? null : calcularFinancas({ vendas: juntarVendas(dias, hoje), produtos, custos, lancamentos, taxas, de: faixa.de, ate: faixa.ate })),
     [carregando, dias, hoje, produtos, custos, lancamentos, taxas, faixa]
@@ -117,7 +127,7 @@ function Financas() {
       ) : aba === "lancamentos" ? (
         <Lancamentos f={f} categorias={categorias} />
       ) : aba === "custos" ? (
-        <Custos produtos={produtos} custos={custos} />
+        <Custos produtos={produtos} custos={custos} daFicha={daFicha} />
       ) : (
         <Resumo f={f} nomeLoja={nomeLoja} faixa={faixa} irCustos={() => setAba("custos")} />
       )}
@@ -427,7 +437,7 @@ function Lancamentos({ f, categorias }) {
   );
 }
 
-function Custos({ produtos, custos }) {
+function Custos({ produtos, custos, daFicha }) {
   const [texto, setTexto] = useState({});
   const [salvo, setSalvo] = useState({});
   const grupos = useMemo(() => {
@@ -459,7 +469,8 @@ function Custos({ produtos, custos }) {
       <h2>Custo de cada produto</h2>
       <p className="relatorio-nota">
         Quanto você gasta para fazer ou comprar uma unidade (ingredientes, embalagem, a bebida no fornecedor). Só a sua equipe vê: o
-        cardápio do cliente não mostra. Com o custo, o sistema calcula o lucro de cada venda.
+        cardápio do cliente não mostra. Com o custo, o sistema calcula o lucro de cada venda. Produto com ficha técnica em Matéria-prima
+        tem o custo calculado sozinho pelo preço dos insumos.
       </p>
       {grupos.length === 0 && <p>Nenhum produto cadastrado ainda.</p>}
       {grupos.map(([cat, lista]) => (
@@ -480,6 +491,9 @@ function Custos({ produtos, custos }) {
                     {margem !== null ? ` · lucro ${R(preco - c)} (${margem}%)` : ""}
                   </small>
                 </div>
+                {typeof daFicha?.[p.id] === "number" ? (
+                  <span className="fin-ficha">{R(daFicha[p.id])} <small>pela ficha técnica</small></span>
+                ) : (
                 <label>
                   <span>Custo R$</span>
                   <input
@@ -492,6 +506,7 @@ function Custos({ produtos, custos }) {
                     onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
                   />
                 </label>
+                )}
                 <span className="fin-ok" aria-live="polite">{salvo[p.id] ? "✓ salvo" : ""}</span>
               </div>
             );

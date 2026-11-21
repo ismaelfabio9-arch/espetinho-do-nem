@@ -1,0 +1,43 @@
+/* Matéria-prima e Caixa: usam o visual de Finanças/Relatório e acrescentam lista, modal e status. */
+.ins-aviso { cursor: default; margin: 4px 0 0; }
+.ins-lista { list-style: none; padding: 0; margin: 0; }
+.ins-item { display: grid; grid-template-columns: 1fr auto; gap: 6px 12px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.ins-info { min-width: 0; }
+.ins-info small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.ins-qtd { font-size: 18px; font-weight: 800; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ins-qtd.baixo { color: var(--orange); }
+.ins-qtd.zerado { color: var(--red); }
+.ins-acoes { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+.ins-btn { border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 10px; padding: 8px 12px; font-size: 14px; font-weight: 700; cursor: pointer; }
+.ins-btn.entrada { border-color: var(--green); color: #15803d; }
+.ins-check { display: flex; align-items: center; gap: 8px; font-size: 14px; margin: 0 0 10px; }
+.ins-check input { width: 18px; height: 18px; }
+
+.ins-modal { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); display: grid; place-items: end center; z-index: 50; padding: 12px; }
+.ins-modal-caixa { width: 100%; max-width: 520px; background: var(--card); color: var(--text); border-radius: 20px; padding: 20px; max-height: 90vh; overflow: auto; }
+.ins-modal-caixa h2 { margin: 0 0 6px; font-size: 20px; }
+.ins-modal-botoes { display: flex; justify-content: flex-end; align-items: center; gap: 8px; flex-wrap: wrap; }
+@media (min-width: 700px) { .ins-modal { place-items: center; } }
+
+.ins-fichas { list-style: none; padding: 0; margin: 0; }
+.ins-fichas > li { border-bottom: 1px solid var(--border); }
+.ins-ficha-linha { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; text-align: left; background: none; border: 0; padding: 12px 0; color: var(--text); cursor: pointer; font-size: 15px; }
+.ins-ficha-linha small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.ins-ficha { background: var(--card-2); border-radius: 14px; padding: 12px; margin-bottom: 12px; display: grid; gap: 8px; }
+.ins-ficha-item { display: grid; grid-template-columns: 1fr 84px 28px 34px; gap: 6px; align-items: center; }
+.ins-ficha-item select, .ins-ficha-item input { padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; min-width: 0; }
+.ins-ficha-item input { text-align: right; }
+.ins-un { color: var(--muted); font-size: 13px; }
+
+.cx-topo { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; margin-bottom: 14px; }
+.cx-status { color: #16a34a; font-weight: 800; }
+.cx-topo small { color: var(--muted); }
+.cx-botoes { justify-content: stretch; }
+.cx-botoes .ins-btn { flex: 1; padding: 12px; }
+.cx-sub { margin: 18px 0 4px; font-size: 15px; }
+.cx-fechar { width: 100%; margin-top: 18px; }
+.cx-dif { font-weight: 800; font-size: 18px; border-radius: 12px; padding: 10px 12px; }
+.cx-dif.ok { background: var(--green-bg); color: #166534; }
+.cx-dif.sobra { background: #dbeafe; color: #1e40af; }
+.cx-dif.falta { background: #fee2e2; color: #991b1b; }
+.ins-rotulo { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 700; } .ins-rotulo .fin-tipos { margin: 0; }

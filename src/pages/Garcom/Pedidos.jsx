@@ -18,6 +18,7 @@ import { db } from "../../firebase";
 import "../../styles/Garcom/Pedidos.css";
 import { useConfigImpressora } from "../../hooks/useConfigImpressora";
 import { gerarComandaHTML, imprimir } from "../../utils/print";
+import { baixarInsumos } from "../../utils/insumos";
 
 // Painel: separa os pedidos em Mesas, Balcão (viagem) e Entregas. No computador, uma coluna para cada.
 const GRUPOS = [
@@ -35,6 +36,8 @@ function Pedidos() {
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
   const [pc, setPc] = useState(largo);
+  // Finalizar pedido sem forma de pagamento (balcão, mesa): pergunta como foi pago (Caixa e Finanças).
+  const [pagarPedido, setPagarPedido] = useState(null);
   useEffect(() => {
     const m = window.matchMedia?.("(min-width: 1000px)");
     if (!m) return;
@@ -156,13 +159,19 @@ function Pedidos() {
     await imprimir(html, configImpressora.larguraPapel);
   }
 
-  async function removerPedido(pedido) {
+  function finalizar(pedido) {
+    if (pedido.tipo === "entrega" && pedido.pagamento) return removerPedido(pedido);
+    setPagarPedido(pedido);
+  }
+
+  async function removerPedido(pedido, forma) {
     const clienteMesa =
       pedido.tipo === "mesa" ? nomesMesas[String(pedido.mesa)] || "" : "";
 
     const vendaFinalizada = {
       origem: pedido.tipo || "viagem",
-      ...(pedido.tipo === "entrega" ? { modo: pedido.modo || "entrega", taxaEntrega: pedido.taxaEntrega || 0, formaPagamento: pedido.pagamento || "" } : {}),
+      ...(pedido.tipo === "entrega" ? { modo: pedido.modo || "entrega", taxaEntrega: pedido.taxaEntrega || 0 } : {}),
+      formaPagamento: forma || pedido.pagamento || "",
       mesa: pedido.mesa || null,
       cliente: clienteMesa,
       titulo: tituloPedido(pedido),
@@ -185,6 +194,8 @@ function Pedidos() {
     });
 
     await deleteDoc(doc(db, ...L(), "pedidos", pedido.id));
+    // Matéria-prima: desconta o que a ficha técnica de cada produto usa.
+    baixarInsumos(pedido.itens || []);
 
     // ✅ CORREÇÃO ALERTA 1: limpa nome do cliente na mesa após finalizar
     if (pedido.tipo === "mesa" && pedido.mesa) {
@@ -324,7 +335,7 @@ function Pedidos() {
 
         <button
           className="btn-remover"
-          onClick={() => removerPedido(pedido)}
+          onClick={() => finalizar(pedido)}
         >
           Finalizar
         </button>
@@ -332,8 +343,41 @@ function Pedidos() {
     </div>
   );
 
+  const modalPagamento = pagarPedido && (
+    <div className="modal-overlay" onClick={() => setPagarPedido(null)}>
+      <div className="modal-card" role="dialog" aria-label="Como foi pago?" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-icon">💳</div>
+        <h2>Como foi pago?</h2>
+        <p className="modal-total-encerrar">
+          {tituloPedido(pagarPedido)} · Total: <strong>R$ {formatarMoeda(pagarPedido.total)}</strong>
+        </p>
+        <div className="formas-pagamento">
+          {["Dinheiro", "Pix", "Débito", "Crédito"].map((f) => (
+            <button
+              key={f}
+              type="button"
+              onClick={() => {
+                const p = pagarPedido;
+                setPagarPedido(null);
+                void removerPedido(p, f);
+              }}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+        <div className="modal-acoes">
+          <button type="button" className="modal-btn cancelar" onClick={() => setPagarPedido(null)}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <div className="container pedidos-pagina">
+      {modalPagamento}
       <Link to="/" className="voltar">
         ← Voltar
       </Link>
