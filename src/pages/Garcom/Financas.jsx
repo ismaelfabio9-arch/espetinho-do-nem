@@ -497,6 +497,7 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, variacoes }) {
         impostos: t(salvo.impostos ?? 0), impostosModo: modo("impostos"),
         lucro: t(salvo.lucro ?? 15), lucroModo: modo("lucro"),
         vendasMes: t(salvo.vendasMes),
+        conta: salvo.conta === "ingredientes" ? "ingredientes" : "completo",
         fixasItens: (salvo.fixasItens || []).map((i) => ({ nome: i.nome, valor: t(i.valor) })),
         variaveisItens: (salvo.variaveisItens || []).map((i) => ({ nome: i.nome, valor: t(i.valor) })),
       });
@@ -524,17 +525,28 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, variacoes }) {
     return v;
   };
   const lucroEmValor = form.lucroModo === "valor";
+  // "Só os ingredientes": lucro = preço − ingredientes (maquininha, despesas e impostos não entram).
+  const soIngredientes = form.conta === "ingredientes";
   const p = {
-    maquininha: pctCampo("maquininha", auto.maquininha),
-    fixas: pctCampo("fixas", auto.fixas),
-    variaveis: pctCampo("variaveis", auto.variaveis),
-    impostos: pctCampo("impostos", 0),
+    maquininha: soIngredientes ? 0 : pctCampo("maquininha", auto.maquininha),
+    fixas: soIngredientes ? 0 : pctCampo("fixas", auto.fixas),
+    variaveis: soIngredientes ? 0 : pctCampo("variaveis", auto.variaveis),
+    impostos: soIngredientes ? 0 : pctCampo("impostos", 0),
     lucro: lucroEmValor ? 0 : numDe(form.lucro, 100) ?? 0,
     lucroValor: lucroEmValor ? numDe(form.lucro) ?? 0 : 0,
   };
   const total = somaPct(p);
   const fmtPct = (n) => `${String(Math.round(n * 10) / 10).replace(".", ",")}%`;
   const precisaVendas = ["fixas", "variaveis", "impostos"].some((k) => modoCampo(k) === "valor" && numDe(valorCampo(k)) !== null) && !vendasMes;
+
+  async function mudarConta(conta) {
+    setForm({ ...form, conta });
+    try {
+      await setDoc(doc(db, ...L(), "configuracoes", "precificacao"), { conta, atualizadoEm: new Date().toISOString() }, { merge: true });
+    } catch {
+      setMsg("Não foi possível salvar. Confira a internet.");
+    }
+  }
 
   async function salvar() {
     const v = (k) => numDe(form[k]);
@@ -548,6 +560,7 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, variacoes }) {
         impostos: v("impostos") ?? 0, impostosModo: form.impostosModo,
         lucro: v("lucro") ?? 0, lucroModo: form.lucroModo,
         vendasMes: v("vendasMes"),
+        conta: form.conta,
         atualizadoEm: new Date().toISOString(),
       });
       setMsg("✓ Salvo");
@@ -589,10 +602,22 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, variacoes }) {
   return (
     <>
       <div className="relatorio-documento">
-        <h2>Quanto sai de cada venda</h2>
-        <p className="fin-explica">Além do custo do produto, cada venda paga a maquininha, uma parte das despesas da loja e os impostos. Deixe em branco para o sistema calcular pelo movimento da loja.</p>
+        <h2>Como calcular o lucro</h2>
+        <div className="pc-conta" role="radiogroup" aria-label="Como calcular o lucro">
+          <button type="button" role="radio" aria-checked={soIngredientes} className={soIngredientes ? "ativo" : ""} onClick={() => mudarConta("ingredientes")}>
+            <b>🥩 Só os ingredientes</b>
+            <small>Lucro = preço − ingredientes. Sem despesas.</small>
+          </button>
+          <button type="button" role="radio" aria-checked={!soIngredientes} className={!soIngredientes ? "ativo" : ""} onClick={() => mudarConta("completo")}>
+            <b>📊 Conta completa</b>
+            <small>Também tira maquininha, aluguel, contas e impostos.</small>
+          </button>
+        </div>
+        {!soIngredientes && <h2>Quanto sai de cada venda</h2>}
+        <p className="fin-explica">{soIngredientes ? "O lucro de cada produto é o preço menos o que se gasta de ingredientes. Diga quanto quer de lucro para o sistema avisar quando o preço estiver baixo (deixe 0 para só ver o lucro)." : null}</p>
+        <p className="fin-explica" style={soIngredientes ? { display: "none" } : undefined}>Além do custo do produto, cada venda paga a maquininha, uma parte das despesas da loja e os impostos. Deixe em branco para o sistema calcular pelo movimento da loja.</p>
         <div className="pc-campos">
-          {campos.map((c) => (
+          {campos.filter((c) => !soIngredientes || c.k === "lucro").map((c) => (
             <div key={c.k} className="pc-campo">
               <span>
                 {c.nome}
@@ -607,7 +632,7 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, variacoes }) {
                 )}
                 <input
                   inputMode="decimal"
-                  placeholder={modoCampo(c.k) === "valor" ? "0,00" : c.k === "lucro" || c.k === "impostos" ? "0" : "auto"}
+                  placeholder={c.k === "lucro" || c.k === "impostos" ? (modoCampo(c.k) === "valor" ? "0,00" : "0") : "auto"}
                   aria-label={`${c.nome} (${modoCampo(c.k) === "valor" ? (c.porVenda ? "R$ por venda" : "R$ por mês") : "%"})`}
                   value={usaItens(c.k) ? fmt(totalItens(c.k)) : form[c.k]}
                   readOnly={usaItens(c.k)}
@@ -630,6 +655,7 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, variacoes }) {
             </div>
           ))}
         </div>
+{!soIngredientes && (
         <label className="pc-campo">
           <span>
             Quanto a loja vende por mês
@@ -640,9 +666,16 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, variacoes }) {
             <em>R$</em>
           </span>
         </label>
+        )}
         {precisaVendas && <p className="fin-aviso">⚠️ Para usar gasto do mês em R$, informe quanto a loja vende por mês.</p>}
         <p className={`pc-resumo ${total >= 100 ? "ruim" : ""}`}>
-          {total >= 100
+          {soIngredientes
+            ? lucroEmValor
+              ? `Preço bom = ingredientes + R$ ${fmt(p.lucroValor)} de lucro em cada venda. Maquininha, despesas e impostos não entram nesta conta.`
+              : p.lucro > 0
+              ? `Preço bom = o lucro ser pelo menos ${fmtPct(p.lucro)} do preço. Maquininha, despesas e impostos não entram nesta conta.`
+              : "Maquininha, despesas e impostos não entram nesta conta: o lucro é o preço menos os ingredientes."
+            : total >= 100
             ? `A soma passou de 100% (${fmtPct(total)}): não tem preço que pague.${vendasMes && numDe(form.vendasMes) === null ? ` O sistema está usando ${R(vendasMes)} de vendas por mês (o que foi vendido pelo sistema nos últimos 30 dias). Se a loja vende mais que isso, preencha "Quanto a loja vende por mês" logo abaixo.` : " Confira as despesas e o quanto a loja vende por mês."}`
             : lucroEmValor
             ? `De cada R$ 100,00 vendidos: R$ ${fmt(total)} vão para taxas, despesas e impostos. O resto paga o custo do produto e o seu lucro de R$ ${fmt(p.lucroValor)} em cada venda.`

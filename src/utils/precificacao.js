@@ -116,6 +116,15 @@ export function percentuaisFinais(salvo = {}, auto = {}) {
     return v;
   };
   const lucroEmValor = salvo.lucroModo === "valor";
+  // "Só os ingredientes": maquininha, despesas e impostos não entram (lucro = preço − ingredientes).
+  const so = salvo.conta === "ingredientes";
+  if (so)
+    return {
+      maquininha: 0, fixas: 0, variaveis: 0, impostos: 0,
+      lucro: lucroEmValor ? 0 : typeof salvo.lucro === "number" ? salvo.lucro : 15,
+      lucroValor: lucroEmValor ? Number(salvo.lucro || 0) : 0,
+      soIngredientes: true,
+    };
   return {
     maquininha: typeof salvo.maquininha === "number" ? salvo.maquininha : auto.maquininha ?? 0,
     fixas: campo("fixas", auto.fixas),

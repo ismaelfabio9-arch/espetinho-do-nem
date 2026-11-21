@@ -7,7 +7,7 @@ import { L } from "../loja";
 import { GRUPO_ADICIONAL, custoDaFicha, escolhaInicial, custoPadrao, daFicha, daParaQuantos, paraFicha, unidadeDe, variacoesDoProduto } from "../utils/insumos";
 import { tipoDe } from "../utils/montagem";
 import { calcularFinancas, isoDia, juntarVendas, lerValor } from "../utils/financas";
-import { percentuaisDaLoja, percentuaisFinais, precoDoProduto } from "../utils/precificacao";
+import { percentuaisDaLoja, percentuaisFinais, precoDoProduto, somaPct } from "../utils/precificacao";
 import { useTaxas } from "../utils/taxas";
 import "../styles/Garcom/Financas.css";
 import "../styles/Garcom/Insumos.css";
@@ -348,7 +348,7 @@ export function TabelaVariacoes({ produto, variacoes, p }) {
           {extras.map((e) => <Linha key={e.nome} adicional nome={e.nome} custo={e.custo} preco={e.preco} />)}
         </ul>
       )}
-      <small className="ficha-dica">O lucro limpo já tira a maquininha, os impostos e a parte das despesas da loja (as contas do Preço certo).</small>
+      <small className="ficha-dica">{p && somaPct({ ...p, lucro: 0, lucroValor: 1 }) === 0 ? "Lucro = preço menos os ingredientes (conta só com os ingredientes, sem despesas)." : "O lucro limpo já tira a maquininha, os impostos e a parte das despesas da loja (as contas do Preço certo)."}</small>
     </div>
   );
 }

@@ -136,3 +136,11 @@
 .pc-todos { width: 100%; margin: 0 0 12px; }
 .pc-fila { margin: 0; font-weight: 800; color: #15803d; font-size: 14px; }
 .pc-fila-botoes { display: flex; justify-content: space-between; gap: 8px; margin-top: 12px; position: sticky; bottom: 0; background: var(--card); padding-top: 8px; }
+
+/* Como calcular o lucro: só ingredientes ou conta completa */
+.pc-conta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 4px 0 14px; }
+.pc-conta button { text-align: left; border: 2px solid var(--border); background: var(--card); color: var(--text); border-radius: 14px; padding: 12px; cursor: pointer; display: grid; gap: 4px; }
+.pc-conta button.ativo { border-color: var(--green); background: var(--green-bg); }
+.pc-conta b { font-size: 15px; }
+.pc-conta small { color: var(--muted); font-size: 12.5px; line-height: 1.3; }
+@media (max-width: 380px) { .pc-conta { grid-template-columns: 1fr; } }
