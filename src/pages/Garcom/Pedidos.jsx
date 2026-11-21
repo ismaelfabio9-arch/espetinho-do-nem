@@ -19,6 +19,9 @@ import "../../styles/Garcom/Pedidos.css";
 import { useConfigImpressora } from "../../hooks/useConfigImpressora";
 import { gerarComandaHTML, imprimir } from "../../utils/print";
 import { baixarInsumos } from "../../utils/insumos";
+import useNomeLoja from "../../hooks/useNomeLoja";
+import { linkWhats, mostrarFone, numeroWhats } from "../../utils/contato";
+import "../../components/QuerMais.css";
 
 // Painel: separa os pedidos em Mesas, Balcão (viagem) e Entregas. No computador, uma coluna para cada.
 const GRUPOS = [
@@ -31,6 +34,7 @@ const largo = () => typeof window !== "undefined" && window.matchMedia?.("(min-w
 
 function Pedidos() {
   const configImpressora = useConfigImpressora();
+  const nomeLoja = useNomeLoja();
   const [pedidos, setPedidos] = useState([]);
   const [nomesMesas, setNomesMesas] = useState({});
   const [busca, setBusca] = useState("");
@@ -283,11 +287,19 @@ function Pedidos() {
       {pedido.tipo === "entrega" && (
         <div className="pedido-entrega">
           <p>
-            <strong>{pedido.cliente}</strong> ·{" "}
-            <a href={`https://wa.me/${String(pedido.telefone || "").length <= 11 ? "55" : ""}${pedido.telefone}`} target="_blank" rel="noreferrer">
-              WhatsApp {pedido.telefone}
-            </a>
+            <strong>{pedido.cliente}</strong>
+            {pedido.telefone ? ` · ${mostrarFone(pedido.telefone)}` : ""}
           </p>
+          {numeroWhats(pedido.telefone) && (
+            <a
+              className="whats-btn pedido-whats"
+              href={linkWhats(pedido.telefone, `Olá, ${String(pedido.cliente || "").split(" ")[0]}! Aqui é da ${nomeLoja || "loja"}, sobre o seu pedido${pedido.numero ? ` #${pedido.numero}` : ""}: `)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              💬 Chamar o cliente no WhatsApp
+            </a>
+          )}
           {pedido.modo === "entrega" && (
             <p>
               📍 {pedido.endereco}

@@ -22,6 +22,8 @@ import { isInstalled } from "../../utils/installPrompt";
 import { planoQueLibera, useRecurso } from "../../recursos";
 import { useCaixaAberto } from "../../components/AvisoCaixa";
 import "../../styles/Garcom/AvisoCaixa.css";
+import WhatsLojaConfig from "../../components/WhatsLojaConfig";
+import "../../components/QuerMais.css";
 
 // Prato montado ("Peito empanado — feijão preto, …") conta no relatório como o prato.
 const nomeProduto = (item) => item.nomeBase || String(item.nome || "").split(" — ")[0];
@@ -301,6 +303,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
 
       {MULTI && <Equipe />}
 
+      <WhatsLojaConfig />
       <TaxasMaquininha />
 
       <CardapioOnlineConfig />

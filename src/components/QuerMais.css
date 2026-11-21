@@ -1,0 +1,23 @@
+.quermais-fundo { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 80; display: flex; align-items: flex-end; justify-content: center; }
+.quermais-folha { width: 100%; max-width: 560px; max-height: 88vh; overflow: auto; background: #111; color: #f3f4f6; border-radius: 22px 22px 0 0; padding: 20px 16px calc(16px + env(safe-area-inset-bottom, 0px)); }
+.quermais-folha h2 { margin: 0 0 4px; font-size: 21px; }
+.quermais-folha > p { margin: 0 0 14px; color: #9ca3af; font-size: 14px; }
+.quermais-lista { display: grid; gap: 12px; }
+.quermais-cat { font-size: 12px; font-weight: 800; color: #9ca3af; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+.quermais-itens { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+.quermais-itens button { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; background: #1b1b1b; border: 1px solid #2a2a2a; color: #f3f4f6; border-radius: 12px; padding: 10px 12px; text-align: left; font-size: 14px; font-weight: 700; cursor: pointer; }
+.quermais-itens button b { color: #22c55e; font-size: 13px; }
+.quermais-itens button.escolhido { border-color: #16a34a; background: #123d22; }
+.quermais-continuar { width: 100%; margin-top: 16px; background: #16a34a; color: #fff; border: 0; border-radius: 14px; padding: 15px; font-size: 17px; font-weight: 800; cursor: pointer; }
+.quermais-nao { width: 100%; margin-top: 8px; background: none; border: 0; color: #9ca3af; padding: 10px; font-size: 15px; cursor: pointer; text-decoration: underline; }
+body:not(.dark) .quermais-folha { background: #fff; color: #111827; }
+body:not(.dark) .quermais-itens button { background: #f9fafb; border-color: #e5e7eb; color: #111827; }
+body:not(.dark) .quermais-itens button.escolhido { background: #dcfce7; }
+.whats-loja-linha { display: flex; gap: 8px; margin: 10px 0 6px; }
+.whats-loja-linha input { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--border, #d1d5db); background: var(--card, #fff); color: var(--text, #111); font-size: 16px; }
+.whats-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; background: #25d366; color: #fff !important; text-decoration: none; font-weight: 800; border-radius: 12px; padding: 10px 14px; font-size: 15px; }
+.whats-btn.claro { background: transparent; color: #16a34a !important; border: 1.5px solid #25d366; }
+.pedido-whats { margin: 6px 0 8px; font-size: 14px; padding: 9px 12px; }
+.online-whats { margin-top: 10px; }
+.online-whats-pedido { width: 100%; box-sizing: border-box; margin: 6px 0 10px; padding: 14px; }
+.cardapio-whats { margin-top: 10px; width: 100%; box-sizing: border-box; }
