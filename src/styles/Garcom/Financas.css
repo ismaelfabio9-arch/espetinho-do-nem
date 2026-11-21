@@ -1,0 +1,63 @@
+/* Finanças: usa o visual do Relatório Gerencial e acrescenta a conta do lucro, abas e formulários. */
+.fin-abas { display: flex; gap: 6px; background: var(--card-2); padding: 4px; border-radius: 14px; margin-bottom: 14px; overflow-x: auto; }
+.fin-abas button { flex: 1; white-space: nowrap; border: 0; background: transparent; color: var(--muted); font-weight: 700; font-size: 14px; padding: 10px 12px; border-radius: 10px; cursor: pointer; }
+.fin-abas button.ativa { background: var(--card); color: var(--text); box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1); }
+.fin-periodos { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+.fin-periodos button, .fin-tipos button { border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 999px; padding: 8px 14px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.fin-periodos button.ativo, .fin-tipos button.ativo { background: var(--green); border-color: var(--green); color: #fff; }
+.fin-carregando { padding: 24px; color: var(--muted); }
+
+.fin-aviso { display: block; width: 100%; text-align: left; background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; border-radius: 14px; padding: 12px 14px; font-size: 14px; margin-bottom: 18px; cursor: pointer; }
+
+.fin-conta { border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-bottom: 24px; }
+.fin-linha { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+.fin-linha:last-child { border-bottom: 0; }
+.fin-linha span { font-size: 15px; }
+.fin-linha small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.fin-linha strong { font-size: 17px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.fin-total { background: var(--card-2); }
+.fin-total span { font-weight: 800; font-size: 16px; }
+.fin-total strong { font-size: 22px; }
+.fin-neg { color: var(--red) !important; }
+.fin-pos { color: #16a34a !important; }
+.fin-sem { color: var(--orange); font-weight: 600; }
+
+.fin-duas { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.fin-lista { list-style: none; padding: 0; margin: 0; }
+.fin-lista li { display: flex; justify-content: space-between; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--border); font-size: 14.5px; }
+.fin-lista li:last-child { border-bottom: 0; }
+
+.fin-form h2, .fin-page .relatorio-documento > h2 { margin: 0 0 14px; font-size: 20px; }
+.fin-tipos { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 16px; }
+.fin-campos { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+.fin-campos label { display: flex; flex-direction: column; gap: 6px; font-size: 14px; font-weight: 700; }
+.fin-campos input, .fin-campos select { padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; font-weight: 400; }
+.fin-largo { grid-column: 1 / -1; }
+.fin-erro { color: var(--red); font-weight: 600; }
+
+.fin-despesas { list-style: none; padding: 0; margin: 0; }
+.fin-despesas li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--border); }
+.fin-despesas li > div { flex: 1; min-width: 0; }
+.fin-despesas small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.fin-valor { font-weight: 800; white-space: nowrap; }
+.fin-btn-x { border: 0; background: var(--card-2); color: var(--muted); width: 34px; height: 34px; border-radius: 10px; cursor: pointer; }
+.fin-confirma { display: flex; gap: 6px; }
+.fin-confirma button { border: 1px solid var(--border); background: var(--card); color: var(--text); border-radius: 10px; padding: 7px 10px; cursor: pointer; font-weight: 600; }
+.fin-confirma .fin-btn-perigo { background: var(--red); border-color: var(--red); color: #fff; }
+
+.fin-custos-grupo h3 { margin: 18px 0 6px; font-size: 15px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+.fin-custo { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+.fin-custo > div { flex: 1; min-width: 0; }
+.fin-custo small { display: block; color: var(--muted); font-size: 13px; margin-top: 2px; }
+.fin-custo label { display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.fin-custo input { width: 96px; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; text-align: right; }
+.fin-ok { width: 56px; color: #16a34a; font-size: 13px; font-weight: 700; }
+
+@media (max-width: 640px) {
+  .fin-duas, .fin-campos { grid-template-columns: 1fr; }
+  .fin-custo { flex-wrap: wrap; }
+  .fin-ok { width: auto; }
+}
+@media print {
+  .fin-conta { break-inside: avoid; }
+}

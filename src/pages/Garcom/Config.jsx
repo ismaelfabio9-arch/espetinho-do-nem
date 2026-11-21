@@ -27,6 +27,8 @@ const nomeProduto = (item) => item.nomeBase || String(item.nome || "").split(" �
 
 function Config() {
   const relatoriosLigado = useRecurso("relatorios");
+  const financasLigado = useRecurso("financas");
+  const financasPlano = planoQueLibera("financas");
   const nomeLoja = useNomeLoja();
   const [instalarAberto, setInstalarAberto] = useState(false);
   const [mensagem, setMensagem] = useState("");
@@ -228,6 +230,19 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
           </div>
         </div>
       </Link>
+
+      {(financasLigado || financasPlano) && (
+        <Link to="/financas" style={{ textDecoration: "none" }}>
+          <div className="config-card">
+            <div className="config-icon">💰</div>
+            <div>
+              <h2>Finanças</h2>
+              <p>O que entrou, despesas, custo dos produtos e o lucro: no geral e por categoria (almoço, bebidas, lanches…).</p>
+              <strong>{financasLigado ? "Abrir finanças" : `Disponível no plano ${financasPlano}`}</strong>
+            </div>
+          </div>
+        </Link>
+      )}
 
       {MULTI && (
         <a href="/sistemas/sistema-de-mesas#planos" style={{ textDecoration: "none" }}>

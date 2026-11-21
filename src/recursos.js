@@ -27,6 +27,8 @@ export const RECURSOS = {
   relatorios: true,
   // Cardápio online (pedido de casa): função nova, só o plano Premium liga.
   "pedido-online": false,
+  // Finanças (despesas, custo e lucro por categoria): função nova, os planos Completo e Premium ligam.
+  financas: false,
   beta: false,
 };
 
@@ -37,7 +39,7 @@ export const PLANO_DESLIGA = {
   premium: [],
 };
 /** Funções novas que só o plano liga (sem plano, ficam desligadas). */
-export const PLANO_LIGA = { basico: [], completo: [], premium: ["pedido-online"] };
+export const PLANO_LIGA = { basico: [], completo: ["financas"], premium: ["pedido-online", "financas"] };
 export const NOME_PLANO = { basico: "Básico", completo: "Completo", premium: "Premium" };
 let planoAtual = null;
 
@@ -87,6 +89,22 @@ export function useRecurso(nome) {
     };
   }, [nome]);
   return ligado;
+}
+
+/** planoQueLibera(nome) que se atualiza quando o plano da loja carrega ou muda. */
+export function usePlanoQueLibera(nome) {
+  const [plano, setPlano] = useState(() => planoQueLibera(nome));
+  useEffect(() => {
+    const fn = () => setPlano(planoQueLibera(nome));
+    fn();
+    ouvintes.add(fn);
+    const sairTenant = subscribeTenant(fn);
+    return () => {
+      ouvintes.delete(fn);
+      sairTenant();
+    };
+  }, [nome]);
+  return plano;
 }
 
 /** Desligada por causa do plano? Devolve o nome do menor plano que tem a função (ex.: "Completo"); senão null. */

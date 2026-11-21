@@ -18,6 +18,7 @@ import Historico from "./pages/Garcom/Historico";
 import Produtos from "./pages/Garcom/Produtos";
 import HistoricoMesas from "./pages/Garcom/HistoricoMesas";
 import RelatorioGerencial from "./pages/Garcom/RelatorioGerencial";
+import Financas from "./pages/Garcom/Financas";
 import CardapioMesa from "./pages/Cliente/CardapioMesa";
 import Estoque from "./pages/Garcom/Estoque";
 import QrCodes from "./pages/Garcom/QrCodes";
@@ -27,7 +28,7 @@ import ErroTela from "./components/ErroTela";
 import Atalhos from "./components/Atalhos";
 import NovoPedido from "./pages/Garcom/NovoPedido";
 import PainelDono from "./pages/Garcom/PainelDono";
-import { planoQueLibera, useRecurso } from "./recursos";
+import { usePlanoQueLibera, useRecurso } from "./recursos";
 
 
 function App() {
@@ -79,8 +80,8 @@ function CardapioDaLoja() {
 /** Tela de uma função que a IFTech desligou só nesta loja. */
 function SeLigado({ recurso, children }) {
   const ligado = useRecurso(recurso);
+  const plano = usePlanoQueLibera(recurso);
   if (ligado) return children;
-  const plano = planoQueLibera(recurso);
   return (
     <div className="container" style={{ padding: 24 }}>
       <a href="./" className="voltar">← Voltar</a>
@@ -115,6 +116,7 @@ function TelasEquipe() {
       <Route path="/notificacoes" element={<Notificacoes />} />
       <Route path="/historico" element={<Historico />} />
       <Route path="/historico-mesas" element={<HistoricoMesas />} />
+      <Route path="/financas" element={<SeLigado recurso="financas"><Financas /></SeLigado>} />
       <Route path="/relatorio" element={<SeLigado recurso="relatorios"><RelatorioGerencial /></SeLigado>} />
       <Route path="/mesa/:id" element={<MesaDetalhe />} />
       <Route path="/viagem" element={<SeLigado recurso="viagem"><Viagem /></SeLigado>} />
