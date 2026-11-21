@@ -517,3 +517,56 @@ body.dark small {
 .novo-rapido-ref { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 14px 0 4px; }
 .novo-rapido-ref a { display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 12px 6px; border-radius: 14px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 22px; text-decoration: none; }
 .novo-rapido-ref a span { font-size: 14px; font-weight: 700; }
+
+/* ── "Voltar": o mesmo botão em todas as telas (claro e escuro) ── */
+body .voltar,
+body .voltar-fixo {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 6px;
+  height: 40px;
+  padding: 0 16px !important;
+  margin: 0 0 16px !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 999px !important;
+  background: var(--card) !important;
+  color: var(--green) !important;
+  font-weight: 700 !important;
+  font-size: 14px !important;
+  text-decoration: none !important;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06) !important;
+  cursor: pointer;
+}
+body .voltar:hover,
+body .voltar-fixo:hover { border-color: var(--green) !important; }
+
+/* ── Comanda da mesa: resumo ("Ver pedido") e a janela ── */
+.pm-resumo { display: flex; align-items: center; gap: 12px; width: 100%; margin: 14px 0; padding: 14px 16px; border: 1px solid var(--border); border-radius: 16px; background: var(--card); color: var(--text); text-align: left; font: inherit; cursor: pointer; }
+.pm-resumo-icone { flex: none; width: 44px; height: 44px; border-radius: 12px; background: var(--green-bg); display: grid; place-items: center; font-size: 22px; }
+.pm-resumo-texto { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pm-resumo-texto small { font-size: 12px; color: var(--muted); }
+.pm-resumo-texto strong { font-size: 16px; color: var(--text); font-variant-numeric: tabular-nums; }
+.pm-resumo-ver { flex: none; padding: 10px 14px; border-radius: 999px; background: var(--green) !important; color: #fff !important; opacity: 1 !important; font-weight: 800; font-size: 14px; }
+.pm-folha { width: 100%; max-width: 460px; max-height: 88vh; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; padding: 20px 18px; border-radius: 20px; border: 1px solid var(--border); background: var(--card); color: var(--text); text-align: left; box-shadow: 0 24px 60px rgba(0, 0, 0, 0.35); }
+.pm-topo { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.pm-topo span { font-size: 12px; color: var(--muted); }
+.pm-topo h2 { margin: 2px 0 0; font-size: 22px; color: var(--text) !important; }
+.pm-fechar { flex: none; width: 36px; height: 36px; border: none; border-radius: 999px; background: var(--card-2); color: var(--muted); font-size: 15px; cursor: pointer; }
+.pm-dica { margin: 0; font-size: 13px; color: var(--muted) !important; }
+.pm-lista { display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+.pm-linha { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: var(--card-2); }
+.pm-linha + .pm-linha { border-top: 1px solid var(--border); }
+.pm-info { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.pm-info strong { font-size: 15px; line-height: 1.3; color: var(--text); overflow-wrap: anywhere; }
+.pm-info span { font-size: 12px; color: var(--muted); }
+.pm-lado { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.pm-lado b { font-size: 15px; color: var(--text); font-variant-numeric: tabular-nums; }
+.pm-qtd { display: flex; align-items: center; gap: 4px; padding: 3px; border: 1px solid var(--border); border-radius: 999px; background: var(--card); }
+.pm-qtd button { width: 32px; height: 32px; border: none; border-radius: 999px; background: var(--card-2); color: var(--text); font-size: 17px; font-weight: 800; line-height: 1; cursor: pointer; }
+.pm-qtd button:last-child { background: var(--green); color: #fff; }
+.pm-qtd span { min-width: 22px; text-align: center; font-weight: 800; color: var(--text); }
+.pm-total { display: flex; align-items: baseline; justify-content: space-between; padding: 4px 2px 0; }
+.pm-total span { font-size: 14px; color: var(--muted); }
+.pm-total strong { font-size: 22px; color: var(--green); font-variant-numeric: tabular-nums; }
+.pm-ok { height: 48px; border: none; border-radius: 14px; background: var(--green); color: #fff; font-size: 16px; font-weight: 800; cursor: pointer; }
+.pm-editar { align-self: flex-start; margin-top: 4px; padding: 6px 12px; border: 1px solid var(--green); border-radius: 999px; background: transparent; color: var(--green); font-size: 13px; font-weight: 800; cursor: pointer; }

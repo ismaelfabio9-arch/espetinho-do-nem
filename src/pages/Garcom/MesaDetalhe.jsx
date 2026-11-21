@@ -66,6 +66,8 @@ function MesaDetalhe() {
   // Prato que já está no pedido atual: pergunta se edita ou acrescenta mais um.
   const [perguntar, setPerguntar] = useState(null);
   const [editando, setEditando] = useState(null); // nome da linha do pedido que está sendo editada
+  // Prato já salvo na comanda sendo editado (pelo "Ver pedido"): o nome da linha na comanda.
+  const [editandoSalvo, setEditandoSalvo] = useState(null);
   const [organizarAberto, setOrganizarAberto] = useState(false);
   // Depois de salvar (ou de alterar o pedido em "Ver pedido"): pergunta se imprime na cozinha.
   // A janela de impressão só abre direito quando nasce de um toque, por isso o botão.
@@ -193,7 +195,11 @@ if (pedidosDaMesa.length === 0) {
         const nome = item.nome;
 
         if (!resultado[nome]) {
+          // Guarda o produto, o nome do prato e as escolhas (para editar e para o relatório/estoque).
+          // eslint-disable-next-line no-unused-vars
+          const { quantidade, ...resto } = item;
           resultado[nome] = {
+            ...resto,
             nome: item.nome,
             preco: Number(item.preco || 0),
             qtd: 0,
@@ -316,8 +322,35 @@ if (pedidosDaMesa.length === 0) {
     } else adicionarItem(item);
   }
 
+  /** Editar um prato que já está salvo na comanda: troca a linha e avisa a cozinha (comanda alterada). */
+  function editarSalvo(item) {
+    const produto = produtoPorId(item.produtoId);
+    if (!produto) return;
+    setMostrarPedidoMesa(false);
+    setEditandoSalvo(item.nome);
+    setMontando(produto);
+  }
+
+  async function salvarEdicaoSalvo(prato) {
+    const antigo = itensMesa.find((i) => i.nome === editandoSalvo);
+    setMontando(null);
+    setEditandoSalvo(null);
+    if (!antigo) return;
+    const qtd = Number(antigo.qtd || 0);
+    const resto = itensMesa.filter((i) => i.nome !== editandoSalvo);
+    const igual = resto.find((i) => i.nome === prato.nome);
+    const novos = igual
+      ? resto.map((i) => (i === igual ? { ...i, qtd: Number(i.qtd || 0) + qtd } : i))
+      : [...resto, { ...antigo, ...prato, qtd, ...(antigo.cliente ? { cliente: antigo.cliente } : {}) }];
+    setAlterouPedidoMesa(true);
+    await atualizarPedidoMesa(novos);
+    mostrarNotificacao("Prato alterado na comanda.");
+    setMostrarPedidoMesa(true);
+  }
+
   /** Prato montado (e as bebidas escolhidas junto) entram no pedido atual. */
   function adicionarMontado({ prato, bebidas }) {
+    if (editandoSalvo) return void salvarEdicaoSalvo(prato);
     setPedido((atual) => {
       const novo = { ...atual };
       // Editando: a linha antiga sai e a nova fica com a mesma quantidade.
@@ -911,55 +944,54 @@ if (pedidosDaMesa.length === 0) {
       )}
 
       {mostrarPedidoMesa && pedidoMesa && (
-        <div className="modal-overlay">
-          <div className="modal-card modal-pedido-mesa">
-            <div className="modal-icon">🧾</div>
+        <div className="modal-overlay" onClick={fecharPedidoMesa}>
+          <div className="pm-folha" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Pedido da mesa ${id}`}>
+            <div className="pm-topo">
+              <div>
+                <span>Comanda</span>
+                <h2>
+                  Mesa {id}
+                  {nomeCliente ? ` · ${nomeCliente}` : ""}
+                </h2>
+              </div>
+              <button type="button" className="pm-fechar" onClick={fecharPedidoMesa} aria-label="Fechar" data-fechar>✕</button>
+            </div>
+            <p className="pm-dica">Errou ou o cliente desistiu? Ajuste a quantidade aqui.</p>
 
-            <h2>
-              Pedido da Mesa {id}
-              {nomeCliente ? ` - ${nomeCliente}` : ""}
-            </h2>
-
-            <p>
-              Ajuste os itens caso o garçom tenha errado ou o cliente desista.
-            </p>
-
-            <div className="mesa-pedido-lista">
+            <div className="pm-lista">
               {itensMesa.map((item) => (
-                <div className="mesa-pedido-item" key={item.nome}>
-                  <div className="mesa-pedido-info">
+                <div className="pm-linha" key={item.nome}>
+                  <div className="pm-info">
                     <strong>{item.nome}</strong>
-                    <span>
-                      {item.qtd}x • R${" "}
-                      {formatarMoeda(
-                        Number(item.preco || 0) * Number(item.qtd || 0)
-                      )}
-                    </span>
+                    <span>R$ {formatarMoeda(item.preco)} cada</span>
+                    {produtoPorId(item.produtoId) && abreEscolha(produtoPorId(item.produtoId), montarLigado) && (
+                      <button type="button" className="pm-editar" onClick={() => editarSalvo(item)}>
+                        ✏️ Editar
+                      </button>
+                    )}
                   </div>
-
-                  <div className="mesa-pedido-controles">
-                    <button onClick={() => diminuirItemMesa(item)}>-</button>
-                    <span>{item.qtd}</span>
-                    <button onClick={() => aumentarItemMesa(item)}>+</button>
+                  <div className="pm-lado">
+                    <b>R$ {formatarMoeda(Number(item.preco || 0) * Number(item.qtd || 0))}</b>
+                    <div className="pm-qtd">
+                      <button type="button" onClick={() => diminuirItemMesa(item)} aria-label={Number(item.qtd) === 1 ? `Tirar ${item.nome}` : `Menos 1 ${item.nome}`}>
+                        {Number(item.qtd) === 1 ? "🗑️" : "−"}
+                      </button>
+                      <span>{item.qtd}</span>
+                      <button type="button" onClick={() => aumentarItemMesa(item)} aria-label={`Mais 1 ${item.nome}`}>+</button>
+                    </div>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="mesa-pedido-total-modal">
+            <div className="pm-total">
               <span>Total da mesa</span>
               <strong>R$ {formatarMoeda(totalMesa)}</strong>
             </div>
 
-            <div className="modal-acoes">
-              <button
-                type="button"
-                className="modal-btn cancelar"
-                onClick={fecharPedidoMesa}
-              >
-                Fechar
-              </button>
-            </div>
+            <button type="button" className="pm-ok" onClick={fecharPedidoMesa}>
+              Pronto
+            </button>
           </div>
         </div>
       )}
@@ -986,8 +1018,8 @@ if (pedidosDaMesa.length === 0) {
         </div>
       )}
 
-      <button className="voltar-fixo" onClick={() => navigate("/")}>
-        ← Voltar para o Painel
+      <button className="voltar" onClick={() => navigate("/")}>
+        ← Voltar
       </button>
 
       <div className="mesa-topo">
@@ -1032,16 +1064,16 @@ if (pedidosDaMesa.length === 0) {
       )}
 
       {pedidoMesa && totalItensMesa > 0 && (
-        <div className="pedido-mesa-resumo">
-          <div>
-            <span>Pedido da mesa</span>
+        <button type="button" className="pm-resumo" onClick={() => setMostrarPedidoMesa(true)}>
+          <span className="pm-resumo-icone" aria-hidden="true">🧾</span>
+          <span className="pm-resumo-texto">
+            <small>Já na comanda</small>
             <strong>
-              {totalItensMesa} itens • R$ {formatarMoeda(totalMesa)}
+              {totalItensMesa} {totalItensMesa === 1 ? "item" : "itens"} · R$ {formatarMoeda(totalMesa)}
             </strong>
-          </div>
-
-          <button onClick={() => setMostrarPedidoMesa(true)}>Ver pedido</button>
-        </div>
+          </span>
+          <span className="pm-resumo-ver">Ver pedido ›</span>
+        </button>
       )}
 
       {itensPedido.length > 0 && (
@@ -1071,14 +1103,14 @@ if (pedidosDaMesa.length === 0) {
 
       {montando && (
         <MontarPrato
-          key={editando || "novo"}
+          key={editandoSalvo ? `s:${editandoSalvo}` : editando || "novo"}
           produto={montando}
-          bebidas={editando ? [] : sugestoesBebida(produtos)}
+          bebidas={editando || editandoSalvo ? [] : sugestoesBebida(produtos)}
           permitirOutros
-          inicial={editando ? pedido[editando]?.montagem : null}
-          textoBotao={editando ? "Salvar alteração" : "Adicionar"}
+          inicial={editandoSalvo ? itensMesa.find((i) => i.nome === editandoSalvo)?.montagem || null : editando ? pedido[editando]?.montagem : null}
+          textoBotao={editando || editandoSalvo ? "Salvar alteração" : "Adicionar"}
           onAdicionar={adicionarMontado}
-          onFechar={() => { setMontando(null); setEditando(null); }}
+          onFechar={() => { setMontando(null); setEditando(null); if (editandoSalvo) { setEditandoSalvo(null); setMostrarPedidoMesa(true); } }}
         />
       )}
 
