@@ -94,7 +94,10 @@ function Abrir({ ultimo }) {
   }
   return (
     <form className="relatorio-documento fin-form" onSubmit={abrir}>
-      <h2>Abrir o caixa</h2>
+      <h2>Abrir o caixa do dia</h2>
+      {ultimo && Date.now() - Date.parse(ultimo.fechadoEm || 0) < 12 * 3600000 && (
+        <p className="fin-dica">✓ Caixa fechado às {new Date(ultimo.fechadoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}. Terminou o expediente? Vá em <Link to="/config">Configurações → Encerrar o dia</Link>.</p>
+      )}
       <p className="fin-explica">Conte o dinheiro que está na gaveta para começar (o troco).{sugerido > 0 ? ` No último fechamento ficaram ${R(sugerido)}.` : ""}</p>
       <div className="fin-campos">
         <label className="fin-largo">

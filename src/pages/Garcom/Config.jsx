@@ -20,6 +20,8 @@ import "../../styles/Garcom/Config.css";
 import InstallModal from "../../components/InstallApp";
 import { isInstalled } from "../../utils/installPrompt";
 import { planoQueLibera, useRecurso } from "../../recursos";
+import { useCaixaAberto } from "../../components/AvisoCaixa";
+import "../../styles/Garcom/AvisoCaixa.css";
 
 // Prato montado ("Peito empanado — feijão preto, …") conta no relatório como o prato.
 const nomeProduto = (item) => item.nomeBase || String(item.nome || "").split(" — ")[0];
@@ -29,6 +31,7 @@ function Config() {
   const relatoriosLigado = useRecurso("relatorios");
   const financasLigado = useRecurso("financas");
   const financasPlano = planoQueLibera("financas");
+  const caixaAberto = useCaixaAberto(financasLigado);
   const nomeLoja = useNomeLoja();
   const [instalarAberto, setInstalarAberto] = useState(false);
   const [mensagem, setMensagem] = useState("");
@@ -425,6 +428,12 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
 
             <strong>Essa ação não pode ser desfeita.</strong>
 
+            {caixaAberto && (
+              <p className="modal-caixa-aviso">
+                🧾 O caixa ainda está aberto. O certo é <Link to="/caixa">fechar o caixa</Link> (contar o dinheiro da gaveta) antes de encerrar o dia.
+              </p>
+            )}
+
             <div className="modal-fechar-dia-botoes">
               <button
                 className="modal-btn-cancelar"
@@ -439,7 +448,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
                 disabled={encerrando}
                 onClick={confirmarEncerrarDia}
               >
-                {encerrando ? "Encerrando..." : "Encerrar Dia"}
+                {encerrando ? "Encerrando..." : caixaAberto ? "Encerrar assim mesmo" : "Encerrar Dia"}
               </button>
             </div>
           </div>

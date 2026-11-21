@@ -35,6 +35,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { baixarInsumos } from "../../utils/insumos";
+import AvisoCaixa from "../../components/AvisoCaixa";
 
 function Dashboard() {
   // Funções que a IFTech pode desligar só nesta loja (Central da Loja).
@@ -594,6 +595,8 @@ function Dashboard() {
           )}
         </Link>
       </header>
+
+      <AvisoCaixa />
 
       <section className="summary-ref">
         <div className="summary-main-ref">

@@ -1,0 +1,11 @@
+.aviso-caixa { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 14px; padding: 12px 14px; border-radius: 16px; text-decoration: none; font-size: 14px; line-height: 1.35; }
+.aviso-caixa b { white-space: nowrap; border-radius: 10px; padding: 8px 12px; font-size: 14px; }
+.aviso-caixa.fechado { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
+.aviso-caixa.fechado b { background: #92400e; color: #fff; }
+.aviso-caixa.atrasado { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+.aviso-caixa.atrasado b { background: #b91c1c; color: #fff; }
+.aviso-caixa.aberto { background: var(--green-bg); color: #166534; }
+.aviso-caixa.aberto span { font-weight: 700; }
+.aviso-caixa.aberto b { color: #166534; padding: 0; }
+.modal-caixa-aviso { background: #fef3c7; color: #92400e; border-radius: 12px; padding: 10px 12px; font-size: 14px; margin: 10px 0; text-align: left; }
+.modal-caixa-aviso a { color: #92400e; font-weight: 800; }
