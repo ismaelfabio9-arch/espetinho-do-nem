@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { addDoc, collection, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "../../firebase";
-import { UNIDADES, ajustarInsumo, custoDaFicha, daFicha, daParaQuantos, entradaInsumo, inventario, mostrarQtd, paraFicha, perdasNoPeriodo, previsao, unidadeDe } from "../../utils/insumos";
+import { ajustarInsumo, custoDaFicha, daFicha, daParaQuantos, entradaInsumo, inventario, mostrarQtd, paraFicha, perdasNoPeriodo, previsao, unidadeDe } from "../../utils/insumos";
 import { isoDia, periodo } from "../../utils/financas";
 import { lerValor } from "../../utils/financas";
 import "../../styles/Garcom/RelatorioGerencial.css";
@@ -88,44 +88,15 @@ function Insumos() {
 }
 
 function Estoque({ insumos, prev, perdasMes, verPerdas }) {
-  const [novo, setNovo] = useState({ nome: "", unidade: "kg", quantidade: "", minimo: "", valor: "" });
-  const [erro, setErro] = useState("");
   const [acao, setAcao] = useState(null); // { insumo, tipo: "compra" | "perda" | "contagem" }
-  const [salvando, setSalvando] = useState(false);
-
-  async function criar(e) {
-    e.preventDefault();
-    const nome = novo.nome.trim();
-    if (nome.length < 2) return setErro("Informe o nome (ex.: Carne moída).");
-    if (insumos.some((i) => String(i.nome).toLowerCase() === nome.toLowerCase())) return setErro("Já tem um insumo com esse nome.");
-    const quantidade = Math.max(0, num(novo.quantidade) || 0);
-    const valor = lerValor(novo.valor);
-    setSalvando(true);
-    setErro("");
-    try {
-      const ref = await addDoc(collection(db, ...L(), "insumos"), {
-        nome: nome.slice(0, 60),
-        unidade: novo.unidade,
-        quantidade,
-        minimo: Math.max(0, num(novo.minimo) || 0),
-        ...(valor > 0 && quantidade > 0 ? { custo: Math.round((valor / quantidade) * 10000) / 10000 } : {}),
-        ativo: true,
-        criadoEm: serverTimestamp(),
-        atualizadoEm: new Date().toISOString(),
-      });
-      if (quantidade > 0)
-        await addDoc(collection(db, ...L(), "insumosMov"), { insumoId: ref.id, nome, tipo: "contagem", qtd: quantidade, antes: 0, depois: quantidade, motivo: "Cadastro", em: new Date().toISOString(), por: quem(), criadoEm: serverTimestamp() });
-      setNovo({ nome: "", unidade: novo.unidade, quantidade: "", minimo: "", valor: "" });
-    } catch {
-      setErro("Não foi possível salvar. Confira a internet.");
-    }
-    setSalvando(false);
-  }
-
+  const [form, setForm] = useState(null); // { insumo? } novo ou editar
   return (
     <>
       <div className="relatorio-documento">
-        <h2>Estoque de matéria-prima</h2>
+        <div className="ins-topo">
+          <h2>Estoque de matéria-prima</h2>
+          <button type="button" className="btn-verde" onClick={() => setForm({})}>+ Novo ingrediente</button>
+        </div>
         {perdasMes.total > 0 && (
           <button type="button" className="ins-perdas-resumo" onClick={verPerdas}>
             <span>Perdas este mês</span>
@@ -134,7 +105,7 @@ function Estoque({ insumos, prev, perdasMes, verPerdas }) {
           </button>
         )}
         {insumos.length === 0 ? (
-          <p>Nenhum insumo cadastrado. Cadastre abaixo o que você compra para fazer os pratos (ex.: Carne moída em kg, Pão de hambúrguer em unidade).</p>
+          <p>Nenhum ingrediente ainda. Toque em <b>+ Novo ingrediente</b> e cadastre o que você compra para fazer os pratos: carne, arroz, pão, refrigerante…</p>
         ) : (
           <ul className="ins-lista">
             {insumos.map((i) => {
@@ -146,7 +117,7 @@ function Estoque({ insumos, prev, perdasMes, verPerdas }) {
                   <div className="ins-info">
                     <strong>{i.nome}</strong>
                     <small>
-                      {typeof i.custo === "number" ? `${R(i.custo)} por ${unidadeDe(i.unidade).nomeLongo}` : "sem preço"}
+                      {typeof i.custo === "number" ? `${R(i.custo)} ${i.unidade === "un" ? "a" : "o"} ${unidadeDe(i.unidade).nomeLongo}` : "sem preço"}
                       {min > 0 ? ` · mínimo ${mostrarQtd(min, i.unidade)}` : ""}
                       {typeof i.custo === "number" && q > 0 ? ` · vale ${R(q * i.custo)}` : ""}
                     </small>
@@ -161,6 +132,7 @@ function Estoque({ insumos, prev, perdasMes, verPerdas }) {
                     <button type="button" className="ins-btn entrada" onClick={() => setAcao({ insumo: i, tipo: "compra" })}>+ Compra</button>
                     <button type="button" className="ins-btn" onClick={() => setAcao({ insumo: i, tipo: "perda" })}>Perda</button>
                     <button type="button" className="ins-btn" onClick={() => setAcao({ insumo: i, tipo: "contagem" })}>Contar</button>
+                    <button type="button" className="ins-btn" onClick={() => setForm({ insumo: i })}>Editar</button>
                   </div>
                 </li>
               );
@@ -169,42 +141,201 @@ function Estoque({ insumos, prev, perdasMes, verPerdas }) {
         )}
       </div>
 
-      <form className="relatorio-documento fin-form" onSubmit={criar}>
-        <h2>Cadastrar insumo</h2>
-        <div className="fin-campos">
-          <label className="fin-largo">
-            Nome
-            <input placeholder="Ex.: Carne moída, Arroz, Pão de hambúrguer, Coca lata" maxLength={60} value={novo.nome} onChange={(e) => setNovo({ ...novo, nome: e.target.value })} />
-          </label>
-          <div className="fin-largo ins-rotulo" role="group" aria-label="Controlar em">
-            <span>Controlar em</span>
-            <div className="fin-tipos">
-              {UNIDADES.map((u) => (
-                <button type="button" key={u.id} aria-pressed={novo.unidade === u.id} className={novo.unidade === u.id ? "ativo" : ""} onClick={() => setNovo({ ...novo, unidade: u.id })}>
-                  {u.nomeLongo}
-                </button>
-              ))}
-            </div>
-          </div>
-          <label>
-            Quantidade que tem agora ({unidadeDe(novo.unidade).id === "un" ? "unidades" : unidadeDe(novo.unidade).id})
-            <input inputMode="decimal" placeholder="0" value={novo.quantidade} onChange={(e) => setNovo({ ...novo, quantidade: e.target.value })} />
-          </label>
-          <label>
-            Avisar quando chegar em
-            <input inputMode="decimal" placeholder="0" value={novo.minimo} onChange={(e) => setNovo({ ...novo, minimo: e.target.value })} />
-          </label>
-          <label className="fin-largo">
-            Quanto pagou por essa quantidade (R$, opcional)
-            <input inputMode="decimal" placeholder="0,00" value={novo.valor} onChange={(e) => setNovo({ ...novo, valor: e.target.value })} />
-          </label>
-        </div>
-        {erro && <p className="fin-erro">{erro}</p>}
-        <button className="btn-verde" disabled={salvando}>{salvando ? "Salvando…" : "Cadastrar insumo"}</button>
-      </form>
+
 
       {acao && <Movimentar acao={acao} fechar={() => setAcao(null)} />}
+      {form && <NovoInsumo insumos={insumos} editar={form.insumo} fechar={() => setForm(null)} />}
     </>
+  );
+}
+
+const SUGESTOES = [
+  { nome: "Carne moída", unidade: "kg", icone: "🥩" },
+  { nome: "Frango", unidade: "kg", icone: "🍗" },
+  { nome: "Arroz", unidade: "kg", icone: "🍚" },
+  { nome: "Feijão", unidade: "kg", icone: "🫘" },
+  { nome: "Batata", unidade: "kg", icone: "🥔" },
+  { nome: "Pão de hambúrguer", unidade: "un", icone: "🍞" },
+  { nome: "Queijo (fatia)", unidade: "un", icone: "🧀" },
+  { nome: "Ovo", unidade: "un", icone: "🥚" },
+  { nome: "Refrigerante lata", unidade: "un", icone: "🥤" },
+  { nome: "Embalagem", unidade: "un", icone: "📦" },
+  { nome: "Óleo", unidade: "L", icone: "🛢️" },
+  { nome: "Leite", unidade: "L", icone: "🥛" },
+];
+const COMO = [
+  { id: "kg", titulo: "Por peso", sub: "quilo (kg)", icone: "⚖️" },
+  { id: "L", titulo: "Por volume", sub: "litro", icone: "🧴" },
+  { id: "un", titulo: "Por unidade", sub: "pão, lata, ovo, fatia", icone: "🔢" },
+];
+
+/** Cadastro (ou edição) de um ingrediente, em perguntas simples. aoCriar(insumo) recebe o novo. */
+function NovoInsumo({ insumos, editar, fechar, aoCriar }) {
+  const ed = !!editar;
+  const [f, setF] = useState(() => ({
+    nome: editar?.nome || "",
+    unidade: editar?.unidade || "kg",
+    preco: typeof editar?.custo === "number" ? fmt(editar.custo) : "",
+    quantidade: "",
+    minimo: editar && Number(editar.minimo) > 0 ? String(editar.minimo).replace(".", ",") : "",
+  }));
+  const [pacote, setPacote] = useState(null); // { pagou, qtd } calcular o preço de um pacote
+  const [erro, setErro] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [tirar, setTirar] = useState(false);
+  const u = unidadeDe(f.unidade);
+  const nomeUn = f.unidade === "un" ? "unidade" : u.nomeLongo;
+  const sufixo = f.unidade === "un" ? "unidades" : u.id;
+
+  function calcularPacote() {
+    const pagou = lerValor(pacote?.pagou);
+    const q = num(pacote?.qtd);
+    if (pagou > 0 && q > 0) {
+      setF({ ...f, preco: fmt(pagou / q), quantidade: f.quantidade || String(q).replace(".", ",") });
+      setPacote(null);
+    }
+  }
+
+  async function salvar(e) {
+    e.preventDefault();
+    const nome = f.nome.trim();
+    if (nome.length < 2) return setErro("Escreva o nome do ingrediente.");
+    if (insumos.some((i) => i.id !== editar?.id && String(i.nome).toLowerCase() === nome.toLowerCase())) return setErro("Já tem um ingrediente com esse nome.");
+    const preco = lerValor(f.preco);
+    const quantidade = Math.max(0, num(f.quantidade) || 0);
+    const minimo = Math.max(0, num(f.minimo) || 0);
+    setSalvando(true);
+    setErro("");
+    try {
+      const agora = new Date().toISOString();
+      if (ed) {
+        await setDoc(doc(db, ...L(), "insumos", editar.id), { nome: nome.slice(0, 60), ...(preco > 0 ? { custo: preco } : {}), minimo, atualizadoEm: agora }, { merge: true });
+        fechar();
+        return;
+      }
+      const dados = { nome: nome.slice(0, 60), unidade: f.unidade, quantidade, minimo, ...(preco > 0 ? { custo: preco } : {}), ativo: true, criadoEm: serverTimestamp(), atualizadoEm: agora };
+      const ref = await addDoc(collection(db, ...L(), "insumos"), dados);
+      if (quantidade > 0)
+        await addDoc(collection(db, ...L(), "insumosMov"), { insumoId: ref.id, nome, tipo: "contagem", qtd: quantidade, antes: 0, depois: quantidade, motivo: "Cadastro", em: agora, por: quem(), criadoEm: serverTimestamp() });
+      aoCriar?.({ id: ref.id, ...dados });
+      fechar();
+    } catch {
+      setErro("Não foi possível salvar. Confira a internet.");
+      setSalvando(false);
+    }
+  }
+
+  async function tirarDaLista() {
+    await setDoc(doc(db, ...L(), "insumos", editar.id), { ativo: false, atualizadoEm: new Date().toISOString() }, { merge: true });
+    fechar();
+  }
+
+  return (
+    <div className="ins-modal" role="dialog" aria-modal="true" aria-label={ed ? "Editar ingrediente" : "Novo ingrediente"} onClick={fechar}>
+      <form className="ins-modal-caixa ni" onClick={(e) => e.stopPropagation()} onSubmit={salvar}>
+        <h2>{ed ? `Editar ${editar.nome}` : "Novo ingrediente"}</h2>
+
+        <div className="ni-passo">
+          <span className="ni-num">1</span>
+          <div>
+            <label htmlFor="ni-nome">O que é?</label>
+            <input id="ni-nome" autoFocus={!ed} placeholder="Ex.: Carne moída" maxLength={60} value={f.nome} onChange={(e) => setF({ ...f, nome: e.target.value })} />
+            {!ed && !f.nome && (
+              <div className="ni-sug" aria-label="Sugestões">
+                {SUGESTOES.filter((x) => !insumos.some((i) => String(i.nome).toLowerCase() === x.nome.toLowerCase())).map((x) => (
+                  <button type="button" key={x.nome} onClick={() => setF({ ...f, nome: x.nome, unidade: x.unidade })}>
+                    {x.icone} {x.nome}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="ni-passo">
+          <span className="ni-num">2</span>
+          <div>
+            <span className="ni-rot">Como você compra e usa?</span>
+            {ed ? (
+              <p className="ni-fixo">{COMO.find((c) => c.id === f.unidade)?.titulo} ({COMO.find((c) => c.id === f.unidade)?.sub})</p>
+            ) : (
+              <div className="ni-como" role="radiogroup" aria-label="Como você compra e usa?">
+                {COMO.map((c) => (
+                  <button type="button" role="radio" aria-checked={f.unidade === c.id} key={c.id} className={f.unidade === c.id ? "ativo" : ""} onClick={() => setF({ ...f, unidade: c.id })}>
+                    <span>{c.icone}</span>
+                    <b>{c.titulo}</b>
+                    <small>{c.sub}</small>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="ni-passo">
+          <span className="ni-num">3</span>
+          <div>
+            <label htmlFor="ni-preco">Quanto custa {f.unidade === "un" ? "a" : "o"} {nomeUn}?</label>
+            <div className="ni-linha">
+              <span>R$</span>
+              <input id="ni-preco" inputMode="decimal" placeholder="0,00" value={f.preco} onChange={(e) => setF({ ...f, preco: e.target.value })} />
+              <span>por {nomeUn}</span>
+            </div>
+            {pacote ? (
+              <div className="ni-pacote">
+                <span>Paguei R$</span>
+                <input aria-label="Quanto pagou (R$)" inputMode="decimal" placeholder="0,00" value={pacote.pagou} onChange={(e) => setPacote({ ...pacote, pagou: e.target.value })} />
+                <span>em</span>
+                <input aria-label={`Quantidade do pacote (${sufixo})`} inputMode="decimal" placeholder="0" value={pacote.qtd} onChange={(e) => setPacote({ ...pacote, qtd: e.target.value })} />
+                <span>{sufixo}</span>
+                <button type="button" className="ins-btn entrada" onClick={calcularPacote}>Calcular</button>
+              </div>
+            ) : (
+              <button type="button" className="ni-link" onClick={() => setPacote({ pagou: "", qtd: "" })}>
+                Comprou em pacote, fardo ou saco? Calcular o preço
+              </button>
+            )}
+          </div>
+        </div>
+
+        {!ed && (
+          <div className="ni-passo">
+            <span className="ni-num">4</span>
+            <div>
+              <label htmlFor="ni-qtd">Quanto tem agora? <small>(pode deixar em branco)</small></label>
+              <div className="ni-linha">
+                <input id="ni-qtd" inputMode="decimal" placeholder="0" value={f.quantidade} onChange={(e) => setF({ ...f, quantidade: e.target.value })} />
+                <span>{sufixo}</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <div className="ni-passo">
+          <span className="ni-num">{ed ? 4 : 5}</span>
+          <div>
+            <label htmlFor="ni-min">Me avise quando ficar com menos de <small>(opcional)</small></label>
+            <div className="ni-linha">
+              <input id="ni-min" inputMode="decimal" placeholder="0" value={f.minimo} onChange={(e) => setF({ ...f, minimo: e.target.value })} />
+              <span>{sufixo}</span>
+            </div>
+          </div>
+        </div>
+
+        {erro && <p className="fin-erro">{erro}</p>}
+        <div className="ins-modal-botoes">
+          {ed && !tirar && <button type="button" className="ni-tirar" onClick={() => setTirar(true)}>Tirar da lista</button>}
+          {ed && tirar && (
+            <span className="fin-confirma">
+              Tirar {editar.nome}? <button type="button" className="fin-btn-perigo" onClick={tirarDaLista}>Tirar</button>
+              <button type="button" onClick={() => setTirar(false)}>Não</button>
+            </span>
+          )}
+          <button type="button" className="ins-btn" onClick={fechar}>Cancelar</button>
+          <button className="btn-verde" disabled={salvando}>{salvando ? "Salvando…" : ed ? "Salvar" : "Cadastrar"}</button>
+        </div>
+      </form>
+    </div>
   );
 }
 
@@ -284,20 +415,21 @@ function Movimentar({ acao, fechar }) {
 
 function Fichas({ produtos, fichas, insumos, porId }) {
   const [aberto, setAberto] = useState(null);
+  const [soSem, setSoSem] = useState(false);
   const fichaDe = useMemo(() => Object.fromEntries((fichas || []).map((f) => [f.id, f])), [fichas]);
   const lista = useMemo(() => (produtos || []).filter((p) => p.nome && p.ativo !== false).sort((a, b) => String(a.categoria || "").localeCompare(String(b.categoria || ""), "pt-BR") || String(a.nome).localeCompare(String(b.nome), "pt-BR")), [produtos]);
-  if (!insumos.length)
-    return (
-      <div className="relatorio-documento">
-        <p>Cadastre primeiro a matéria-prima na aba Estoque. Depois, aqui, diga quanto de cada uma vai em cada produto.</p>
-      </div>
-    );
+  const semFicha = lista.filter((p) => !fichaDe[p.id]?.itens?.length).length;
+  const mostrar = soSem ? lista.filter((p) => !fichaDe[p.id]?.itens?.length) : lista;
   return (
     <div className="relatorio-documento">
       <h2>Ficha técnica de cada produto</h2>
-      <p className="fin-explica">Quanto de cada insumo vai em 1 unidade do produto. Ex.: X-Burguer = 1 pão + 150 g de carne + 1 fatia de queijo. Com a ficha, cada venda desconta o estoque sozinha e o custo do produto é calculado.</p>
+      <div className="fin-periodos">
+        <button type="button" className={!soSem ? "ativo" : ""} onClick={() => setSoSem(false)}>Todos ({lista.length})</button>
+        <button type="button" className={soSem ? "ativo" : ""} onClick={() => setSoSem(true)}>Sem ficha ({semFicha})</button>
+      </div>
+      <p className="fin-explica">Toque no produto e diga o que vai nele. Ex.: X-Burguer = 1 pão + 150 g de carne + 1 fatia de queijo. Com a ficha, cada venda desconta o estoque sozinha e o custo do produto é calculado.</p>
       <ul className="ins-fichas">
-        {lista.map((p) => {
+        {mostrar.map((p) => {
           const f = fichaDe[p.id];
           const custo = custoDaFicha(f, porId);
           const da = daParaQuantos(f, porId);
@@ -307,7 +439,7 @@ function Fichas({ produtos, fichas, insumos, porId }) {
                 <span>
                   <strong>{p.nome}</strong>
                   <small>
-                    {p.categoria || "Sem categoria"} · {f?.itens?.length ? `${f.itens.length} ${f.itens.length === 1 ? "insumo" : "insumos"}` : "sem ficha"}
+                    {p.categoria || "Sem categoria"} · {f?.itens?.length ? `${f.itens.length} ${f.itens.length === 1 ? "ingrediente" : "ingredientes"}` : "sem ficha"}
                     {custo !== null ? ` · custo ${R(custo)} · vende ${R(p.preco)}` : ""}
                   </small>
                   {da && (
@@ -328,45 +460,100 @@ function Fichas({ produtos, fichas, insumos, porId }) {
 }
 
 function EditarFicha({ produto, ficha, insumos, porId }) {
-  const [linhas, setLinhas] = useState(() => (ficha?.itens || []).map((it) => ({ insumoId: it.insumoId, qtd: String(paraFicha(it.qtd, porId[it.insumoId]?.unidade)).replace(".", ",") })));
+  const [criados, setCriados] = useState({}); // ingredientes criados aqui (até o banco devolver)
+  const todos = { ...criados, ...porId };
+  const inicial = () => (ficha?.itens || []).map((it) => ({ insumoId: it.insumoId, qtd: String(paraFicha(it.qtd, porId[it.insumoId]?.unidade)).replace(".", ",") }));
+  const [linhas, setLinhas] = useState(inicial);
+  const [mudou, setMudou] = useState(false);
+  const [novo, setNovo] = useState(false);
   const [msg, setMsg] = useState("");
-  const custo = custoDaFicha({ itens: linhas.filter((l) => l.insumoId).map((l) => ({ insumoId: l.insumoId, qtd: daFicha(l.qtd, porId[l.insumoId]?.unidade) })) }, porId);
+  const muda = (l) => {
+    setLinhas(l);
+    setMudou(true);
+    setMsg("");
+  };
+  const itens = linhas.filter((l) => l.insumoId && num(l.qtd) > 0).map((l) => ({ insumoId: l.insumoId, qtd: daFicha(l.qtd, todos[l.insumoId]?.unidade) }));
+  const custo = custoDaFicha({ itens }, todos);
+  const preco = Number(produto.preco || 0);
+  const fora = [...insumos, ...Object.values(criados).filter((c) => !porId[c.id])].filter((i) => !linhas.some((l) => l.insumoId === i.id));
+  const padrao = (i) => (i.unidade === "un" ? "1" : "100");
+  const passo = (un) => (un === "un" ? 1 : 10);
 
   async function salvar() {
-    const itens = linhas
-      .filter((l) => l.insumoId && num(l.qtd) > 0)
-      .map((l) => ({ insumoId: l.insumoId, qtd: daFicha(l.qtd, porId[l.insumoId]?.unidade) }));
     await setDoc(doc(db, ...L(), "fichas", produto.id), { itens, nome: produto.nome, atualizadoEm: new Date().toISOString() });
+    setMudou(false);
     setMsg("✓ Ficha salva");
-    setTimeout(() => setMsg(""), 1800);
   }
 
   return (
     <div className="ins-ficha">
+      <p className="ficha-titulo">O que vai em 1 <b>{produto.nome}</b>?</p>
+      {linhas.length === 0 && <p className="fin-explica">Toque nos ingredientes abaixo para pôr na ficha.</p>}
       {linhas.map((l, n) => {
-        const u = unidadeDe(porId[l.insumoId]?.unidade);
+        const ins = todos[l.insumoId];
+        const u = unidadeDe(ins?.unidade);
+        const q = num(l.qtd);
+        const linhaCusto = ins && typeof ins.custo === "number" && q > 0 ? daFicha(l.qtd, ins.unidade) * ins.custo : null;
+        const ajustar = (delta) => muda(linhas.map((x, k) => (k === n ? { ...x, qtd: String(Math.max(0, Math.round(((num(x.qtd) || 0) + delta) * 1000) / 1000)).replace(".", ",") } : x)));
         return (
-          <div key={n} className="ins-ficha-item">
-            <select aria-label="Insumo" value={l.insumoId} onChange={(e) => setLinhas(linhas.map((x, k) => (k === n ? { ...x, insumoId: e.target.value } : x)))}>
-              <option value="">Escolha o insumo</option>
-              {insumos.map((i) => (
-                <option key={i.id} value={i.id}>{i.nome}</option>
-              ))}
-            </select>
-            <input aria-label={`Quantidade em ${u.sub}`} inputMode="decimal" placeholder="0" value={l.qtd} onChange={(e) => setLinhas(linhas.map((x, k) => (k === n ? { ...x, qtd: e.target.value } : x)))} />
-            <span className="ins-un">{l.insumoId ? u.sub : ""}</span>
-            <button type="button" className="fin-btn-x" aria-label="Tirar da ficha" onClick={() => setLinhas(linhas.filter((_, k) => k !== n))}>✕</button>
+          <div key={l.insumoId || n} className="ficha-linha">
+            <div className="ficha-nome">
+              <strong>{ins?.nome || "Ingrediente"}</strong>
+              <small>{linhaCusto !== null ? `= ${R(linhaCusto)}` : ins && typeof ins.custo !== "number" ? "sem preço (edite o ingrediente)" : ""}</small>
+            </div>
+            <div className="ficha-qtd">
+              <button type="button" aria-label={`Menos ${ins?.nome || ""}`} onClick={() => ajustar(-passo(ins?.unidade))}>−</button>
+              <input aria-label={`Quantidade de ${ins?.nome || "ingrediente"} em ${u.sub}`} inputMode="decimal" value={l.qtd} onChange={(e) => muda(linhas.map((x, k) => (k === n ? { ...x, qtd: e.target.value } : x)))} />
+              <span>{u.sub}</span>
+              <button type="button" aria-label={`Mais ${ins?.nome || ""}`} onClick={() => ajustar(passo(ins?.unidade))}>+</button>
+            </div>
+            <button type="button" className="fin-btn-x" aria-label={`Tirar ${ins?.nome || "ingrediente"} da ficha`} onClick={() => muda(linhas.filter((_, k) => k !== n))}>✕</button>
           </div>
         );
       })}
-      <button type="button" className="ins-btn" onClick={() => setLinhas([...linhas, { insumoId: "", qtd: "" }])}>+ Adicionar insumo</button>
-      <p className="fin-explica">
-        {custo !== null ? `Custo de 1 ${produto.nome}: ${R(custo)}${Number(produto.preco) > 0 ? ` · lucro ${R(Number(produto.preco) - custo)} (${Math.round(((Number(produto.preco) - custo) / Number(produto.preco)) * 100)}%)` : ""}` : "O custo aparece quando todos os insumos da ficha tiverem preço (registre uma compra)."}
-      </p>
-      <div className="ins-modal-botoes">
-        <span className="fin-ok">{msg}</span>
-        <button type="button" className="btn-verde" onClick={salvar}>Salvar ficha</button>
+
+      <div className="ficha-por">
+        <span>Pôr ingrediente:</span>
+        <div className="ni-sug">
+          {fora.map((i) => (
+            <button type="button" key={i.id} onClick={() => muda([...linhas, { insumoId: i.id, qtd: padrao(i) }])}>
+              + {i.nome}
+            </button>
+          ))}
+          <button type="button" className="ficha-novo" onClick={() => setNovo(true)}>+ Novo ingrediente</button>
+        </div>
       </div>
+
+      <div className={`ficha-custo ${custo !== null && preco > 0 && preco - custo < 0 ? "ruim" : ""}`}>
+        {custo !== null ? (
+          <>
+            <span>Custo de 1 {produto.nome}</span>
+            <strong>{R(custo)}</strong>
+            {preco > 0 && (
+              <small>
+                vende por {R(preco)} · sobra {R(preco - custo)} ({Math.round(((preco - custo) / preco) * 100)}%) antes das taxas e despesas. Veja o preço ideal em Finanças → Preço certo.
+              </small>
+            )}
+          </>
+        ) : (
+          <span>{itens.length ? "O custo aparece quando todos os ingredientes tiverem preço." : "Ponha os ingredientes para ver quanto custa."}</span>
+        )}
+      </div>
+
+      <div className="ins-modal-botoes">
+        <span className={mudou ? "ficha-pendente" : "fin-ok"}>{mudou ? "Alterações não salvas" : msg}</span>
+        <button type="button" className="btn-verde" onClick={salvar} disabled={!mudou}>Salvar ficha</button>
+      </div>
+      {novo && (
+        <NovoInsumo
+          insumos={[...insumos, ...Object.values(criados)]}
+          fechar={() => setNovo(false)}
+          aoCriar={(ins) => {
+            setCriados((c) => ({ ...c, [ins.id]: ins }));
+            muda([...linhas, { insumoId: ins.id, qtd: padrao(ins) }]);
+          }}
+        />
+      )}
     </div>
   );
 }
