@@ -2,12 +2,12 @@ import { L } from "../../loja";
 import useNomeLoja from "../../hooks/useNomeLoja";
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { addDoc, collection, deleteDoc, doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useTaxas } from "../../utils/taxas";
 import { moeda } from "../../utils/tipoVenda";
 import { GRUPOS, SEM_CATEGORIA_FIN, TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
-import { custoDaFicha } from "../../utils/insumos";
+import { custoDaFicha, perdasNoPeriodo } from "../../utils/insumos";
 import "../../styles/Garcom/RelatorioGerencial.css";
 import "../../styles/Garcom/Financas.css";
 
@@ -26,6 +26,12 @@ const ABAS = [
   { id: "lancamentos", nome: "Lançamentos" },
   { id: "custos", nome: "Custos dos produtos" },
 ];
+
+function useMovsInsumos() {
+  const [lista, setLista] = useState(null);
+  useEffect(() => onSnapshot(query(collection(db, ...L(), "insumosMov"), orderBy("em", "desc"), limit(3000)), (s) => setLista(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => setLista([])), []);
+  return lista;
+}
 
 function useColecao(nome) {
   const [lista, setLista] = useState(null);
@@ -51,6 +57,7 @@ function Financas() {
   const lancamentos = useColecao("despesas");
   const fichas = useColecao("fichas");
   const insumos = useColecao("insumos");
+  const movs = useMovsInsumos();
   const [aba, setAba] = useState("resumo");
   const [per, setPer] = useState("mes");
   const [faixa, setFaixa] = useState(() => periodo("mes"));
@@ -69,10 +76,10 @@ function Financas() {
     });
     return { custos: { ...m, ...f }, daFicha: f };
   }, [custosDocs, fichas, insumos]);
-  const carregando = dias === null || hoje === null || produtos === null || custosDocs === null || lancamentos === null || fichas === null || insumos === null;
+  const carregando = dias === null || hoje === null || produtos === null || custosDocs === null || lancamentos === null || fichas === null || insumos === null || movs === null;
   const f = useMemo(
-    () => (carregando ? null : calcularFinancas({ vendas: juntarVendas(dias, hoje), produtos, custos, lancamentos, taxas, de: faixa.de, ate: faixa.ate })),
-    [carregando, dias, hoje, produtos, custos, lancamentos, taxas, faixa]
+    () => (carregando ? null : calcularFinancas({ vendas: juntarVendas(dias, hoje), produtos, custos, lancamentos, taxas, de: faixa.de, ate: faixa.ate, perdas: perdasNoPeriodo(movs, faixa.de, faixa.ate).total })),
+    [carregando, dias, hoje, produtos, custos, lancamentos, taxas, faixa, movs]
   );
   const categorias = useMemo(() => [...new Set((produtos || []).map((p) => String(p.categoria || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR")), [produtos]);
 
@@ -167,6 +174,7 @@ function Resumo({ f, nomeLoja, faixa, irCustos }) {
           <Linha nome="Lucro bruto" valor={f.lucroBruto} sub detalhe={f.margemBruta === null ? null : `${f.margemBruta}% das vendas`} />
           <Linha nome="Despesas variáveis" valor={-f.variaveis} detalhe="Entregador, divulgação, consertos, outras" />
           <Linha nome="Despesas fixas" valor={-f.fixas} detalhe="Aluguel, funcionários, contas, contador" />
+          {f.perdas > 0 && <Linha nome="Perdas de mercadoria" valor={-f.perdas} detalhe="Estragou, venceu ou faltou na contagem (Matéria-prima)" />}
           <Linha nome="Lucro líquido" valor={f.lucro} total detalhe={f.margem === null ? null : `${f.margem}% das vendas`} />
         </div>
         {f.equilibrio !== null && (

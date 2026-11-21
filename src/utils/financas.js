@@ -113,7 +113,7 @@ function taxaPctDaVenda(v, taxas) {
  * @param lancamentos lista ({ data: AAAA-MM-DD, valor, tipo, categoria? })
  * @param taxas    lerTaxas(...) da loja
  */
-export function calcularFinancas({ vendas, produtos, custos, lancamentos, taxas, de, ate }) {
+export function calcularFinancas({ vendas, produtos, custos, lancamentos, taxas, de, ate, perdas = 0 }) {
   const dentro = (dia) => (!de || dia >= de) && (!ate || dia <= ate);
   const porId = new Map((produtos || []).map((p) => [p.id, p]));
   const porNome = new Map((produtos || []).map((p) => [String(p.nome || "").trim().toLowerCase(), p]));
@@ -173,7 +173,8 @@ export function calcularFinancas({ vendas, produtos, custos, lancamentos, taxas,
   const custoProdutos = Object.values(cats).reduce((s, c) => s + c.custo, 0);
   const receitaLiquida = vendas$ - maquininha;
   const lucroBruto = receitaLiquida - custoProdutos;
-  const lucro = lucroBruto - g.variavel - g.fixa;
+  // Perdas de mercadoria (estragou, venceu, faltou na contagem): o que foi comprado e não virou venda.
+  const lucro = lucroBruto - g.variavel - g.fixa - perdas;
 
   // Ponto de equilíbrio: quanto vender no período para pagar as despesas fixas.
   // Margem de contribuição = o que sobra de cada R$ 1 vendido depois de maquininha, custo e variáveis.
@@ -210,6 +211,7 @@ export function calcularFinancas({ vendas, produtos, custos, lancamentos, taxas,
     margemBruta: pct(lucroBruto, vendas$),
     variaveis: r2(g.variavel),
     fixas: r2(g.fixa),
+    perdas: r2(perdas),
     lucro: r2(lucro),
     margem: pct(lucro, vendas$),
     equilibrio,

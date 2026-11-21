@@ -137,6 +137,12 @@ export async function entradaInsumo(insumo, qtd, valorPago, por) {
   await addDoc(collection(db, ...L(), "insumosMov"), { insumoId: insumo.id, nome: insumo.nome, tipo: "compra", qtd: q, valor, em: agora, por: por || "", criadoEm: serverTimestamp() });
 }
 
+/** Valor em R$ do que saiu/entrou num ajuste (pelo preço do insumo na hora). Negativo = prejuízo. */
+function valorMov(insumo, qtdComSinal) {
+  if (typeof insumo.custo !== "number") return {};
+  return { valorAjuste: Math.round(qtdComSinal * insumo.custo * 100) / 100, custoNaHora: insumo.custo };
+}
+
 /** Perda (estragou, caiu, venceu) ou contagem (a quantidade real que tem na prateleira). */
 export async function ajustarInsumo(insumo, tipo, qtd, motivo, por) {
   const q = r3(Number(qtd || 0));
@@ -145,10 +151,87 @@ export async function ajustarInsumo(insumo, tipo, qtd, motivo, por) {
   if (tipo === "perda") {
     if (!(q > 0)) throw new Error("quantidade");
     await updateDoc(doc(db, ...L(), "insumos", insumo.id), { quantidade: increment(-q), atualizadoEm: agora });
-    await addDoc(collection(db, ...L(), "insumosMov"), { insumoId: insumo.id, nome: insumo.nome, tipo: "perda", qtd: -q, motivo: motivo || "", em: agora, por: por || "", criadoEm: serverTimestamp() });
+    await addDoc(collection(db, ...L(), "insumosMov"), { insumoId: insumo.id, nome: insumo.nome, tipo: "perda", qtd: -q, ...valorMov(insumo, -q), motivo: motivo || "", em: agora, por: por || "", criadoEm: serverTimestamp() });
   } else {
     if (!(q >= 0)) throw new Error("quantidade");
     await updateDoc(doc(db, ...L(), "insumos", insumo.id), { quantidade: q, atualizadoEm: agora });
-    await addDoc(collection(db, ...L(), "insumosMov"), { insumoId: insumo.id, nome: insumo.nome, tipo: "contagem", qtd: r3(q - atual), antes: atual, depois: q, motivo: motivo || "", em: agora, por: por || "", criadoEm: serverTimestamp() });
+    await addDoc(collection(db, ...L(), "insumosMov"), { insumoId: insumo.id, nome: insumo.nome, tipo: "contagem", qtd: r3(q - atual), ...valorMov(insumo, q - atual), antes: atual, depois: q, motivo: motivo || "", em: agora, por: por || "", criadoEm: serverTimestamp() });
   }
+}
+
+/**
+ * Inventário: grava a contagem de vários insumos de uma vez. contagens = [{ insumo, qtd }].
+ * Só grava o que mudou; devolve quantos mudaram.
+ */
+export async function inventario(contagens, por) {
+  let mudou = 0;
+  for (const { insumo, qtd } of contagens) {
+    const q = r3(Number(qtd));
+    if (!Number.isFinite(q) || q < 0) continue;
+    if (r3(Number(insumo.quantidade || 0)) === q) continue;
+    await ajustarInsumo(insumo, "contagem", q, "Inventário", por);
+    mudou += 1;
+  }
+  return mudou;
+}
+
+/** Quantas unidades do produto dá para fazer com o estoque de hoje (null sem ficha). */
+export function daParaQuantos(ficha, insumosPorId) {
+  const itens = (ficha?.itens || []).filter((it) => Number(it.qtd) > 0);
+  if (!itens.length) return null;
+  let min = Infinity;
+  let limitante = null;
+  for (const it of itens) {
+    const ins = insumosPorId[it.insumoId];
+    if (!ins) return null;
+    const n = Math.max(0, Math.floor((Number(ins.quantidade || 0) + 1e-9) / Number(it.qtd)));
+    if (n < min) {
+      min = n;
+      limitante = ins.nome;
+    }
+  }
+  return { quantos: min, limitante };
+}
+
+/**
+ * Consumo médio por dia de cada insumo nas vendas dos últimos `dias` dias e em quantos dias acaba.
+ * movs: insumosMov. Devolve { [insumoId]: { porDia, acabaEm } } (acabaEm null sem consumo).
+ */
+export function previsao(insumos, movs, dias = 14, agora = Date.now()) {
+  const desde = new Date(agora - dias * 86400000).toISOString();
+  const gasto = {};
+  (movs || []).forEach((m) => {
+    if (m.tipo !== "venda" || String(m.em) < desde) return;
+    gasto[m.insumoId] = (gasto[m.insumoId] || 0) + Math.abs(Number(m.qtd || 0));
+  });
+  const out = {};
+  (insumos || []).forEach((i) => {
+    const porDia = (gasto[i.id] || 0) / dias;
+    out[i.id] = { porDia: r3(porDia), acabaEm: porDia > 0 ? Math.max(0, Math.floor(Number(i.quantidade || 0) / porDia)) : null };
+  });
+  return out;
+}
+
+/**
+ * Perdas em R$ no período (AAAA-MM-DD, horário do aparelho): o que foi lançado como perda e o que faltou
+ * nas contagens. Sobra na contagem não vira lucro (só corrige o estoque).
+ */
+export function perdasNoPeriodo(movs, de, ate) {
+  const dia = (iso) => {
+    const d = new Date(iso);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  };
+  let perdas = 0;
+  let faltas = 0;
+  const lista = [];
+  (movs || []).forEach((m) => {
+    if (!m.em || typeof m.valorAjuste !== "number" || m.valorAjuste >= 0) return;
+    const d = dia(m.em);
+    if ((de && d < de) || (ate && d > ate)) return;
+    if (m.tipo === "perda") perdas += -m.valorAjuste;
+    else if (m.tipo === "contagem") faltas += -m.valorAjuste;
+    else return;
+    lista.push(m);
+  });
+  return { perdas: Math.round(perdas * 100) / 100, faltas: Math.round(faltas * 100) / 100, total: Math.round((perdas + faltas) * 100) / 100, lista: lista.sort((a, b) => String(b.em).localeCompare(String(a.em))) };
 }
