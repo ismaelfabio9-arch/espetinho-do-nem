@@ -151,3 +151,27 @@
 .ficha-do-prato { border-color: var(--green) !important; font-weight: 800 !important; }
 .ficha-do-prato.novo small { font-weight: 500; color: var(--muted); }
 .ficha-dica { display: block; margin-top: 6px; color: var(--muted); font-size: 12.5px; }
+
+/* Custo por recheio, tamanho e adicional */
+.ficha-opcoes { display: grid; gap: 8px; margin-top: 6px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.ficha-op { border: 1px solid var(--border); border-radius: 12px; background: var(--card); overflow: hidden; }
+.ficha-op.aberta { border-color: var(--green); }
+.ficha-op-topo { width: 100%; display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; background: none; border: 0; color: var(--text); text-align: left; cursor: pointer; font-size: 15px; }
+.ficha-op-topo small { display: block; color: var(--muted); font-size: 12px; font-weight: 500; margin-top: 2px; }
+.ficha-op-custo { font-size: 13px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.ficha-op-falta { font-size: 13px; font-weight: 700; color: var(--orange); white-space: nowrap; }
+.ficha-op-corpo { display: grid; gap: 8px; padding: 0 12px 12px; }
+.ficha-op-titulo { margin: 0; font-size: 14px; }
+.tv { display: grid; gap: 8px; }
+.tv-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.tv-linha { display: flex; justify-content: space-between; align-items: center; gap: 10px; background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; }
+.tv-linha.baixo { border-color: var(--orange); }
+.tv-nome { min-width: 0; }
+.tv-nome b { display: block; font-size: 15px; color: var(--text); }
+.ficha-op-topo b { color: var(--text); }
+.tv-nome small, .tv-lucro small { display: block; color: var(--muted); font-size: 12px; }
+.tv-lucro { text-align: right; white-space: nowrap; }
+.tv-lucro b { font-size: 16px; }
+.tv-ideal { color: var(--orange) !important; font-weight: 700; }
+.pc-item .tv { margin: 6px 0 4px; }
+.pnp-titulo { margin: 0 0 6px; font-weight: 700; font-size: 14px; }

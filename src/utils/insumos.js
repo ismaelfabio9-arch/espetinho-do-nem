@@ -50,14 +50,88 @@ export function custoDaFicha(ficha, insumosPorId) {
   return Math.round(total * 100) / 100;
 }
 
-/** Soma o que cada insumo gasta nos itens vendidos: { insumoId: qtd }. */
+// ---------- custo por recheio, sabor, tamanho e adicional ----------
+// fichas/<produtoId>.opcoes = [{ grupo: "Recheio", opcao: "Carne", itens }] e, para os adicionais,
+// { grupo: "+", opcao: "Catupiry", itens }. A ficha "itens" é o que vai em todos (massa, óleo, embalagem);
+// cada opção soma os ingredientes dela.
+export const GRUPO_ADICIONAL = "+";
+const mesmo = (a, b) => String(a || "").trim().toLowerCase() === String(b || "").trim().toLowerCase();
+export const itensDaOpcao = (ficha, grupo, opcao) => (ficha?.opcoes || []).find((o) => mesmo(o.grupo, grupo) && mesmo(o.opcao, opcao))?.itens || [];
+
+/** O que sai do estoque em 1 unidade com a escolha do cliente (montagem do item do pedido). */
+export function itensDaVenda(ficha, escolha) {
+  const out = [...(ficha?.itens || [])];
+  Object.entries(escolha?.escolhas || {}).forEach(([g, op]) => out.push(...itensDaOpcao(ficha, g, op)));
+  (escolha?.extras || []).forEach((nome) => out.push(...itensDaOpcao(ficha, GRUPO_ADICIONAL, nome)));
+  return out;
+}
+
+/** Custo de uma lista de itens (null se faltar preço de algum; 0 se a lista for vazia). */
+export function custoDosItens(itens, insumosPorId) {
+  if (!(itens || []).length) return 0;
+  return custoDaFicha({ itens }, insumosPorId);
+}
+
+/** Custo de 1 unidade com a escolha (null se faltar preço ou se não tiver ficha nenhuma). */
+export function custoDaEscolha(ficha, escolha, insumosPorId) {
+  const itens = itensDaVenda(ficha, escolha);
+  return itens.length ? custoDaFicha({ itens }, insumosPorId) : null;
+}
+
+/** A escolha padrão (1ª opção de cada grupo, sem adicional) = o preço que aparece no cardápio. */
+export function escolhaInicial(produto) {
+  const escolhas = {};
+  (produto?.montagem?.escolhas || []).forEach((g) => {
+    if ((g.opcoes || []).length) escolhas[g.nome] = g.opcoes[0];
+  });
+  return { escolhas, extras: [] };
+}
+
+/** Custo do produto como aparece no cardápio (base + 1ª opção de cada grupo). */
+export const custoPadrao = (ficha, produto, insumosPorId) => custoDaEscolha(ficha, escolhaInicial(produto), insumosPorId);
+
+/** Prato de almoço (o mesmo critério de tipoDe em montagem.js: sem tipo e com "vem no prato" = prato). */
+export const ehPrato = (produto) => produto?.tipo === "prato" || (!produto?.tipo && (produto?.montagem?.vem || []).length > 0);
+
+const precoDe = (g, op) => {
+  const v = Number(g?.precos?.[op]);
+  return Number.isFinite(v) && v > 0 ? v : 0;
+};
+
+/**
+ * Cada jeito de vender o produto (Pastel de queijo, Pastel de carne… ou Açaí 300 ml / 500 ml), com preço e
+ * custo, e cada adicional (Catupiry) com o que cobra e o que custa. Até 24 combinações.
+ */
+export function variacoesDoProduto(produto, ficha, insumosPorId) {
+  const m = produto?.montagem || {};
+  const base = Number(produto?.preco || 0);
+  // No prato de almoço as escolhas (feijão, salada) já entram no prato: aqui só os adicionais.
+  const grupos = ehPrato(produto) ? [] : (m.escolhas || []).filter((g) => (g.opcoes || []).length);
+  let combos = [{ nomes: [], escolhas: {}, preco: base }];
+  for (const g of grupos) {
+    const prox = [];
+    for (const c of combos) for (const op of g.opcoes) prox.push({ nomes: [...c.nomes, op], escolhas: { ...c.escolhas, [g.nome]: op }, preco: c.preco + precoDe(g, op) });
+    combos = prox.slice(0, 24);
+  }
+  const linhas = grupos.length
+    ? combos.map((c) => ({ nome: c.nomes.join(" · "), escolhas: c.escolhas, preco: Math.round(c.preco * 100) / 100, custo: custoDaEscolha(ficha, { escolhas: c.escolhas }, insumosPorId) }))
+    : [];
+  const extras = (m.extras || []).map((e) => {
+    const itens = itensDaOpcao(ficha, GRUPO_ADICIONAL, e.nome);
+    return { nome: e.nome, preco: Number(e.preco || 0), custo: itens.length ? custoDaFicha({ itens }, insumosPorId) : null };
+  });
+  return { linhas, extras };
+}
+
+/** Soma o que cada insumo gasta nos itens vendidos: { insumoId: qtd }. Usa o recheio/tamanho/adicional escolhido. */
 export function consumoDosItens(itens, fichas) {
   const out = {};
   (itens || []).forEach((item) => {
     const ficha = fichas[item.produtoId];
-    if (!ficha?.itens?.length) return;
+    const usados = itensDaVenda(ficha, item.montagem);
+    if (!usados.length) return;
     const q = qtdItem(item);
-    ficha.itens.forEach((it) => {
+    usados.forEach((it) => {
       if (!it.insumoId || !(Number(it.qtd) > 0)) return;
       out[it.insumoId] = r3((out[it.insumoId] || 0) + Number(it.qtd) * q);
     });

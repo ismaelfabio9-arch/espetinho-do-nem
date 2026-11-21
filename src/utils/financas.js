@@ -112,8 +112,9 @@ function taxaPctDaVenda(v, taxas) {
  * @param custos   { [produtoId]: número }
  * @param lancamentos lista ({ data: AAAA-MM-DD, valor, tipo, categoria? })
  * @param taxas    lerTaxas(...) da loja
+ * @param custoDoItem (item, produto) → custo de 1 unidade com o recheio/tamanho/adicional escolhido (ou null)
  */
-export function calcularFinancas({ vendas, produtos, custos, lancamentos, taxas, de, ate, perdas = 0 }) {
+export function calcularFinancas({ vendas, produtos, custos, lancamentos, taxas, de, ate, perdas = 0, custoDoItem }) {
   const dentro = (dia) => (!de || dia >= de) && (!ate || dia <= ate);
   const porId = new Map((produtos || []).map((p) => [p.id, p]));
   const porNome = new Map((produtos || []).map((p) => [String(p.nome || "").trim().toLowerCase(), p]));
@@ -140,7 +141,8 @@ export function calcularFinancas({ vendas, produtos, custos, lancamentos, taxas,
       const valor = Number(item.preco || 0) * q;
       const p = acharProduto(item);
       const nomeCat = (p?.categoria && String(p.categoria).trim()) || SEM_CATEGORIA_FIN;
-      const custoUn = p && typeof custos?.[p.id] === "number" ? custos[p.id] : null;
+      const doItem = p && custoDoItem ? custoDoItem(item, p) : null;
+      const custoUn = typeof doItem === "number" ? doItem : p && typeof custos?.[p.id] === "number" ? custos[p.id] : null;
       const c = cat(nomeCat);
       itensVendido += valor;
       c.vendido += valor;

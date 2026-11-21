@@ -4,7 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { addDoc, collection, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { L } from "../loja";
-import { custoDaFicha, daFicha, daParaQuantos, paraFicha, unidadeDe } from "../utils/insumos";
+import { GRUPO_ADICIONAL, custoDaFicha, escolhaInicial, custoPadrao, daFicha, daParaQuantos, paraFicha, unidadeDe, variacoesDoProduto } from "../utils/insumos";
+import { tipoDe } from "../utils/montagem";
 import { calcularFinancas, isoDia, juntarVendas, lerValor } from "../utils/financas";
 import { percentuaisDaLoja, percentuaisFinais, precoDoProduto } from "../utils/precificacao";
 import { useTaxas } from "../utils/taxas";
@@ -25,7 +26,9 @@ const sem = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, 
 function doCadastro(produto) {
   const m = produto?.montagem;
   if (!m) return [];
-  const nomes = [...(m.vem || []), ...(m.escolhas || []).map((e) => e.nome)].map((n) => String(n || "").trim()).filter(Boolean);
+  // Os grupos de escolha (Feijão, Salada) são comida só no prato de almoço; no pastel "Recheio" não é ingrediente.
+  const grupos = tipoDe(produto) === "prato" ? (m.escolhas || []).map((e) => e.nome) : [];
+  const nomes = [...(m.vem || []), ...grupos].map((n) => String(n || "").trim()).filter(Boolean);
   return nomes.filter((n, i) => nomes.findIndex((x) => sem(x) === sem(n)) === i);
 }
 /** O ingrediente que corresponde a um item do prato ("Arroz" → "Arroz branco"). */
@@ -241,51 +244,13 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
   );
 }
 
-function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
-  const [criados, setCriados] = useState({}); // ingredientes criados aqui (até o banco devolver)
-  const todos = { ...criados, ...porId };
-  const inicial = () => (ficha?.itens || []).map((it) => ({ insumoId: it.insumoId, qtd: String(paraFicha(it.qtd, porId[it.insumoId]?.unidade)).replace(".", ",") }));
-  const [linhas, setLinhas] = useState(inicial);
-  const [mudou, setMudou] = useState(false);
-  const [novo, setNovo] = useState(false);
-  const [msg, setMsg] = useState("");
-  const muda = (l) => {
-    setLinhas(l);
-    setMudou(true);
-    setMsg("");
-  };
-  const itens = linhas.filter((l) => l.insumoId && num(l.qtd) > 0).map((l) => ({ insumoId: l.insumoId, qtd: daFicha(l.qtd, todos[l.insumoId]?.unidade) }));
-  const custo = custoDaFicha({ itens }, todos);
-  const preco = Number(String(precoAtual ?? produto.preco ?? "").replace(",", ".")) || 0;
-  const custoTxt = custo === null ? "" : String(custo);
-  const temItens = itens.length > 0;
-  useEffect(() => {
-    onCusto?.(custoTxt === "" ? null : Number(custoTxt), temItens);
-  }, [custoTxt, temItens, onCusto]);
-  const fora = [...insumos, ...Object.values(criados).filter((c) => !porId[c.id])].filter((i) => !linhas.some((l) => l.insumoId === i.id));
-  const padrao = (i) => (i.unidade === "un" ? "1" : "100");
+/** Linhas de ingredientes (quanto de cada) + os botões para pôr mais. Usada no que vai em todos e em cada opção. */
+function LinhasFicha({ linhas, muda, todos, lista, novo, extra = null, vazio }) {
+  const fora = lista.filter((i) => !linhas.some((l) => l.insumoId === i.id));
   const passo = (un) => (un === "un" ? 1 : 10);
-
-  // Salva sozinha um instante depois de cada mudança (sem botão a mais na tela do produto).
-  const itensJson = JSON.stringify(itens);
-  useEffect(() => {
-    if (!mudou) return undefined;
-    const t = setTimeout(async () => {
-      try {
-        await setDoc(doc(db, ...L(), "fichas", produto.id), { itens: JSON.parse(itensJson), nome: produto.nome, atualizadoEm: new Date().toISOString() });
-        setMudou(false);
-        setMsg("✓ Ingredientes salvos");
-      } catch {
-        setMsg("Não foi possível salvar. Confira a internet.");
-      }
-    }, 700);
-    return () => clearTimeout(t);
-  }, [itensJson, mudou, produto.id, produto.nome]);
-
   return (
-    <div className="ins-ficha">
-      <p className="ficha-titulo">O que vai em 1 <b>{produto.nome}</b>?</p>
-      {linhas.length === 0 && <p className="fin-explica">Toque nos ingredientes abaixo para pôr na ficha.</p>}
+    <>
+      {linhas.length === 0 && vazio && <p className="fin-explica">{vazio}</p>}
       {linhas.map((l, n) => {
         const ins = todos[l.insumoId];
         const u = unidadeDe(ins?.unidade);
@@ -308,84 +273,269 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
           </div>
         );
       })}
-
-      {(() => {
-        const todosIns = [...insumos, ...Object.values(criados).filter((c) => !porId[c.id])];
-        const faltam = doCadastro(produto).filter((n) => {
-          const ins = acharInsumo(todosIns, n);
-          return !ins || !linhas.some((l) => l.insumoId === ins.id);
-        });
-        if (!faltam.length) return null;
-        return (
-          <div className="ficha-por ficha-cadastro">
-            <span>Vem neste prato (do cadastro dele):</span>
-            <div className="ni-sug">
-              {faltam.map((n) => {
-                const ins = acharInsumo(todosIns, n);
-                return ins ? (
-                  <button type="button" key={n} className="ficha-do-prato" onClick={() => muda([...linhas, { insumoId: ins.id, qtd: padrao(ins) }])}>
-                    + {ins.nome}
-                  </button>
-                ) : (
-                  <button type="button" key={n} className="ficha-do-prato novo" onClick={() => setNovo({ nome: n })}>
-                    + {n} <small>(cadastrar o preço)</small>
-                  </button>
-                );
-              })}
-            </div>
-            <small className="ficha-dica">Falta a carne ou outro item principal? Toque em + Novo ingrediente abaixo.</small>
-          </div>
-        );
-      })()}
-
+      {extra}
       <div className="ficha-por">
         <span>Pôr ingrediente:</span>
         <div className="ni-sug">
           {fora.map((i) => (
-            <button type="button" key={i.id} onClick={() => muda([...linhas, { insumoId: i.id, qtd: padrao(i) }])}>
+            <button type="button" key={i.id} onClick={() => muda([...linhas, { insumoId: i.id, qtd: i.unidade === "un" ? "1" : "100" }])}>
               + {i.nome}
             </button>
           ))}
-          <button type="button" className="ficha-novo" onClick={() => setNovo(true)}>+ Novo ingrediente</button>
+          <button type="button" className="ficha-novo" onClick={() => novo()}>+ Novo ingrediente</button>
         </div>
       </div>
+    </>
+  );
+}
 
-      <div className={`ficha-custo ${custo !== null && preco > 0 && preco - custo < 0 ? "ruim" : ""}`}>
-        {custo !== null ? (
-          <>
-            <span>Só de ingredientes, 1 {produto.nome} custa</span>
-            <strong>{R(custo)}</strong>
-            {(() => {
-              const da = daParaQuantos({ itens }, todos);
-              return da ? <small className="ficha-da">{da.quantos === 0 ? `${da.limitante} está sem estoque registrado (registre a compra em Estoque para o sistema contar quantos dá para fazer)` : `Com o estoque de hoje dá para fazer mais ${da.quantos}${da.quantos <= 5 ? ` (${da.limitante} acabando)` : ""}`}</small> : null;
-            })()}
-            {preco > 0 && (
-              <small>
-                vende por {R(preco)} · sobra {R(preco - custo)} ({Math.round(((preco - custo) / preco) * 100)}%) depois do custo
-              </small>
-            )}
-          </>
-        ) : (
-          <span>{itens.length ? "O custo aparece quando todos os ingredientes tiverem preço." : "Ponha os ingredientes para ver quanto custa."}</span>
-        )}
+const SEP = "\u0001";
+const chaveOp = (grupo, opcao) => `${grupo}${SEP}${opcao}`;
+/** Recheios, sabores, tamanhos e adicionais do cadastro do produto (cada um pode ter os ingredientes dele). */
+function opcoesDoCadastro(produto) {
+  const m = produto?.montagem || {};
+  const out = [];
+  // No prato de almoço o feijão e a salada já vão no prato (lá em cima): aqui só os adicionais cobrados.
+  if (tipoDe(produto) !== "prato") (m.escolhas || []).forEach((g) => (g.opcoes || []).forEach((op) => out.push({ grupo: g.nome, opcao: op, preco: Number(g.precos?.[op]) > 0 ? Number(g.precos[op]) : 0 })));
+  (m.extras || []).forEach((e) => out.push({ grupo: GRUPO_ADICIONAL, opcao: e.nome, preco: Number(e.preco || 0) }));
+  return out;
+}
+const paraLinhas = (itens, porId) => (itens || []).map((it) => ({ insumoId: it.insumoId, qtd: String(paraFicha(it.qtd, porId[it.insumoId]?.unidade)).replace(".", ",") }));
+
+/** Cada jeito de vender (Pastel de queijo, de carne…) e cada adicional: custo, preço e o que sobra limpo. */
+export function TabelaVariacoes({ produto, variacoes, p }) {
+  const { linhas, extras } = variacoes;
+  if (!linhas.length && !extras.length) return null;
+  const conta = (custo, preco) => (p && typeof custo === "number" ? precoDoProduto(custo, preco, p) : null);
+  const Linha = ({ nome, custo, preco, adicional }) => {
+    const r = conta(custo, preco);
+    const ok = r && (r.situacao === "bom" || r.situacao === "baixo");
+    return (
+      <li className={`tv-linha ${ok ? r.situacao : "sem"}`}>
+        <span className="tv-nome">
+          <b>{adicional ? `+ ${nome}` : nome}</b>
+          <small>
+            {typeof custo === "number" ? `custo ${R(custo)} · ${adicional ? "cobra" : "vende"} ${R(preco)}` : adicional ? `cobra ${R(preco)} · falta pôr os ingredientes` : `vende ${R(preco)} · falta o preço de algum ingrediente`}
+          </small>
+        </span>
+        {ok ? (
+          <span className="tv-lucro">
+            <small>lucro limpo</small>
+            <b className={r.lucroReal < 0 ? "fin-neg" : "pc-verde"}>{R(r.lucroReal)}</b>
+            {r.situacao === "baixo" && <small className="tv-ideal">ideal {R(r.sugerido)}</small>}
+          </span>
+        ) : typeof custo === "number" && !p ? (
+          <span className="tv-lucro"><small>sobra</small><b>{R(preco - custo)}</b></span>
+        ) : null}
+      </li>
+    );
+  };
+  return (
+    <div className="tv">
+      <p className="ficha-titulo">Quanto custa e quanto sobra em cada um</p>
+      {linhas.length > 0 && (
+        <ul className="tv-lista" aria-label={`Cada ${produto.nome}`}>
+          {linhas.map((l) => <Linha key={l.nome} nome={`${produto.nome} ${l.nome}`} custo={l.custo} preco={l.preco} />)}
+        </ul>
+      )}
+      {extras.length > 0 && (
+        <ul className="tv-lista" aria-label="Adicionais">
+          {extras.map((e) => <Linha key={e.nome} adicional nome={e.nome} custo={e.custo} preco={e.preco} />)}
+        </ul>
+      )}
+      <small className="ficha-dica">O lucro limpo já tira a maquininha, os impostos e a parte das despesas da loja (as contas do Preço certo).</small>
+    </div>
+  );
+}
+
+function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
+  const [criados, setCriados] = useState({}); // ingredientes criados aqui (até o banco devolver)
+  const todos = { ...criados, ...porId };
+  const [linhas, setLinhas] = useState(() => paraLinhas(ficha?.itens, porId));
+  const [opc, setOpc] = useState(() => Object.fromEntries((ficha?.opcoes || []).map((o) => [chaveOp(o.grupo, o.opcao), paraLinhas(o.itens, porId)])));
+  const [aberta, setAberta] = useState(null);
+  const [mudou, setMudou] = useState(false);
+  const [novo, setNovo] = useState(false); // { nome?, destino: chave da opção | null }
+  const [msg, setMsg] = useState("");
+  const p = usePercentuaisPreco();
+  const opcoes = opcoesDoCadastro(produto);
+  const temOpcoes = opcoes.length > 0;
+  const temGrupos = opcoes.some((o) => o.grupo !== GRUPO_ADICIONAL); // recheio, sabor, tamanho
+  const tocou = () => {
+    setMudou(true);
+    setMsg("");
+  };
+  const muda = (l) => {
+    setLinhas(l);
+    tocou();
+  };
+  const mudaOp = (k) => (l) => {
+    setOpc((o) => ({ ...o, [k]: l }));
+    tocou();
+  };
+  const paraItens = (ls) => (ls || []).filter((l) => l.insumoId && num(l.qtd) > 0).map((l) => ({ insumoId: l.insumoId, qtd: daFicha(l.qtd, todos[l.insumoId]?.unidade) }));
+  const itens = paraItens(linhas);
+  const fichaAtual = {
+    itens,
+    opcoes: opcoes.map((o) => ({ grupo: o.grupo, opcao: o.opcao, itens: paraItens(opc[chaveOp(o.grupo, o.opcao)]) })).filter((o) => o.itens.length),
+  };
+  const custoBase = custoDaFicha({ itens }, todos);
+  const custo = temGrupos ? custoPadrao(fichaAtual, produto, todos) : custoBase;
+  const preco = Number(String(precoAtual ?? produto.preco ?? "").replace(",", ".")) || 0;
+  const custoTxt = custo === null || custo === undefined ? "" : String(custo);
+  const temItens = itens.length > 0 || fichaAtual.opcoes.length > 0;
+  useEffect(() => {
+    onCusto?.(custoTxt === "" ? null : Number(custoTxt), temItens);
+  }, [custoTxt, temItens, onCusto]);
+  const lista = [...insumos, ...Object.values(criados).filter((c) => !porId[c.id])];
+
+  // Salva sozinha um instante depois de cada mudança (sem botão a mais na tela do produto).
+  const fichaJson = JSON.stringify(fichaAtual);
+  useEffect(() => {
+    if (!mudou) return undefined;
+    const t = setTimeout(async () => {
+      try {
+        await setDoc(doc(db, ...L(), "fichas", produto.id), { ...JSON.parse(fichaJson), nome: produto.nome, atualizadoEm: new Date().toISOString() });
+        setMudou(false);
+        setMsg("✓ Ingredientes salvos");
+      } catch {
+        setMsg("Não foi possível salvar. Confira a internet.");
+      }
+    }, 700);
+    return () => clearTimeout(t);
+  }, [fichaJson, mudou, produto.id, produto.nome]);
+
+  const doPrato = (() => {
+    const faltam = doCadastro(produto).filter((n) => {
+      const ins = acharInsumo(lista, n);
+      return !ins || !linhas.some((l) => l.insumoId === ins.id);
+    });
+    if (!faltam.length) return null;
+    return (
+      <div className="ficha-por ficha-cadastro">
+        <span>Vem neste prato (do cadastro dele):</span>
+        <div className="ni-sug">
+          {faltam.map((n) => {
+            const ins = acharInsumo(lista, n);
+            return ins ? (
+              <button type="button" key={n} className="ficha-do-prato" onClick={() => muda([...linhas, { insumoId: ins.id, qtd: ins.unidade === "un" ? "1" : "100" }])}>
+                + {ins.nome}
+              </button>
+            ) : (
+              <button type="button" key={n} className="ficha-do-prato novo" onClick={() => setNovo({ nome: n, destino: null })}>
+                + {n} <small>(cadastrar o preço)</small>
+              </button>
+            );
+          })}
+        </div>
+        <small className="ficha-dica">Falta a carne ou outro item principal? Toque em + Novo ingrediente abaixo.</small>
       </div>
+    );
+  })();
+
+  const nomeGrupo = (g) => (g === GRUPO_ADICIONAL ? "Adicional" : g);
+  const semIngredientes = opcoes.filter((o) => o.grupo !== GRUPO_ADICIONAL && !paraItens(opc[chaveOp(o.grupo, o.opcao)]).length);
+
+  return (
+    <div className="ins-ficha">
+      {temGrupos ? (
+        <>
+          <p className="ficha-titulo">O que vai em <b>todo</b> {produto.nome}, seja qual for {[...new Set(opcoes.filter((o) => o.grupo !== GRUPO_ADICIONAL).map((o) => `o ${String(o.grupo).toLowerCase()}`))].join(" ou ")}?</p>
+          <small className="ficha-dica">Ex.: embalagem, copo, colher (no pastel: a massa e o óleo). O que muda de um para o outro vai logo abaixo.</small>
+        </>
+      ) : (
+        <p className="ficha-titulo">O que vai em 1 <b>{produto.nome}</b>?</p>
+      )}
+      <LinhasFicha
+        linhas={linhas}
+        muda={muda}
+        todos={todos}
+        lista={lista}
+        novo={() => setNovo({ destino: null })}
+        extra={doPrato}
+        vazio={temGrupos ? "Se não tiver nada em comum, pode deixar vazio." : "Toque nos ingredientes abaixo para pôr na ficha."}
+      />
+
+      {temOpcoes && (
+        <div className="ficha-opcoes">
+          <p className="ficha-titulo">{temGrupos ? "O que vai a mais em cada um" : "Adicionais cobrados à parte"}</p>
+          <small className="ficha-dica">Toque em cada {temGrupos ? "recheio, sabor ou tamanho" : "adicional"}{temGrupos && opcoes.some((o) => o.grupo === GRUPO_ADICIONAL) ? " e adicional" : ""} e ponha o que ele leva.</small>
+          {opcoes.map((o) => {
+            const k = chaveOp(o.grupo, o.opcao);
+            const its = paraItens(opc[k]);
+            const c = its.length ? custoDaFicha({ itens: its }, todos) : null;
+            const ab = aberta === k;
+            return (
+              <div key={k} className={`ficha-op ${ab ? "aberta" : ""}`}>
+                <button type="button" className="ficha-op-topo" aria-expanded={ab} onClick={() => setAberta(ab ? null : k)}>
+                  <span>
+                    <b>{nomeGrupo(o.grupo)}: {o.opcao}</b>
+                    <small>{o.preco > 0 ? `+ ${R(o.preco)} no preço` : o.grupo === GRUPO_ADICIONAL ? "sem preço" : "preço do produto"}</small>
+                  </span>
+                  <span className={its.length ? "ficha-op-custo" : "ficha-op-falta"}>
+                    {its.length ? (c !== null ? `${R(c)} de ingredientes` : "falta preço") : "pôr ingredientes"} {ab ? "▲" : "▼"}
+                  </span>
+                </button>
+                {ab && (
+                  <div className="ficha-op-corpo">
+                    <p className="ficha-op-titulo">O que vai a mais {o.grupo === GRUPO_ADICIONAL ? "no adicional" : "em"} <b>{o.opcao}</b>?</p>
+                    <LinhasFicha linhas={opc[k] || []} muda={mudaOp(k)} todos={todos} lista={lista} novo={() => setNovo({ destino: k })} />
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {temGrupos ? (
+        <>
+          {semIngredientes.length > 0 && (
+            <p className="fin-aviso">Ainda sem ingredientes: {semIngredientes.map((o) => o.opcao).join(", ")}. Enquanto isso, o custo deles conta só o que vai em todos.</p>
+          )}
+          <TabelaVariacoes produto={produto} variacoes={variacoesDoProduto(produto, fichaAtual, todos)} p={p} />
+        </>
+      ) : (
+        <div className={`ficha-custo ${custo !== null && preco > 0 && preco - custo < 0 ? "ruim" : ""}`}>
+          {custo !== null ? (
+            <>
+              <span>Só de ingredientes, 1 {produto.nome} custa</span>
+              <strong>{R(custo)}</strong>
+              {(() => {
+                const da = daParaQuantos({ itens }, todos);
+                return da ? <small className="ficha-da">{da.quantos === 0 ? `${da.limitante} está sem estoque registrado (registre a compra em Estoque para o sistema contar quantos dá para fazer)` : `Com o estoque de hoje dá para fazer mais ${da.quantos}${da.quantos <= 5 ? ` (${da.limitante} acabando)` : ""}`}</small> : null;
+              })()}
+              {preco > 0 && (
+                <small>
+                  vende por {R(preco)} · sobra {R(preco - custo)} ({Math.round(((preco - custo) / preco) * 100)}%) depois do custo
+                </small>
+              )}
+            </>
+          ) : (
+            <span>{itens.length ? "O custo aparece quando todos os ingredientes tiverem preço." : "Ponha os ingredientes para ver quanto custa."}</span>
+          )}
+        </div>
+      )}
+
+      {!temGrupos && temOpcoes && <TabelaVariacoes produto={produto} variacoes={variacoesDoProduto(produto, fichaAtual, todos)} p={p} />}
 
       <p className={mudou ? "ficha-pendente" : "fin-ok ficha-ok"} aria-live="polite">{mudou ? "Salvando…" : msg}</p>
       {novo && (
         <NovoInsumo
-          insumos={[...insumos, ...Object.values(criados)]}
-          nomeInicial={typeof novo === "object" ? novo.nome : ""}
+          insumos={lista}
+          nomeInicial={novo.nome || ""}
           fechar={() => setNovo(false)}
           aoCriar={(ins) => {
             setCriados((c) => ({ ...c, [ins.id]: ins }));
-            muda([...linhas, { insumoId: ins.id, qtd: padrao(ins) }]);
+            const linha = { insumoId: ins.id, qtd: ins.unidade === "un" ? "1" : "100" };
+            if (novo.destino) mudaOp(novo.destino)([...(opc[novo.destino] || []), linha]);
+            else muda([...linhas, linha]);
           }}
         />
       )}
     </div>
   );
 }
-
 
 /** Percentuais do Preço certo (Finanças) já calculados: config salva + movimento dos últimos 30 dias. */
 export function usePercentuaisPreco() {
@@ -406,7 +556,7 @@ export function usePercentuaisPreco() {
 }
 
 /** Resumo do preço certo de um produto (custo, preço de hoje e o sugerido). */
-export function PrecoNoProduto({ custo, preco }) {
+export function PrecoNoProduto({ custo, preco, titulo }) {
   const p = usePercentuaisPreco();
   if (p === null || typeof custo !== "number") return null;
   const r = precoDoProduto(custo, Number(String(preco ?? "").replace(",", ".")) || 0, p);
@@ -416,6 +566,7 @@ export function PrecoNoProduto({ custo, preco }) {
   const d = r.noSugerido;
   return (
     <div className={`pnp ${r.situacao}`}>
+      {titulo && <p className="pnp-titulo">{titulo}</p>}
       <div className="pnp-conta">
         <span>Só de ingredientes (comida)</span><b>{R(d.custo)}</b>
         {d.taxas > 0 && (<><span>+ Maquininha e impostos</span><b>{R(d.taxas)}</b></>)}
@@ -463,7 +614,10 @@ export function FichaDoProduto({ produto, precoAtual }) {
           </span>
         </label>
       )}
-      <PrecoNoProduto custo={custo} preco={precoAtual ?? produto.preco} />
+      <PrecoNoProduto custo={custo} preco={precoAtual ?? produto.preco} titulo={(() => {
+        const ini = Object.values(escolhaInicial(produto).escolhas);
+        return ini.length ? `A conta inteira de 1 ${produto.nome} ${ini.join(" · ")} (o preço do cardápio)` : "";
+      })()} />
     </div>
   );
 }
