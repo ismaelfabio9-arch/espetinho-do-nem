@@ -34,7 +34,7 @@ export function Vendas() {
 
 /** Estoque: ingredientes (com contagem, perdas e histórico) e a quantidade do dia por produto, numa fileira de abas só. */
 function EstoqueArea() {
-  const ingredientes = useRecurso("financas");
+  const ingredientes = useRecurso("custos");
   const doDia = useRecurso("estoque");
   if (ingredientes) return <Insumos embutido dia={doDia ? <Estoque /> : null} />;
   return (
@@ -72,7 +72,7 @@ export function CardapioArea() {
         {
           id: "preco",
           nome: "Preço certo",
-          recurso: "financas",
+          recurso: "custos",
           tela: () => <Financas abas={["preco"]} titulo="Preço certo" texto="Quanto custa cada produto, por quanto vender e quanto sobra de lucro." />,
         },
       ]}

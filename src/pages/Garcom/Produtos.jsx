@@ -43,7 +43,7 @@ const normalizar = (t) =>
 
 function Produtos() {
   // Planos Completo e Premium: ingredientes (ficha técnica), custo e preço certo dentro do produto.
-  const financasLigado = useRecurso("financas");
+  const financasLigado = useRecurso("custos");
   const [produtos, setProdutos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   // Editar produto: toca na linha e abre a ficha (nome, preço, categoria, opções e excluir).
