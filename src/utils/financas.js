@@ -52,7 +52,7 @@ export const SEM_CATEGORIA_FIN = "Sem categoria";
 
 const num = (v) => {
   const t = String(v ?? "").trim();
-  const n = Number(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t);
+  const n = Number(t.includes(",") || /^\d{1,3}(\.\d{3})+$/.test(t) ? t.replace(/\./g, "").replace(",", ".") : t);
   return Number.isFinite(n) ? n : 0;
 };
 /** "12,50" ou "1.234,50" → 12.5 / 1234.5 (valor de dinheiro digitado). */

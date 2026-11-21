@@ -463,6 +463,7 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
   const [aberto, setAberto] = useState(null);
   const [soAbaixo, setSoAbaixo] = useState(false);
   const [msg, setMsg] = useState("");
+  const [detalhe, setDetalhe] = useState({}); // { fixas: true } lista aberta
   useEffect(
     () =>
       onSnapshot(
@@ -483,6 +484,8 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
         impostos: t(salvo.impostos ?? 0), impostosModo: modo("impostos"),
         lucro: t(salvo.lucro ?? 15), lucroModo: modo("lucro"),
         vendasMes: t(salvo.vendasMes),
+        fixasItens: (salvo.fixasItens || []).map((i) => ({ nome: i.nome, valor: t(i.valor) })),
+        variaveisItens: (salvo.variaveisItens || []).map((i) => ({ nome: i.nome, valor: t(i.valor) })),
       });
     }
   }, [salvo, form]);
@@ -490,16 +493,21 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
 
   const numDe = (v, max = Infinity) => {
     const t = String(v ?? "").trim();
-    const n = Number(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t);
+    const n = Number(t.includes(",") || /^\d{1,3}(\.\d{3})+$/.test(t) ? t.replace(/\./g, "").replace(",", ".") : t);
     return t !== "" && Number.isFinite(n) && n >= 0 && n < max ? n : null;
   };
+  // Despesa preenchida uma por uma (aluguel, funcionários, energia…): o total do mês vira o valor do campo.
+  const totalItens = (k) => (form[`${k}Itens`] || []).reduce((s2, i) => s2 + (numDe(i.valor) || 0), 0);
+  const usaItens = (k) => totalItens(k) > 0;
+  const valorCampo = (k) => (usaItens(k) ? String(Math.round(totalItens(k) * 100) / 100) : form[k]);
+  const modoCampo = (k) => (usaItens(k) ? "valor" : form[`${k}Modo`]);
   // Quanto a loja vende por mês: o digitado ou o dos últimos 30 dias (para virar R$ do mês em %).
   const vendasMes = numDe(form.vendasMes) ?? (auto.vendas > 0 ? auto.vendas : null);
   // Valor de um campo em %: digitado em %, digitado em R$ por mês (÷ vendas do mês) ou automático.
   const pctCampo = (k, autoV) => {
-    const v = numDe(form[k], form[`${k}Modo`] === "valor" ? Infinity : 100);
+    const v = numDe(valorCampo(k), modoCampo(k) === "valor" ? Infinity : 100);
     if (v === null) return autoV ?? 0;
-    if (form[`${k}Modo`] === "valor") return pctDoMes(v, vendasMes) ?? 0;
+    if (modoCampo(k) === "valor") return pctDoMes(v, vendasMes) ?? 0;
     return v;
   };
   const lucroEmValor = form.lucroModo === "valor";
@@ -513,15 +521,17 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
   };
   const total = somaPct(p);
   const fmtPct = (n) => `${String(Math.round(n * 10) / 10).replace(".", ",")}%`;
-  const precisaVendas = ["fixas", "variaveis", "impostos"].some((k) => form[`${k}Modo`] === "valor" && numDe(form[k]) !== null) && !vendasMes;
+  const precisaVendas = ["fixas", "variaveis", "impostos"].some((k) => modoCampo(k) === "valor" && numDe(valorCampo(k)) !== null) && !vendasMes;
 
   async function salvar() {
     const v = (k) => numDe(form[k]);
     try {
       await setDoc(doc(db, ...L(), "configuracoes", "precificacao"), {
         maquininha: v("maquininha"),
-        fixas: v("fixas"), fixasModo: form.fixasModo,
-        variaveis: v("variaveis"), variaveisModo: form.variaveisModo,
+        fixas: numDe(valorCampo("fixas")), fixasModo: modoCampo("fixas"),
+        variaveis: numDe(valorCampo("variaveis")), variaveisModo: modoCampo("variaveis"),
+        fixasItens: (form.fixasItens || []).filter((i) => String(i.nome || "").trim() && numDe(i.valor)).map((i) => ({ nome: String(i.nome).trim().slice(0, 40), valor: numDe(i.valor) })),
+        variaveisItens: (form.variaveisItens || []).filter((i) => String(i.nome || "").trim() && numDe(i.valor)).map((i) => ({ nome: String(i.nome).trim().slice(0, 40), valor: numDe(i.valor) })),
         impostos: v("impostos") ?? 0, impostosModo: form.impostosModo,
         lucro: v("lucro") ?? 0, lucroModo: form.lucroModo,
         vendasMes: v("vendasMes"),
@@ -543,11 +553,11 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
     { k: "lucro", nome: "Lucro que você quer", porVenda: true, dica: lucroEmValor ? "R$ limpos em cada produto vendido" : "% de cada venda que sobra limpo (restaurante costuma ficar entre 10% e 20%)" },
   ];
   const explicaValor = (c) => {
-    if (c.soPct || form[`${c.k}Modo`] !== "valor") {
+    if (c.soPct || modoCampo(c.k) !== "valor") {
       const v = numDe(form[c.k], 100);
       return v && c.porMes && vendasMes ? `= ${R((vendasMes * v) / 100)} por mês` : "";
     }
-    const v = numDe(form[c.k]);
+    const v = numDe(valorCampo(c.k));
     if (v === null) return "";
     if (c.porVenda) return `= R$ ${fmt(v)} em cada venda`;
     const pc = pctDoMes(v, vendasMes);
@@ -582,14 +592,26 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
                 )}
                 <input
                   inputMode="decimal"
-                  placeholder={form[`${c.k}Modo`] === "valor" ? "0,00" : c.k === "lucro" || c.k === "impostos" ? "0" : "auto"}
-                  aria-label={`${c.nome} (${form[`${c.k}Modo`] === "valor" ? (c.porVenda ? "R$ por venda" : "R$ por mês") : "%"})`}
-                  value={form[c.k]}
+                  placeholder={modoCampo(c.k) === "valor" ? "0,00" : c.k === "lucro" || c.k === "impostos" ? "0" : "auto"}
+                  aria-label={`${c.nome} (${modoCampo(c.k) === "valor" ? (c.porVenda ? "R$ por venda" : "R$ por mês") : "%"})`}
+                  value={usaItens(c.k) ? fmt(totalItens(c.k)) : form[c.k]}
+                  readOnly={usaItens(c.k)}
                   onChange={(e) => setForm({ ...form, [c.k]: e.target.value })}
                 />
-                <em>{form[`${c.k}Modo`] === "valor" ? (c.porVenda ? "por venda" : "por mês") : "%"}</em>
+                <em>{modoCampo(c.k) === "valor" ? (c.porVenda ? "por venda" : "por mês") : "%"}</em>
               </span>
               {explicaValor(c) && <small className="pc-equiv">{explicaValor(c)}</small>}
+              {LISTAS[c.k] && (
+                <ItensDespesa
+                  nome={c.nome}
+                  sugestoes={LISTAS[c.k]}
+                  itens={form[`${c.k}Itens`] || []}
+                  aberto={!!detalhe[c.k]}
+                  abrir={() => setDetalhe({ ...detalhe, [c.k]: !detalhe[c.k] })}
+                  total={totalItens(c.k)}
+                  mudar={(itens) => setForm({ ...form, [`${c.k}Itens`]: itens, ...(itens.some((i) => numDe(i.valor)) ? { [`${c.k}Modo`]: "valor" } : {}) })}
+                />
+              )}
             </div>
           ))}
         </div>
@@ -606,7 +628,7 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
         {precisaVendas && <p className="fin-aviso">⚠️ Para usar gasto do mês em R$, informe quanto a loja vende por mês.</p>}
         <p className={`pc-resumo ${total >= 100 ? "ruim" : ""}`}>
           {total >= 100
-            ? `A soma passou de 100% (${fmtPct(total)}): não tem preço que pague. Diminua o lucro ou as despesas.`
+            ? `A soma passou de 100% (${fmtPct(total)}): não tem preço que pague.${vendasMes && numDe(form.vendasMes) === null ? ` O sistema está usando ${R(vendasMes)} de vendas por mês (o que foi vendido pelo sistema nos últimos 30 dias). Se a loja vende mais que isso, preencha "Quanto a loja vende por mês" logo abaixo.` : " Confira as despesas e o quanto a loja vende por mês."}`
             : lucroEmValor
             ? `De cada R$ 100,00 vendidos: R$ ${fmt(total)} vão para taxas, despesas e impostos. O resto paga o custo do produto e o seu lucro de R$ ${fmt(p.lucroValor)} em cada venda.`
             : `De cada R$ 100,00 vendidos: R$ ${fmt(total - p.lucro)} vão para taxas, despesas e impostos, R$ ${fmt(p.lucro)} são o seu lucro e R$ ${fmt(100 - total)} pagam o custo do produto.`}
@@ -680,6 +702,63 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
         </ul>
       </div>
     </>
+  );
+}
+
+const LISTAS = {
+  fixas: ["Aluguel", "Funcionários", "Energia (luz)", "Água", "Internet e telefone", "Gás", "Contador", "Sistemas e aplicativos"],
+  variaveis: ["Embalagens", "Entregador (motoboy)", "Taxa de aplicativo de entrega", "Divulgação e anúncios"],
+};
+
+/** Despesas do mês uma por uma: as mais comuns já na lista, e "+ Adicionar outra" para o que faltar. */
+function ItensDespesa({ nome, sugestoes, itens, aberto, abrir, total, mudar }) {
+  const lista = [...sugestoes.filter((n) => !itens.some((i) => i.nome === n)).map((n) => ({ nome: n, valor: "", sugestao: true })), ...itens].sort(
+    (a, b) => (sugestoes.indexOf(a.nome) === -1 ? 99 : sugestoes.indexOf(a.nome)) - (sugestoes.indexOf(b.nome) === -1 ? 99 : sugestoes.indexOf(b.nome))
+  );
+  const setValor = (n, valor) => {
+    const ja = itens.find((i) => i.nome === n);
+    mudar(ja ? itens.map((i) => (i.nome === n ? { ...i, valor } : i)) : [...itens, { nome: n, valor }]);
+  };
+  const [novo, setNovo] = useState("");
+  return (
+    <div className="pc-itens">
+      <button type="button" className="pc-itens-abrir" aria-expanded={aberto} onClick={abrir}>
+        {aberto ? "▴ Fechar a lista" : `▾ Preencher uma por uma${total > 0 ? ` (${R(total)} por mês)` : ""}`}
+      </button>
+      {aberto && (
+        <div className="pc-itens-lista" role="group" aria-label={`${nome}: uma por uma`}>
+          {lista.map((i) => (
+            <label key={i.nome} className="pc-item-linha">
+              <span>{i.nome}</span>
+              <span className="pc-input">
+                R$
+                <input inputMode="decimal" placeholder="0,00" aria-label={`${i.nome} (R$ por mês)`} value={i.valor} onChange={(e) => setValor(i.nome, e.target.value)} />
+                {!sugestoes.includes(i.nome) ? (
+                  <button type="button" className="fin-btn-x" aria-label={`Tirar ${i.nome}`} onClick={(e) => { e.preventDefault(); mudar(itens.filter((x) => x.nome !== i.nome)); }}>✕</button>
+                ) : (
+                  <span className="pc-x-vazio" />
+                )}
+              </span>
+            </label>
+          ))}
+          <div className="pc-item-novo">
+            <input placeholder="Outra despesa (ex.: segurança, limpeza)" aria-label="Nome da outra despesa" maxLength={40} value={novo} onChange={(e) => setNovo(e.target.value)} />
+            <button
+              type="button"
+              className="ins-btn entrada"
+              disabled={!novo.trim() || lista.some((i) => i.nome.toLowerCase() === novo.trim().toLowerCase())}
+              onClick={() => {
+                mudar([...itens, { nome: novo.trim(), valor: "" }]);
+                setNovo("");
+              }}
+            >
+              + Adicionar
+            </button>
+          </div>
+          <p className="pc-itens-total">Total: <b>{R(total)}</b> por mês</p>
+        </div>
+      )}
+    </div>
   );
 }
 
