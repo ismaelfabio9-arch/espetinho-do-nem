@@ -14,7 +14,6 @@ import Config from "./pages/Garcom/Config";
 import ConfiguracaoImpressora from "./pages/Garcom/ConfiguracaoImpressora";
 import ConectarImpressoraBluetooth from "./pages/Garcom/ConectarImpressoraBluetooth";
 import Notificacoes from "./pages/Garcom/Notificacoes";
-import Financas from "./pages/Garcom/Financas";
 import CardapioMesa from "./pages/Cliente/CardapioMesa";
 import QrCodes from "./pages/Garcom/QrCodes";
 import VersaoNova from "./components/VersaoNova";
@@ -23,7 +22,7 @@ import Atalhos from "./components/Atalhos";
 import NovoPedido from "./pages/Garcom/NovoPedido";
 import PainelDono from "./pages/Garcom/PainelDono";
 import SeLigado from "./components/SeLigado";
-import { Vendas, CardapioArea } from "./pages/Garcom/Areas";
+import { Vendas, CardapioArea, Dinheiro } from "./pages/Garcom/Areas";
 import { Navigate, useLocation } from "react-router-dom";
 
 
@@ -96,7 +95,7 @@ function TelasEquipe() {
       {/* As 3 áreas */}
       <Route path="/vendas" element={<Vendas />} />
       <Route path="/cardapio" element={<CardapioArea />} />
-      <Route path="/dinheiro" element={<SeLigado recurso="financas"><Financas /></SeLigado>} />
+      <Route path="/dinheiro" element={<Dinheiro />} />
       {/* Endereços antigos: caem na aba certa da área nova */}
       <Route path="/caixa" element={<Para to="/vendas?aba=caixa" />} />
       <Route path="/historico-mesas" element={<Para to="/vendas?aba=hoje" />} />

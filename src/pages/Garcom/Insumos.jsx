@@ -1,6 +1,6 @@
 import { L } from "../../loja";
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { addDoc, collection, limit, onSnapshot, orderBy, query, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../../firebase";
 import { ajustarInsumo, entradaInsumo, inventario, mostrarQtd, perdasNoPeriodo, previsao, unidadeDe } from "../../utils/insumos";
@@ -39,10 +39,22 @@ function useColecao(nome) {
   return lista;
 }
 
-function Insumos() {
+/** embutido: dentro de Cardápio e estoque → Estoque (sem título próprio; uma fileira de abas só). dia: a tela da quantidade do dia por produto. */
+function Insumos({ embutido = false, dia = null }) {
   const insumos = useColecao("insumos");
   const movs = useMovs();
-  const [aba, setAba] = useState("estoque");
+  const [params, setParams] = useSearchParams();
+  const inicial = { ingredientes: "estoque", dia: dia ? "dia" : "estoque" }[params.get("sub")] || params.get("sub") || "estoque";
+  const [aba, setAbaEstado] = useState(["estoque", "contagem", "perdas", "historico", "dia"].includes(inicial) ? inicial : "estoque");
+  const setAba = (id) => {
+    setAbaEstado(id);
+    if (embutido) {
+      const p = new URLSearchParams(params);
+      p.set("sub", id === "estoque" ? "ingredientes" : id);
+      setParams(p, { replace: true });
+    }
+  };
+  const abas = [...ABAS.map((a) => (a.id === "estoque" && embutido ? { ...a, nome: "Ingredientes" } : a)), ...(dia ? [{ id: "dia", nome: "Quantidade do dia" }] : [])];
   const ativos = useMemo(() => (insumos || []).filter((i) => i.ativo !== false).sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR")), [insumos]);
   const porId = useMemo(() => Object.fromEntries((insumos || []).map((i) => [i.id, i])), [insumos]);
   const carregando = insumos === null || movs === null;
@@ -53,13 +65,25 @@ function Insumos() {
 
   return (
     <div className="container relatorio-page fin-page">
-      <Link to="/config" className="voltar">← Voltar</Link>
-      <div className="relatorio-filtros">
-        <h1>Matéria-prima</h1>
-        <p>Carne, arroz, pão, refrigerante… O que cada produto leva fica no próprio produto (Produtos → editar). Cada venda desconta daqui sozinha.</p>
-        <div className="fin-abas ins-abas" role="tablist">
-          {ABAS.map((a) => (
-            <button key={a.id} role="tab" aria-selected={aba === a.id} className={aba === a.id ? "ativa" : ""} onClick={() => setAba(a.id)}>
+      {!embutido && <Link to="/config" className="voltar">← Voltar</Link>}
+      <div className={embutido ? "ins-topo-embutido" : "relatorio-filtros"}>
+        {!embutido && (
+          <>
+            <h1>Matéria-prima</h1>
+            <p>Carne, arroz, pão, refrigerante… O que cada produto leva fica no próprio produto (Produtos → editar). Cada venda desconta daqui sozinha.</p>
+          </>
+        )}
+        <div className={embutido ? "area-sub ins-abas" : "fin-abas ins-abas"} role="tablist" aria-label="Estoque">
+          {abas.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              role="tab"
+              aria-selected={aba === a.id}
+              className={aba === a.id ? "ativa" : ""}
+              onClick={() => setAba(a.id)}
+              ref={aba === a.id ? (el) => el?.scrollIntoView?.({ block: "nearest", inline: "nearest" }) : undefined}
+            >
               {a.nome}
             </button>
           ))}
@@ -68,7 +92,9 @@ function Insumos() {
           <p className="fin-aviso ins-aviso">⚠️ Acabando: {baixos.map((i) => `${i.nome} (${mostrarQtd(i.quantidade, i.unidade)})`).join(", ")}</p>
         )}
       </div>
-      {carregando ? (
+      {aba === "dia" && dia ? (
+        <div className="ins-dia">{dia}</div>
+      ) : carregando ? (
         <p className="fin-carregando">Carregando…</p>
       ) : aba === "estoque" ? (
         <Estoque insumos={ativos} prev={prev} perdasMes={perdasMes} verPerdas={() => setAba("perdas")} />
@@ -90,7 +116,7 @@ function Estoque({ insumos, prev, perdasMes, verPerdas }) {
     <>
       <div className="relatorio-documento">
         <div className="ins-topo">
-          <h2>Estoque de matéria-prima</h2>
+          <h2>Ingredientes</h2>
           <button type="button" className="btn-verde" onClick={() => setForm({})}>+ Novo ingrediente</button>
         </div>
         {perdasMes.total > 0 && (

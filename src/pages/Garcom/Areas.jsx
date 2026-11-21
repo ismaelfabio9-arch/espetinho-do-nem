@@ -3,6 +3,7 @@
 //   🍔 Cardápio e estoque: Produtos (com ingredientes, custo e preço certo) · Cardápio de hoje · Estoque · Preço certo
 //   💰 Dinheiro: Lucro e caixa · Despesas e compras (pages/Garcom/Financas.jsx)
 import Area from "../../components/Area";
+import SeLigado from "../../components/SeLigado";
 import { useRecurso } from "../../recursos";
 import Caixa from "./Caixa";
 import HistoricoMesas from "./HistoricoMesas";
@@ -20,7 +21,6 @@ export function Vendas() {
     <Area
       titulo="Vendas"
       icone="💵"
-      texto="O dia a dia do dinheiro que entra: caixa, pedidos e relatórios."
       padrao={caixa ? "caixa" : "hoje"}
       abas={[
         { id: "caixa", nome: "Caixa", recurso: "financas", tela: () => <Caixa /> },
@@ -32,17 +32,28 @@ export function Vendas() {
   );
 }
 
+/** Estoque: ingredientes (com contagem, perdas e histórico) e a quantidade do dia por produto, numa fileira de abas só. */
 function EstoqueArea() {
   const ingredientes = useRecurso("financas");
+  const doDia = useRecurso("estoque");
+  if (ingredientes) return <Insumos embutido dia={doDia ? <Estoque /> : null} />;
+  return (
+    <SeLigado recurso="estoque" embutido>
+      <Estoque />
+    </SeLigado>
+  );
+}
+
+/** Dinheiro: mesmo jeito das outras áreas (título e abas), cada aba é uma parte de Finanças. */
+export function Dinheiro() {
   return (
     <Area
-      sub
-      param="sub"
-      titulo="Estoque"
-      padrao={ingredientes ? "ingredientes" : "dia"}
+      titulo="Dinheiro"
+      icone="💰"
+      padrao="lucro"
       abas={[
-        { id: "ingredientes", nome: "Ingredientes (carne, arroz, pão…)", recurso: "financas", tela: () => <Insumos /> },
-        { id: "dia", nome: "Quantidade do dia por produto", recurso: "estoque", tela: () => <Estoque /> },
+        { id: "lucro", nome: "Lucro e caixa", recurso: "financas", tela: () => <Financas abas={["resumo"]} titulo="Lucro e caixa" /> },
+        { id: "despesas", nome: "Despesas e compras", recurso: "financas", tela: () => <Financas abas={["lancamentos"]} titulo="Despesas e compras" /> },
       ]}
     />
   );
@@ -53,7 +64,6 @@ export function CardapioArea() {
     <Area
       titulo="Cardápio e estoque"
       icone="🍔"
-      texto="Os produtos (com ingredientes, custo e preço certo), o que tem hoje e o estoque."
       padrao="produtos"
       abas={[
         { id: "produtos", nome: "Produtos", tela: () => <Produtos /> },
