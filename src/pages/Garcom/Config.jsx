@@ -229,6 +229,19 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
         </div>
       </Link>
 
+      {MULTI && (
+        <Link to="/dono" style={{ textDecoration: "none" }}>
+          <div className="config-card">
+            <div className="config-icon">🏪</div>
+            <div>
+              <h2>Painel do Dono</h2>
+              <p>Tem mais de uma loja? Veja cada uma e o total somado. Só com o login do dono, que não fica salvo.</p>
+              <strong>Abrir o Painel do Dono</strong>
+            </div>
+          </div>
+        </Link>
+      )}
+
       {MULTI && <Equipe />}
 
       <TaxasMaquininha />

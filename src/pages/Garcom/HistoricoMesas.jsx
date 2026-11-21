@@ -120,8 +120,12 @@ function HistoricoMesas() {
                   <span className="pedido-tipo">
                     {tipo === "mesa" ? `Mesa ${mesa.mesa}` : tipo === "entrega" ? (mesa.modo === "retirada" ? "🏪 Retirada" : "🛵 Entrega") : "🛍️ Balcão"}
                   </span>
-                  <h3>{mesa.titulo}</h3>
-                  <small>{formatarData(mesa.finalizadoEm)}</small>
+                  <h3>{tipo === "mesa" && mesa.cliente && !String(mesa.titulo || "").includes(mesa.cliente) ? `${mesa.titulo} · ${mesa.cliente}` : mesa.titulo}</h3>
+                  <small>
+                    {tipo === "mesa" && mesa.abertaEm
+                      ? `${new Date(mesa.abertaEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} às ${new Date(mesa.fechadaEm || mesa.finalizadoEm).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · ${Number(mesa.pedidosNaMesa || 1)} ${Number(mesa.pedidosNaMesa || 1) === 1 ? "pedido" : "pedidos"}`
+                      : formatarData(mesa.finalizadoEm)}
+                  </small>
                 </div>
                 <strong>R$ {moeda(mesa.total)}</strong>
               </div>

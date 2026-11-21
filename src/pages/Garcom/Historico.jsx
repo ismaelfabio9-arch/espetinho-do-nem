@@ -14,13 +14,14 @@ import "../../styles/Garcom/Historico.css";
 
 import "../../styles/Garcom/Pedidos.css";
 import AbasTipo from "../../components/AbasTipo";
-import { TIPOS_VENDA, contarPorTipo, moeda, resumir, tipoVenda } from "../../utils/tipoVenda";
+import { TIPOS_VENDA, contarPorTipo, mesasAtendidas, moeda, resumir, tipoVenda } from "../../utils/tipoVenda";
 
 
 function Historico() {
   const [historico, setHistorico] = useState([]);
   const [fechamentoAberto, setFechamentoAberto] = useState(null);
   const [tipo, setTipo] = useState("mesa");
+  const [mesaAberta, setMesaAberta] = useState(null);
 
   useEffect(() => {
     const historicoRef = query(
@@ -115,11 +116,58 @@ function Historico() {
                   <strong>R$ {moeda(resumo.total)}</strong>
                 </button>
 
-                <div className="hist-resumo hist-resumo-dia">
-                  <div><span>Pedidos</span><strong>{resumo.pedidos}</strong></div>
-                  <div><span>Itens</span><strong>{resumo.itens}</strong></div>
-                  <div><span>Ticket médio</span><strong>R$ {moeda(resumo.ticket)}</strong></div>
-                </div>
+                {tipo === "mesa" ? (
+                  (() => {
+                    const ms = mesasAtendidas(dia.vendasDia || []);
+                    const ped = ms.reduce((s2, m) => s2 + m.pedidos, 0);
+                    return (
+                      <>
+                        <div className="hist-resumo hist-resumo-dia">
+                          <div><span>Mesas</span><strong>{ms.length}</strong></div>
+                          <div><span>Pedidos</span><strong>{ped}</strong></div>
+                          <div><span>Por mesa</span><strong>R$ {moeda(ms.length ? resumo.total / ms.length : 0)}</strong></div>
+                        </div>
+                        <div className="hist-mesas">
+                          {ms.map((m) => {
+                            const k = `${dia.id}:${m.chave}`;
+                            const ab = mesaAberta === k;
+                            return (
+                              <div key={k} className="hist-mesa">
+                                <button type="button" className="hist-mesa-topo" onClick={() => setMesaAberta(ab ? null : k)} aria-expanded={ab}>
+                                  <span className="hist-mesa-num">{m.mesa ?? "?"}</span>
+                                  <span className="hist-mesa-info">
+                                    <strong>Mesa {m.mesa}{m.cliente ? ` · ${m.cliente}` : ""}</strong>
+                                    <small>
+                                      {[m.horario, m.tempo, `${m.pedidos} ${m.pedidos === 1 ? "pedido" : "pedidos"}`, m.formaPagamento].filter(Boolean).join(" · ")}
+                                    </small>
+                                  </span>
+                                  <b>R$ {moeda(m.total)}</b>
+                                </button>
+                                {ab && (
+                                  <div className="hist-mesa-itens">
+                                    {m.itens.map((it) => (
+                                      <div key={it.nome} className="hist-linha">
+                                        <span className="hist-qtd">{it.qtd}x</span>
+                                        <span className="hist-nome">{it.nome}</span>
+                                        <span className="hist-valor">R$ {moeda(it.preco * it.qtd)}</span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    );
+                  })()
+                ) : (
+                  <div className="hist-resumo hist-resumo-dia">
+                    <div><span>Pedidos</span><strong>{resumo.pedidos}</strong></div>
+                    <div><span>Itens</span><strong>{resumo.itens}</strong></div>
+                    <div><span>Ticket médio</span><strong>R$ {moeda(resumo.ticket)}</strong></div>
+                  </div>
+                )}
                 {tipo === "entrega" && resumo.taxaEntrega > 0 && (
                   <div className="hist-linha hist-rodape">
                     <span className="hist-qtd"></span>
@@ -140,7 +188,7 @@ function Historico() {
                   </div>
                 ) : (
                   <button type="button" className="hist-ver" onClick={() => setFechamentoAberto(dia.id)}>
-                    Ver produtos vendidos ›
+                    {tipo === "mesa" ? "Ver produtos do dia (todas as mesas) ›" : "Ver produtos vendidos ›"}
                   </button>
                 )}
               </div>

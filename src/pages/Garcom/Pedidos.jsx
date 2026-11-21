@@ -169,6 +169,9 @@ function Pedidos() {
       itens: pedido.itens || [],
       total: pedido.total || 0,
       totalItens: pedido.totalItens || 0,
+      ...(pedido.tipo === "mesa"
+        ? { sessaoMesa: `${pedido.mesa}-${Date.now()}`, abertaEm: pedido.salvoEm || new Date().toISOString(), fechadaEm: new Date().toISOString(), pedidosNaMesa: Number(pedido.lancamentos || 1) }
+        : {}),
       finalizadoEm: new Date().toISOString(),
       criadoEm: serverTimestamp(),
     };

@@ -54,3 +54,39 @@ export function contarPorTipo(lista) {
   lista.forEach((v) => (c[tipoVenda(v)] += 1));
   return c;
 }
+
+const hora = (iso) => (iso ? new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" }) : "");
+
+/**
+ * Cada mesa atendida no dia (uma linha por vez que a mesa abriu e fechou): número, cliente,
+ * horário, quanto tempo ficou, quantos pedidos fez, os itens e o total. Registros antigos (de antes
+ * deste controle) aparecem com o que tiverem.
+ */
+export function mesasAtendidas(vendas) {
+  const grupos = {};
+  vendas
+    .filter((v) => tipoVenda(v) === "mesa")
+    .forEach((v, i) => {
+      const k = v.sessaoMesa || `r${i}-${v.mesa}-${v.finalizadoEm}`;
+      if (!grupos[k]) grupos[k] = { chave: k, mesa: v.mesa, cliente: v.cliente || "", abertaEm: v.abertaEm || null, fechadaEm: v.fechadaEm || v.finalizadoEm || null, pedidos: Number(v.pedidosNaMesa || 0), registros: 0, itens: [], total: 0, formaPagamento: v.formaPagamento || "" };
+      const g = grupos[k];
+      g.registros += 1;
+      g.total += Number(v.total || 0);
+      (v.itens || []).forEach((it) => {
+        const ja = g.itens.find((x) => x.nome === it.nome);
+        if (ja) ja.qtd += qtdItem(it);
+        else g.itens.push({ nome: it.nome, preco: Number(it.preco || 0), qtd: qtdItem(it) });
+      });
+    });
+  return Object.values(grupos)
+    .map((g) => {
+      const min = g.abertaEm && g.fechadaEm ? Math.max(0, Math.round((Date.parse(g.fechadaEm) - Date.parse(g.abertaEm)) / 60000)) : null;
+      return {
+        ...g,
+        pedidos: g.pedidos || g.registros,
+        horario: g.abertaEm ? `${hora(g.abertaEm)} às ${hora(g.fechadaEm)}` : g.fechadaEm ? `fechou às ${hora(g.fechadaEm)}` : "",
+        tempo: min === null ? "" : min < 60 ? `${min} min` : `${Math.floor(min / 60)}h${String(min % 60).padStart(2, "0")}`,
+      };
+    })
+    .sort((a, b) => String(a.abertaEm || a.fechadaEm).localeCompare(String(b.abertaEm || b.fechadaEm)));
+}

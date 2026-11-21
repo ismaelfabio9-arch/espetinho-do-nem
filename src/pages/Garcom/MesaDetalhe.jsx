@@ -542,6 +542,8 @@ if (pedidosDaMesa.length === 0) {
           itens: itensNovos,
           total: novoTotal,
           totalItens: novoTotalItens,
+          // Quantos pedidos a mesa fez (cada "Salvar pedido" conta 1): vai para o histórico.
+          lancamentos: Number(pedidoAtual.lancamentos || 1) + 1,
           atualizadoEm: new Date().toISOString(),
         });
       } else {
@@ -555,6 +557,7 @@ if (pedidosDaMesa.length === 0) {
           itens: itensPedido,
           total,
           totalItens,
+          lancamentos: 1,
           status: "aberto",
           salvoEm: new Date().toISOString(),
           criadoEm: serverTimestamp(),
@@ -732,6 +735,20 @@ if (pedidosDaMesa.length === 0) {
         }
       }
 
+      // Controle da mesa no histórico: quem estava, quando abriu e fechou, quantos pedidos fez.
+      const agoraIso = new Date().toISOString();
+      const aberturas = resultado.docs.map((d) => d.data().salvoEm).filter(Boolean).sort();
+      const sessaoMesa = {
+        sessaoMesa: `${id}-${Date.now()}`,
+        // Nome da mesa (garçom) ou, se não tiver, os nomes que os clientes deram no QR Code.
+        cliente:
+          nomeCliente ||
+          [...new Set(resultado.docs.flatMap((d) => (d.data().itens || []).map((i) => String(i.cliente || "").trim())).filter((n) => n && n !== "Cliente"))].join(", "),
+        abertaEm: aberturas[0] || agoraIso,
+        fechadaEm: agoraIso,
+        pedidosNaMesa: resultado.docs.reduce((s, d) => s + Number(d.data().lancamentos || 1), 0),
+      };
+
       for (const documento of resultado.docs) {
         const pedidoDados = documento.data();
         // A taxa do cartão vai inteira no primeiro registro da mesa (fora do total dos itens).
@@ -748,6 +765,7 @@ if (pedidosDaMesa.length === 0) {
           formaPagamento: formaPagamento || "",
           ...(taxaDoc ? { taxaCartao: taxaDoc, taxaCartaoPct: cartao.taxaPct } : {}),
           comprovanteEmitido: Boolean(emitirComprovante),
+          ...sessaoMesa,
           finalizadoEm: new Date().toISOString(),
           criadoEm: serverTimestamp(),
         });
@@ -762,6 +780,7 @@ if (pedidosDaMesa.length === 0) {
           formaPagamento: formaPagamento || "",
           ...(taxaDoc ? { taxaCartao: taxaDoc, taxaCartaoPct: cartao.taxaPct } : {}),
           comprovanteEmitido: Boolean(emitirComprovante),
+          ...sessaoMesa,
           finalizadoEm: new Date().toISOString(),
           pedidoOriginalId: documento.id,
           status: "finalizada",
