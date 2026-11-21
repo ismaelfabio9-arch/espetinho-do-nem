@@ -118,3 +118,4 @@
 .pc-escada li.pc-final { font-weight: 800; border-bottom: 0; font-size: 15px; }
 .pc-nota { margin: 10px 0 0 !important; color: var(--muted); font-size: 13px; }
 .pc-escada li.pc-lucro, .pc-escada li.pc-lucro span { color: #15803d !important; } .pc-escada li.fin-neg, .pc-escada li.fin-neg span { color: var(--red) !important; } .pc-escada li.pc-degrau span:first-child, .pc-escada li.pc-degrau span:last-child { color: var(--text); }
+.pc-custo-dig { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: -4px 0 10px; font-size: 13px; color: var(--muted); } .pc-custo-dig .fin-ok { width: 16px; }

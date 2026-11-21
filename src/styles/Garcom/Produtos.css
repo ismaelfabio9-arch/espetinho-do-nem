@@ -514,3 +514,11 @@ body.dark .categoria-tipo { background: #111; color: #f3f4f6; border-color: #2f2
   .prod-ficha-fundo { align-items: center; padding: 24px; }
   .prod-ficha { border-radius: 18px; padding-bottom: 20px; }
 }
+/* Ingredientes, custo e preço certo dentro do produto (componentes de FichaTecnica) */
+.prod-ficha-ingred { display: grid; gap: 8px; border-top: 1px solid var(--border); padding-top: 12px; }
+.prod-ficha-ingred > strong { font-size: 15px; color: var(--text); }
+.prod-ficha .fdp input { width: auto; height: auto; }
+.prod-ficha .fdp .ficha-qtd input { width: 62px; height: 34px; padding: 4px; }
+.prod-ficha .fdp .pc-input input { width: 90px; height: 40px; }
+.prod-ficha .fdp label { flex-direction: row; font-weight: 500; }
+.prod-ficha .fdp .ins-ficha { padding: 10px; }

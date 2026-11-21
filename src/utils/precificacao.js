@@ -102,3 +102,26 @@ export function precoDoProduto(custo, preco, p) {
     lucroNoSugerido: r2(sugerido - custo - (sugerido * pctGastos) / 100),
   };
 }
+
+/**
+ * Percentuais finais a partir do que foi salvo em configuracoes/precificacao (Preço certo) e do automático
+ * (movimento da loja). Campo em branco = automático; em "valor" = R$ do mês ÷ vendas do mês; lucro em valor = R$ por venda.
+ */
+export function percentuaisFinais(salvo = {}, auto = {}) {
+  const vendasMes = typeof salvo.vendasMes === "number" && salvo.vendasMes > 0 ? salvo.vendasMes : auto.vendas > 0 ? auto.vendas : null;
+  const campo = (k, autoV) => {
+    const v = salvo[k];
+    if (typeof v !== "number") return autoV ?? 0;
+    if (salvo[`${k}Modo`] === "valor") return pctDoMes(v, vendasMes) ?? 0;
+    return v;
+  };
+  const lucroEmValor = salvo.lucroModo === "valor";
+  return {
+    maquininha: typeof salvo.maquininha === "number" ? salvo.maquininha : auto.maquininha ?? 0,
+    fixas: campo("fixas", auto.fixas),
+    variaveis: campo("variaveis", auto.variaveis),
+    impostos: campo("impostos", 0),
+    lucro: lucroEmValor ? 0 : typeof salvo.lucro === "number" ? salvo.lucro : 15,
+    lucroValor: lucroEmValor ? Number(salvo.lucro || 0) : 0,
+  };
+}

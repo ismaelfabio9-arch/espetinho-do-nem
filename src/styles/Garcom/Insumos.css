@@ -123,3 +123,12 @@
 .ficha-custo.ruim { background: #fee2e2; color: #991b1b; }
 .ficha-pendente { color: #b45309; font-weight: 700; font-size: 13px; }
 @media (max-width: 420px) { .ficha-linha { flex-wrap: wrap; } .ficha-nome { flex-basis: calc(100% - 50px); } }
+.fdp { display: grid; gap: 10px; }
+.fdp-manual { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; font-size: 13.5px; color: var(--muted); }
+.pnp { border-radius: 12px; padding: 10px 12px; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; background: var(--green-bg); color: #166534; }
+.pnp.baixo { background: #fef3c7; color: #92400e; }
+.pnp span { display: block; font-size: 12.5px; }
+.pnp strong { font-size: 18px; }
+.pnp p { grid-column: 1 / -1; margin: 0; font-size: 12.5px; }
+.ficha-ok { margin: 0; width: auto; } .ins-ficha .ficha-pendente { margin: 0; }
+.ficha-da { font-weight: 700; }

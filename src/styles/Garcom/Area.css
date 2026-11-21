@@ -1,0 +1,12 @@
+/* Áreas do sistema: Vendas, Cardápio e estoque. As telas de dentro perdem o "Voltar" próprio. */
+.area-topo { max-width: 900px; margin: 0 auto; padding: 16px 16px 4px; }
+.area-topo h1 { margin: 12px 0 2px; font-size: 28px; }
+.area-topo p { margin: 0 0 12px; color: var(--muted); }
+.area-abas, .area-sub { display: flex; flex-wrap: wrap; gap: 6px; }
+.area-abas button { flex: 1 1 auto; border: 1px solid var(--border); background: var(--card); color: var(--muted); font-weight: 800; font-size: 15px; padding: 11px 14px; border-radius: 14px; cursor: pointer; }
+.area-abas button.ativa { background: var(--green); border-color: var(--green); color: #fff; }
+.area-sub { max-width: 900px; margin: 10px auto 0; padding: 0 16px; }
+.area-sub button { border: 1px solid var(--border); background: var(--card-2); color: var(--muted); font-weight: 700; font-size: 14px; padding: 8px 14px; border-radius: 999px; cursor: pointer; }
+.area-sub button.ativa { background: var(--text); color: var(--bg); border-color: var(--text); }
+.area-conteudo .voltar { display: none !important; }
+.area-conteudo > .container, .area-conteudo .area-sub-bloco > .area-conteudo > .container { padding-top: 8px; }

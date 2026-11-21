@@ -7,7 +7,6 @@ import {
   Bell,
   ClipboardList,
   DollarSign,
-  History,
   LayoutGrid,
   Menu,
   Settings,
@@ -15,7 +14,6 @@ import {
   Table2,
   TrendingUp,
   X,
-  Package,
   Pencil,
 } from "lucide-react";
 import "../../styles/Garcom/Dashboard.css";
@@ -40,7 +38,7 @@ import AvisoCaixa from "../../components/AvisoCaixa";
 function Dashboard() {
   // Funções que a IFTech pode desligar só nesta loja (Central da Loja).
   const viagemLigado = useRecurso("viagem");
-  const estoqueLigado = useRecurso("estoque");
+  const financasLigado = useRecurso("financas");
   const nomeLoja = useNomeLoja();
   const [faturamentoDia, setFaturamentoDia] = useState(0);
   const [mesas, setMesas] = useState([]);
@@ -547,27 +545,23 @@ function Dashboard() {
               Novo pedido
             </Link>
 
-            <Link to="/cardapio-hoje" onClick={() => setMenuAberto(false)}>
-              📅
-              <span>Cardápio de hoje</span>
+            <span className="menu-secao">Áreas</span>
+            <Link to="/vendas" onClick={() => setMenuAberto(false)}>
+              💵
+              <span>Vendas <small>caixa, histórico, relatório</small></span>
             </Link>
 
-            <Link to="/produtos" onClick={() => setMenuAberto(false)}>
-              <Package size={20} />
-              Produtos
+            <Link to="/cardapio" onClick={() => setMenuAberto(false)}>
+              🍔
+              <span>Cardápio e estoque <small>produtos, hoje, estoque, preço</small></span>
             </Link>
 
-            {estoqueLigado && (
-              <Link to="/estoque" onClick={() => setMenuAberto(false)}>
-                📦
-                <span>Estoque</span>
+            {financasLigado && (
+              <Link to="/dinheiro" onClick={() => setMenuAberto(false)}>
+                💰
+                <span>Dinheiro <small>lucro, despesas e compras</small></span>
               </Link>
             )}
-
-            <Link to="/historico" onClick={() => setMenuAberto(false)}>
-              <History size={20} />
-              Histórico
-            </Link>
 
             <Link to="/config" onClick={() => setMenuAberto(false)}>
               <Settings size={20} />

@@ -19,7 +19,7 @@ import { db } from "../../firebase";
 import "../../styles/Garcom/Config.css";
 import InstallModal from "../../components/InstallApp";
 import { isInstalled } from "../../utils/installPrompt";
-import { planoQueLibera, useRecurso } from "../../recursos";
+import { usePlanoQueLibera, useRecurso } from "../../recursos";
 import { useCaixaAberto } from "../../components/AvisoCaixa";
 import "../../styles/Garcom/AvisoCaixa.css";
 import WhatsLojaConfig from "../../components/WhatsLojaConfig";
@@ -30,9 +30,8 @@ const nomeProduto = (item) => item.nomeBase || String(item.nome || "").split(" �
 
 
 function Config() {
-  const relatoriosLigado = useRecurso("relatorios");
   const financasLigado = useRecurso("financas");
-  const financasPlano = planoQueLibera("financas");
+  const financasPlano = usePlanoQueLibera("financas");
   const caixaAberto = useCaixaAberto(financasLigado);
   const nomeLoja = useNomeLoja();
   const [instalarAberto, setInstalarAberto] = useState(false);
@@ -193,7 +192,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
         <div>
           <span>⚙️ Sistema</span>
           <h1>Configurações</h1>
-          <p>Gerencie opções básicas do aplicativo.</p>
+          <p>Ajustes da loja: impressora, equipe, taxas, WhatsApp e fechamento do dia.</p>
         </div>
       </div>
 
@@ -203,77 +202,15 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
         </p>
       )}
 
-      <Link to="/historico" style={{ textDecoration: "none" }}>
-        <div className="config-card">
-          <div className="config-icon">📋</div>
-          <div>
-            <h2>Histórico dos dias</h2>
-            <p>Fechamentos de cada dia, separados em mesas, balcão e entregas.</p>
-            <strong>Abrir histórico</strong>
-          </div>
+      {/* Caixa, histórico, relatório, produtos, estoque e finanças ficam nas 3 áreas. */}
+      <div className="config-areas">
+        <span>Procurando caixa, histórico, produtos, estoque ou finanças? Ficam aqui:</span>
+        <div>
+          <Link to="/vendas">💵 Vendas</Link>
+          <Link to="/cardapio">🍔 Cardápio e estoque</Link>
+          {(financasLigado || financasPlano) && <Link to="/dinheiro">💰 Dinheiro</Link>}
         </div>
-      </Link>
-
-      <Link to="/historico-mesas" style={{ textDecoration: "none" }}>
-        <div className="config-card">
-          <div className="config-icon">🍽️</div>
-          <div>
-            <h2>Histórico de pedidos</h2>
-            <p>Pedidos finalizados hoje: mesas, balcão e entregas separados.</p>
-            <strong>Abrir histórico de pedidos</strong>
-          </div>
-        </div>
-      </Link>
-
-      <Link to="/relatorio" style={{ textDecoration: "none" }}>
-        <div className="config-card">
-          <div className="config-icon">📈</div>
-          <div>
-            <h2>Relatório Gerencial</h2>
-            <p>Tudo junto: mesas, balcão e entregas por período, produtos vendidos e PDF.</p>
-            <strong>{relatoriosLigado ? "Abrir relatório" : planoQueLibera("relatorios") ? `Disponível no plano ${planoQueLibera("relatorios")}` : "Função desligada"}</strong>
-          </div>
-        </div>
-      </Link>
-
-      {(financasLigado || financasPlano) && (
-        <Link to="/caixa" style={{ textDecoration: "none" }}>
-          <div className="config-card">
-            <div className="config-icon">🧾</div>
-            <div>
-              <h2>Caixa</h2>
-              <p>Abrir e fechar o caixa, sangria, troco e conferência do dinheiro da gaveta.</p>
-              <strong>{financasLigado ? "Abrir o caixa" : `Disponível no plano ${financasPlano}`}</strong>
-            </div>
-          </div>
-        </Link>
-      )}
-
-      {(financasLigado || financasPlano) && (
-        <Link to="/materia-prima" style={{ textDecoration: "none" }}>
-          <div className="config-card">
-            <div className="config-icon">🥩</div>
-            <div>
-              <h2>Matéria-prima</h2>
-              <p>Estoque de carne, arroz, pão… com ficha técnica: cada venda desconta sozinha.</p>
-              <strong>{financasLigado ? "Abrir matéria-prima" : `Disponível no plano ${financasPlano}`}</strong>
-            </div>
-          </div>
-        </Link>
-      )}
-
-      {(financasLigado || financasPlano) && (
-        <Link to="/financas" style={{ textDecoration: "none" }}>
-          <div className="config-card">
-            <div className="config-icon">💰</div>
-            <div>
-              <h2>Finanças</h2>
-              <p>O que entrou, despesas, custo dos produtos e o lucro: no geral e por categoria (almoço, bebidas, lanches…).</p>
-              <strong>{financasLigado ? "Abrir finanças" : `Disponível no plano ${financasPlano}`}</strong>
-            </div>
-          </div>
-        </Link>
-      )}
+      </div>
 
       {MULTI && (
         <a href="/sistemas/sistema-de-mesas#planos" style={{ textDecoration: "none" }}>

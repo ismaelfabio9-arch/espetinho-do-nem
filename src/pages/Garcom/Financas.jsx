@@ -5,8 +5,7 @@ import { Link } from "react-router-dom";
 import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useTaxas } from "../../utils/taxas";
-import { moeda } from "../../utils/tipoVenda";
-import { GRUPOS, SEM_CATEGORIA_FIN, TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
+import { GRUPOS, TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
 import { custoDaFicha, perdasNoPeriodo } from "../../utils/insumos";
 import { pctDoMes, percentuaisDaLoja, precoDoProduto, somaPct } from "../../utils/precificacao";
 import "../../styles/Garcom/RelatorioGerencial.css";
@@ -25,8 +24,7 @@ const fmt = (v) => Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigit
 const R = (v) => (v < 0 ? `− R$ ${fmt(-v)}` : `R$ ${fmt(v)}`);
 const ABAS = [
   { id: "resumo", nome: "Lucro e caixa" },
-  { id: "lancamentos", nome: "Lançamentos" },
-  { id: "custos", nome: "Custos dos produtos" },
+  { id: "lancamentos", nome: "Despesas e compras" },
   { id: "preco", nome: "Preço certo" },
 ];
 
@@ -50,7 +48,8 @@ function useColecao(nome) {
   return lista;
 }
 
-function Financas() {
+/** Dinheiro (Lucro e caixa, Despesas e compras) ou, com abas={["preco"]}, o Preço certo de Cardápio e estoque. */
+function Financas({ abas = ["resumo", "lancamentos"], titulo = "Dinheiro", texto = "O lucro do que a loja vende e o dinheiro que entrou e saiu." }) {
   const nomeLoja = useNomeLoja();
   const taxas = useTaxas();
   const dias = useColecao("relatorioGerencial");
@@ -61,7 +60,8 @@ function Financas() {
   const fichas = useColecao("fichas");
   const insumos = useColecao("insumos");
   const movs = useMovsInsumos();
-  const [aba, setAba] = useState("resumo");
+  const [aba, setAba] = useState(abas[0]);
+  const abasVisiveis = ABAS.filter((a) => abas.includes(a.id));
   const [per, setPer] = useState("mes");
   const [faixa, setFaixa] = useState(() => periodo("mes"));
 
@@ -101,18 +101,18 @@ function Financas() {
   return (
     <div className="container relatorio-page fin-page">
       <div className="no-print">
-        <Link to="/config" className="voltar">← Voltar</Link>
+        <Link to="/" className="voltar">← Voltar</Link>
         <div className="relatorio-filtros">
-          <h1>Finanças</h1>
-          <p>O lucro do que a loja vende e o dinheiro que entrou e saiu, no geral e por categoria do cardápio.</p>
-          <div className="fin-abas ins-abas" role="tablist">
-            {ABAS.map((a) => (
+          <h1>{titulo}</h1>
+          <p>{texto}</p>
+          {abasVisiveis.length > 1 && <div className="fin-abas ins-abas" role="tablist">
+            {abasVisiveis.map((a) => (
               <button key={a.id} role="tab" aria-selected={aba === a.id} className={aba === a.id ? "ativa" : ""} onClick={() => setAba(a.id)}>
                 {a.nome}
               </button>
             ))}
-          </div>
-          {aba !== "custos" && aba !== "preco" && (
+          </div>}
+          {aba !== "preco" && (
             <>
               <div className="fin-periodos">
                 {PERIODOS.map((p) => (
@@ -143,18 +143,16 @@ function Financas() {
         <p className="fin-carregando">Carregando…</p>
       ) : aba === "lancamentos" ? (
         <Lancamentos f={f} categorias={categorias} />
-      ) : aba === "custos" ? (
-        <Custos produtos={produtos} custos={custos} daFicha={daFicha} />
       ) : aba === "preco" ? (
-        <PrecoCerto produtos={produtos} custos={custos} daFicha={daFicha} f30={f30} taxas={taxas} irCustos={() => setAba("custos")} />
+        <PrecoCerto produtos={produtos} custos={custos} daFicha={daFicha} f30={f30} taxas={taxas} />
       ) : (
-        <Resumo f={f} nomeLoja={nomeLoja} faixa={faixa} irCustos={() => setAba("custos")} />
+        <Resumo f={f} nomeLoja={nomeLoja} faixa={faixa} />
       )}
     </div>
   );
 }
 
-function Resumo({ f, nomeLoja, faixa, irCustos }) {
+function Resumo({ f, nomeLoja, faixa }) {
   const temCompraPorCategoria = f.categorias.some((c) => c.comprou > 0);
   return (
     <div className="relatorio-documento">
@@ -171,9 +169,9 @@ function Resumo({ f, nomeLoja, faixa, irCustos }) {
       </div>
 
       {f.semCusto > 0 && (
-        <button type="button" className="fin-aviso no-print" onClick={irCustos}>
+        <Link to="/cardapio?aba=preco" className="fin-aviso no-print">
           ⚠️ {f.semCusto === 1 ? "1 produto vendido está" : `${f.semCusto} produtos vendidos estão`} sem custo cadastrado ({R(f.vendidoSemCusto)} em vendas): sem o custo, o lucro aparece maior do que é. <u>Cadastrar custos</u>
-        </button>
+        </Link>
       )}
 
       <div className="relatorio-secao">
@@ -457,90 +455,8 @@ function Lancamentos({ f, categorias }) {
   );
 }
 
-function Custos({ produtos, custos, daFicha }) {
-  const [texto, setTexto] = useState({});
-  const [salvo, setSalvo] = useState({});
-  const grupos = useMemo(() => {
-    const g = {};
-    (produtos || [])
-      .filter((p) => p.nome)
-      .forEach((p) => {
-        const c = String(p.categoria || "").trim() || SEM_CATEGORIA_FIN;
-        (g[c] = g[c] || []).push(p);
-      });
-    return Object.entries(g)
-      .sort(([a], [b]) => a.localeCompare(b, "pt-BR"))
-      .map(([c, l]) => [c, l.sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"))]);
-  }, [produtos]);
-
-  async function gravar(p) {
-    const t = texto[p.id];
-    if (t === undefined) return;
-    const vazio = String(t).trim() === "";
-    const custo = lerValor(t);
-    if (!vazio && custo === custos[p.id]) return;
-    await setDoc(doc(db, ...L(), "custos", p.id), { custo: vazio ? null : custo, nome: p.nome, atualizadoEm: new Date().toISOString() }, { merge: true });
-    setSalvo((s) => ({ ...s, [p.id]: true }));
-    setTimeout(() => setSalvo((s) => ({ ...s, [p.id]: false })), 1500);
-  }
-
-  return (
-    <div className="relatorio-documento">
-      <h2>Custo de cada produto</h2>
-      <p className="relatorio-nota">
-        Quanto você gasta para fazer ou comprar uma unidade (ingredientes, embalagem, a bebida no fornecedor). Só a sua equipe vê: o
-        cardápio do cliente não mostra. Com o custo, o sistema calcula o lucro de cada venda. Produto com ficha técnica em Matéria-prima
-        tem o custo calculado sozinho pelo preço dos insumos.
-      </p>
-      {grupos.length === 0 && <p>Nenhum produto cadastrado ainda.</p>}
-      {grupos.map(([cat, lista]) => (
-        <div key={cat} className="fin-custos-grupo">
-          <h3>{cat}</h3>
-          {lista.map((p) => {
-            const custo = custos[p.id];
-            const valor = texto[p.id] ?? (typeof custo === "number" ? moeda(custo) : "");
-            const preco = Number(p.preco || 0);
-            const c = lerValor(valor);
-            const margem = preco > 0 && valor !== "" ? Math.round(((preco - c) / preco) * 100) : null;
-            return (
-              <div key={p.id} className="fin-custo">
-                <div>
-                  <strong>{p.nome}</strong>
-                  <small>
-                    Vende por {R(preco)}
-                    {margem !== null ? ` · lucro ${R(preco - c)} (${margem}%)` : ""}
-                  </small>
-                </div>
-                {typeof daFicha?.[p.id] === "number" ? (
-                  <span className="fin-ficha">{R(daFicha[p.id])} <small>pela ficha técnica</small></span>
-                ) : (
-                <label>
-                  <span>Custo R$</span>
-                  <input
-                    inputMode="decimal"
-                    placeholder="0,00"
-                    value={valor}
-                    aria-label={`Custo de ${p.nome}`}
-                    onChange={(e) => setTexto((t) => ({ ...t, [p.id]: e.target.value }))}
-                    onBlur={() => gravar(p)}
-                    onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()}
-                  />
-                </label>
-                )}
-                <span className="fin-ok" aria-live="polite">{salvo[p.id] ? "✓ salvo" : ""}</span>
-              </div>
-            );
-          })}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export default Financas;
-
 /** Preço certo: por quanto vender cada produto para pagar tudo e sobrar o lucro que o dono quer. */
-function PrecoCerto({ produtos, custos, daFicha, f30, taxas, irCustos }) {
+function PrecoCerto({ produtos, custos, daFicha, f30, taxas }) {
   const auto = percentuaisDaLoja(f30, taxas);
   const [salvo, setSalvo] = useState(null); // configuracoes/precificacao
   const [form, setForm] = useState(null);
@@ -708,9 +624,7 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, irCustos }) {
           {semCusto > 0 ? ` ${semCusto} sem custo cadastrado.` : ""}
         </p>
         {semCusto > 0 && (
-          <button type="button" className="fin-aviso" onClick={irCustos}>
-            ⚠️ Sem o custo, não dá para calcular o preço. <u>Cadastrar custos</u> (ou monte a ficha técnica em Matéria-prima).
-          </button>
+          <p className="fin-aviso">⚠️ Sem o custo não dá para calcular o preço. Digite o custo aqui mesmo, ou ponha os ingredientes do produto em Produtos → editar.</p>
         )}
         <label className="ins-check">
           <input type="checkbox" checked={soAbaixo} onChange={(e) => setSoAbaixo(e.target.checked)} /> Mostrar só os que estão abaixo
@@ -744,6 +658,7 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, irCustos }) {
                   {r.situacao === "impossivel" && <b className="pc-chip baixo">—</b>}
                 </span>
               </button>
+              {!ficha && <CustoDigitado produto={x} custo={custo} />}
               {aberto === x.id && (r.situacao === "bom" || r.situacao === "baixo") && (
                 <div className="pc-detalhe">
                   <p>
@@ -765,6 +680,30 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, irCustos }) {
         </ul>
       </div>
     </>
+  );
+}
+
+/** Custo digitado (produto sem ingredientes na ficha, ex.: bebida pronta), direto na lista do Preço certo. */
+function CustoDigitado({ produto, custo }) {
+  const [texto, setTexto] = useState(null);
+  const [ok, setOk] = useState(false);
+  async function gravar() {
+    if (texto === null) return;
+    const vazio = texto.trim() === "";
+    await setDoc(doc(db, ...L(), "custos", produto.id), { custo: vazio ? null : lerValor(texto), nome: produto.nome, atualizadoEm: new Date().toISOString() }, { merge: true });
+    setTexto(null);
+    setOk(true);
+    setTimeout(() => setOk(false), 1500);
+  }
+  return (
+    <label className="pc-custo-dig">
+      <span>{typeof custo === "number" ? "Custo digitado" : "Digite o custo de 1 unidade"}</span>
+      <span className="pc-input">
+        R$
+        <input inputMode="decimal" placeholder="0,00" aria-label={`Custo de ${produto.nome}`} value={texto ?? (typeof custo === "number" ? fmt(custo) : "")} onChange={(e) => setTexto(e.target.value)} onBlur={gravar} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
+        <em className="fin-ok">{ok ? "✓" : ""}</em>
+      </span>
+    </label>
   );
 }
 
@@ -793,3 +732,5 @@ function Escada({ titulo, d, fixasPct }) {
   );
 }
 
+
+export default Financas;
