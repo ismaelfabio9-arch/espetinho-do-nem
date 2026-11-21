@@ -30,7 +30,9 @@
   </head>
   <body>
     <noscript>You need to enable JavaScript to run this app.</noscript>
-    <div id="root"></div>
+    <div id="root"><div id="abrindo-inicial" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:#f4f5f7;font-family:system-ui,sans-serif"><img src="%PUBLIC_URL%/logo192.png" alt="" width="96" height="96" style="border-radius:24px;box-shadow:0 10px 30px rgba(29,78,216,.25)"/><span style="width:28px;height:28px;border-radius:50%;border:3px solid rgba(29,78,216,.2);border-top-color:#1d4ed8;animation:gira .8s linear infinite"></span></div></div>
+    <style>@keyframes gira{to{transform:rotate(360deg)}}</style>
+    <script>try{if(localStorage.getItem("tema")==="dark")document.getElementById("abrindo-inicial").style.background="#070707"}catch(e){}</script>
     <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.
