@@ -41,7 +41,7 @@ function rng(seed) {
 export function seedDemo() {
   const now = Date.now();
   const iso = (ms) => new Date(ms).toISOString();
-  const cols = { produtos: {}, estoque: {}, categorias: {}, mesas: {}, pedidos: {}, vendasDia: {}, historicoMesas: {}, historicoDias: {}, relatorioGerencial: {}, notificacoes: {}, configuracoes: {} };
+  const cols = { produtos: {}, estoque: {}, categorias: {}, mesas: {}, pedidos: {}, vendasDia: {}, historicoMesas: {}, historicoDias: {}, relatorioGerencial: {}, notificacoes: {}, configuracoes: {}, insumos: {}, insumosMov: {}, fichas: {}, despesas: {} };
   const itensPorNome = {};
 
   CARDAPIO.forEach(([categoria, itens], ordemCat) => {
@@ -78,7 +78,7 @@ export function seedDemo() {
   // Vendas já fechadas hoje.
   const r = rng(7);
   const nomes = Object.keys(itensPorNome);
-  const pagamentos = ["pix", "dinheiro", "cartao", "pix"];
+  const pagamentos = ["Pix", "Dinheiro", "Crédito", "Pix", "Débito"];
   const venda = (t, origem, mesa) => {
     const itens = [];
     const linhas = 2 + Math.floor(r() * 3);
@@ -134,6 +134,61 @@ export function seedDemo() {
 
   // Sem impressora na demonstração (evita abrir a janela de impressão a cada pedido).
   cols.configuracoes.impressora = { habilitada: false, autoImprimirPedido: false, autoImprimirComprovante: false, larguraPapel: "58mm", nomeEstabelecimento: "Restaurante Modelo (demonstração)", endereco: "Endereço de exemplo, Recife - PE", telefone: "(81) 90000-0000", mensagemRodape: "Obrigado pela preferência!" };
+
+  // Ingredientes de exemplo (preços inventados, só para mostrar a conta) e o que vai em cada produto.
+  // [id, nome, unidade, preço por unidade, quanto tem]
+  const INSUMOS = [
+    ["arroz", "Arroz", "kg", 6, 18],
+    ["feijao", "Feijão", "kg", 8, 12],
+    ["frango", "Peito de frango", "kg", 19, 9],
+    ["carne", "Carne (alcatra)", "kg", 42, 6],
+    ["peixe", "Peixe (filé)", "kg", 32, 4],
+    ["batata", "Batata", "kg", 7, 10],
+    ["oleo", "Óleo", "L", 9, 6],
+    ["farinha", "Farinha de mandioca", "kg", 7, 5],
+    ["verdura", "Verdura e tomate", "kg", 9, 3],
+    ["laranja", "Laranja", "kg", 4, 15],
+    ["lata", "Refrigerante lata", "un", 3.2, 48],
+    ["agua", "Água mineral", "un", 1.3, 36],
+  ];
+  INSUMOS.forEach(([id, nome, unidade, custo, quantidade]) => {
+    cols.insumos[id] = { nome, unidade, custo, quantidade, minimo: unidade === "un" ? 12 : 2, ativo: true, criadoEm: new Timestamp(now), atualizadoEm: iso(now) };
+  });
+  const idDe = (nome) => itensPorNome[nome]?.produtoId;
+  const FICHAS = {
+    "Frango grelhado": [["arroz", 0.12], ["feijao", 0.1], ["frango", 0.2], ["verdura", 0.05], ["oleo", 0.01]],
+    "Bife acebolado": [["arroz", 0.12], ["feijao", 0.1], ["carne", 0.18], ["verdura", 0.05], ["oleo", 0.01]],
+    "Peixe frito": [["arroz", 0.12], ["feijao", 0.1], ["peixe", 0.2], ["farinha", 0.03], ["oleo", 0.05]],
+    "PF de frango": [["arroz", 0.12], ["feijao", 0.1], ["frango", 0.15], ["farinha", 0.03], ["verdura", 0.04]],
+    "PF de carne": [["arroz", 0.12], ["feijao", 0.1], ["carne", 0.13], ["farinha", 0.03], ["verdura", 0.04]],
+    Arroz: [["arroz", 0.15]],
+    Feijão: [["feijao", 0.15]],
+    Farofa: [["farinha", 0.08], ["oleo", 0.01]],
+    "Batata frita": [["batata", 0.3], ["oleo", 0.05]],
+    "Suco de laranja": [["laranja", 0.5]],
+    "Refrigerante lata": [["lata", 1]],
+    "Água mineral": [["agua", 1]],
+  };
+  Object.entries(FICHAS).forEach(([nome, itens]) => {
+    const id = idDe(nome);
+    if (id) cols.fichas[id] = { nome, itens: itens.map(([insumoId, qtd]) => ({ insumoId, qtd })), atualizadoEm: iso(now) };
+  });
+  // Preço certo começa na conta só com os ingredientes (ingredientes até 30% do preço).
+  cols.configuracoes.precificacao = { conta: "ingredientes", pesoIngredientes: 30, lucro: 15, lucroModo: "pct", atualizadoEm: iso(now) };
+  // Algumas contas do mês (valores de exemplo) para o Dinheiro mostrar lucro e despesas.
+  const diaMes = (d) => {
+    const x = new Date(now);
+    x.setDate(Math.max(1, Math.min(d, x.getDate())));
+    return x.toISOString().slice(0, 10);
+  };
+  [
+    ["aluguel", "Aluguel do ponto", 1800, 5],
+    ["contas", "Luz e água", 420, 10],
+    ["insumos", "Compras do mercado", 650, 3, "Pratos do dia"],
+    ["bebidas", "Refrigerantes e água", 280, 4, "Refrigerantes e água"],
+  ].forEach(([tipo, descricao, valor, d, categoria], k) => {
+    cols.despesas[`demo-desp-${k}`] = { tipo, descricao, valor, data: diaMes(d), ...(categoria ? { categoria } : {}), criadoEm: new Timestamp(now) };
+  });
 
   demoReplaceAll(cols);
 }

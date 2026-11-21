@@ -26,6 +26,8 @@ function ajustesDemo() {
       out = out.replaceAll('process.env.REACT_APP_EMULATOR === "1"', "false").replaceAll("process.env.REACT_APP_MULTI", '""');
       if (id.endsWith("/src/firebase.js")) return { code: "export const db = { type: 'firestore' }; export const auth = {}; export const configIftech = {};", map: null };
       if (id.endsWith("/src/App.js")) out = out.replaceAll("BrowserRouter", "HashRouter");
+      // A demonstração mostra o plano Premium: Caixa, Dinheiro, Ingredientes e Preço certo ligados.
+      if (id.endsWith("/src/recursos.js")) out = out.replace("  financas: false,", "  financas: true,").replace("  custos: false,", "  custos: true,");
       // No computador (mouse), prender o ponteiro na categoria impedia o clique de abrir a
       // categoria do cardápio do cliente. O arrastar só vale para toque, então só prende no toque.
       if (id.endsWith("/src/pages/Cliente/CardapioMesa.jsx"))

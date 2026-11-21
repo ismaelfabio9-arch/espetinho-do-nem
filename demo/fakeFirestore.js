@@ -6,7 +6,7 @@
 
 // v2: pratos com "montar o prato" (pedido rápido do almoço); quem já abriu recebe o exemplo novo.
 // v3: cadastro por tipo (picolés com sabor, tapioca com recheio).
-export const STORAGE_KEY = "iftech_demo_mesas_v3";
+export const STORAGE_KEY = "iftech_demo_mesas_v4";
 
 class Timestamp {
   constructor(ms) {
@@ -321,9 +321,20 @@ function setPath(obj, path, value) {
   o[keys[keys.length - 1]] = value;
 }
 
+/** increment(n): soma n ao valor que já está no documento (baixa de estoque, entrada de compra). */
+export function increment(n) {
+  return { __incremento: Number(n) || 0 };
+}
+const ehIncremento = (v) => v && typeof v === "object" && typeof v.__incremento === "number";
+function resolverIncrementos(atual, novo) {
+  const out = { ...novo };
+  for (const [k, v] of Object.entries(out)) if (ehIncremento(v)) out[k] = Number(atual?.[k] || 0) + v.__incremento;
+  return out;
+}
+
 function applySet(ref, value, options) {
   const col = (data[ref.parent.id] = data[ref.parent.id] || {});
-  const v = clone(value);
+  const v = resolverIncrementos(col[ref.id], clone(value));
   col[ref.id] = options && options.merge ? deepMerge(col[ref.id], v) : v;
 }
 
@@ -331,7 +342,7 @@ function applyUpdate(ref, value) {
   const col = data[ref.parent.id] || {};
   if (!col[ref.id]) throw new Error(`No document to update: ${ref.path}`);
   const d = clone(col[ref.id]);
-  for (const [k, v] of Object.entries(clone(value))) setPath(d, k, v);
+  for (const [k, v] of Object.entries(clone(value))) setPath(d, k, ehIncremento(v) ? Number(d[k] || 0) + v.__incremento : v);
   col[ref.id] = d;
 }
 
