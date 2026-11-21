@@ -465,7 +465,7 @@ export function PrecoNoProduto({ custo, preco }) {
         <span>Só de ingredientes (comida)</span><b>{R(d.custo)}</b>
         {d.taxas > 0 && (<><span>+ Maquininha e impostos</span><b>{R(d.taxas)}</b></>)}
         {d.fixas > 0 && (<><span>+ Parte do aluguel, funcionários e contas</span><b>{R(d.fixas)}</b></>)}
-        <span>+ Seu lucro</span><b>{R(d.lucro)}</b>
+        <span>{p.soIngredientes ? "+ O resto (paga a loja e o seu lucro)" : "+ Seu lucro"}</span><b>{R(d.lucro)}</b>
         <span className="pnp-total">= Preço para vender</span><b className="pnp-total">{R(r.sugerido)}</b>
       </div>
       <p>

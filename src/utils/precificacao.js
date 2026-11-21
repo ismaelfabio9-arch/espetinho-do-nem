@@ -107,6 +107,13 @@ export function precoDoProduto(custo, preco, p) {
  * Percentuais finais a partir do que foi salvo em configuracoes/precificacao (Preço certo) e do automático
  * (movimento da loja). Campo em branco = automático; em "valor" = R$ do mês ÷ vendas do mês; lucro em valor = R$ por venda.
  */
+/** Quanto os ingredientes podem pesar no preço, em % (Só os ingredientes). Restaurante costuma ficar entre 25% e 35%. */
+export const PESO_INGREDIENTES_PADRAO = 30;
+export const pesoIngredientes = (salvo) => {
+  const v = Number(salvo?.pesoIngredientes);
+  return v > 0 && v < 100 ? v : PESO_INGREDIENTES_PADRAO;
+};
+
 export function percentuaisFinais(salvo = {}, auto = {}) {
   const vendasMes = typeof salvo.vendasMes === "number" && salvo.vendasMes > 0 ? salvo.vendasMes : auto.vendas > 0 ? auto.vendas : null;
   const campo = (k, autoV) => {
@@ -118,13 +125,10 @@ export function percentuaisFinais(salvo = {}, auto = {}) {
   const lucroEmValor = salvo.lucroModo === "valor";
   // "Só os ingredientes": maquininha, despesas e impostos não entram (lucro = preço − ingredientes).
   const so = salvo.conta === "ingredientes";
+  // O dono diz quanto os ingredientes podem pesar no preço (padrão 30%); o resto (100% − isso) é
+  // o que fica para pagar a loja e o lucro.
   if (so)
-    return {
-      maquininha: 0, fixas: 0, variaveis: 0, impostos: 0,
-      lucro: lucroEmValor ? 0 : typeof salvo.lucro === "number" ? salvo.lucro : 15,
-      lucroValor: lucroEmValor ? Number(salvo.lucro || 0) : 0,
-      soIngredientes: true,
-    };
+    return { maquininha: 0, fixas: 0, variaveis: 0, impostos: 0, lucro: 100 - pesoIngredientes(salvo), lucroValor: 0, soIngredientes: true };
   return {
     maquininha: typeof salvo.maquininha === "number" ? salvo.maquininha : auto.maquininha ?? 0,
     fixas: campo("fixas", auto.fixas),
