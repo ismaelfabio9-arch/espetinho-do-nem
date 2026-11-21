@@ -245,7 +245,7 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
 }
 
 /** Linhas de ingredientes (quanto de cada) + os botões para pôr mais. Usada no que vai em todos e em cada opção. */
-function LinhasFicha({ linhas, muda, todos, lista, novo, extra = null, vazio }) {
+function LinhasFicha({ linhas, muda, todos, lista, novo, extra = null, vazio, preco = 0 }) {
   const fora = lista.filter((i) => !linhas.some((l) => l.insumoId === i.id));
   const passo = (un) => (un === "un" ? 1 : 10);
   return (
@@ -261,7 +261,7 @@ function LinhasFicha({ linhas, muda, todos, lista, novo, extra = null, vazio }) 
           <div key={l.insumoId || n} className="ficha-linha">
             <div className="ficha-nome">
               <strong>{ins?.nome || "Ingrediente"}</strong>
-              <small>{linhaCusto !== null ? `= ${R(linhaCusto)}` : ins && typeof ins.custo !== "number" ? "sem preço (edite o ingrediente)" : ""}</small>
+              <small>{linhaCusto !== null ? `= ${R(linhaCusto)}${preco > 0 ? ` · ${pctPreco(linhaCusto, preco)} do preço` : ""}` : ins && typeof ins.custo !== "number" ? "sem preço (edite o ingrediente)" : ""}</small>
             </div>
             <div className="ficha-qtd">
               <button type="button" aria-label={`Menos ${ins?.nome || ""}`} onClick={() => ajustar(-passo(ins?.unidade))}>−</button>
@@ -289,6 +289,11 @@ function LinhasFicha({ linhas, muda, todos, lista, novo, extra = null, vazio }) 
   );
 }
 
+/** 0,75 de 13,00 → "6%" (menos de 1% → "menos de 1%"). */
+const pctPreco = (v, preco) => {
+  const x = (v / preco) * 100;
+  return x > 0 && x < 1 ? "menos de 1%" : `${Math.round(x)}%`;
+};
 const SEP = "\u0001";
 const chaveOp = (grupo, opcao) => `${grupo}${SEP}${opcao}`;
 /** Recheios, sabores, tamanhos e adicionais do cadastro do produto (cada um pode ter os ingredientes dele). */
@@ -453,6 +458,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
         lista={lista}
         novo={() => setNovo({ destino: null })}
         extra={doPrato}
+        preco={temGrupos ? 0 : preco}
         vazio={temGrupos ? "Se não tiver nada em comum, pode deixar vazio." : "Toque nos ingredientes abaixo para pôr na ficha."}
       />
 
@@ -510,6 +516,18 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
                   vende por {R(preco)} · sobra {R(preco - custo)} ({Math.round(((preco - custo) / preco) * 100)}%) depois do custo
                 </small>
               )}
+              {(() => {
+                // O que mais pesa no preço: os 3 ingredientes mais caros deste produto.
+                if (!(preco > 0) || itens.length < 3) return null;
+                const caros = itens
+                  .map((it) => ({ nome: todos[it.insumoId]?.nome, v: Number(it.qtd) * Number(todos[it.insumoId]?.custo || 0) }))
+                  .filter((x) => x.nome && x.v > 0)
+                  .sort((a, b) => b.v - a.v)
+                  .slice(0, 3);
+                return caros.length ? (
+                  <small className="ficha-pesa">O que mais pesa: {caros.map((x) => `${x.nome} ${R(x.v)} (${pctPreco(x.v, preco)})`).join(" · ")}</small>
+                ) : null;
+              })()}
             </>
           ) : (
             <span>{itens.length ? "O custo aparece quando todos os ingredientes tiverem preço." : "Ponha os ingredientes para ver quanto custa."}</span>
