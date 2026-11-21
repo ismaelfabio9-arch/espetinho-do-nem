@@ -136,14 +136,19 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
         {bebidas.length > 0 && (
           <>
             <div className="montar-grupo">BEBIDA? · um toque</div>
-            <div className="montar-bebidas">
-              {bebidas.map((b) => (
-                <button type="button" key={b.id} className={bebidasEscolhidas.includes(b.id) ? "escolhida" : ""} onClick={() => setBebidasEscolhidas(alternar(bebidasEscolhidas, b.id))}>
-                  {b.nome}
-                  <span>R$ {moeda(b.preco)}</span>
-                </button>
-              ))}
-            </div>
+            {[...new Set(bebidas.map((b) => b.grupo || ""))].map((g) => (
+              <div key={g || "bebidas"} className="montar-bebidas-grupo">
+                {g && <div className="montar-bebidas-cat">{g}</div>}
+                <div className="montar-bebidas">
+                  {bebidas.filter((b) => (b.grupo || "") === g).map((b) => (
+                    <button type="button" key={b.id} className={bebidasEscolhidas.includes(b.id) ? "escolhida" : ""} onClick={() => setBebidasEscolhidas(alternar(bebidasEscolhidas, b.id))}>
+                      {b.nome}
+                      <span>R$ {moeda(b.preco)}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </>
         )}
 

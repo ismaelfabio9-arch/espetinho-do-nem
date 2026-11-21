@@ -153,9 +153,18 @@ export function textoMontagem(m) {
 }
 
 /** Bebidas para sugerir depois do prato (as primeiras das categorias de bebida). */
-export function sugestoesBebida(categorias, max = 4) {
-  const ehBebida = (nome) => /suco|refri|bebida|água|agua|cerveja|drink/i.test(nome || "");
-  return categorias.filter((c) => ehBebida(c.categoria)).flatMap((c) => c.itens).slice(0, max);
+/** Categoria de bebida pelo nome (Sucos, Refrigerantes, Cervejas, Águas, Doses, Drinks…). */
+export const ehCategoriaDeBebida = (nome) =>
+  /suco|refri|bebida|[aá]gua|cerveja|drink|dose|quartinho|vinho|chopp?|energ|caipi|whisk|vodka|cacha|refresco|lata|long.?neck|garrafa/i.test(String(nome || ""));
+
+/**
+ * Bebidas para oferecer junto do prato: TODAS as bebidas do cardápio (sucos, refrigerantes,
+ * cervejas, água…), na ordem das categorias, cada uma com o nome da categoria em "grupo".
+ */
+export function sugestoesBebida(categorias) {
+  return (categorias || [])
+    .filter((c) => ehCategoriaDeBebida(c.categoria))
+    .flatMap((c) => (c.itens || []).map((i) => ({ ...i, grupo: c.categoria })));
 }
 
 /** Modelo pronto para pratos de almoço. */

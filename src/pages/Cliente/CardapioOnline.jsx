@@ -11,7 +11,7 @@ import { ordenarGruposPorCategoria } from "../../utils/categorias";
 import MontarPrato from "../../components/MontarPrato";
 import PratoNoPedido from "../../components/PratoNoPedido";
 import PedidoRapido from "../../components/PedidoRapido";
-import { abreEscolha, emojiCategoria } from "../../utils/montagem";
+import { abreEscolha, emojiCategoria, sugestoesBebida } from "../../utils/montagem";
 import { useRecurso } from "../../recursos";
 import { repassaAlguma, useTaxas } from "../../utils/taxas";
 import { moeda, useEntrega } from "../../utils/entrega";
@@ -332,6 +332,7 @@ export default function CardapioOnline() {
         <MontarPrato
           key={editando || "novo"}
           produto={montando}
+          bebidas={editando ? [] : sugestoesBebida(produtos)}
           inicial={editando ? carrinho[editando]?.montagem : null}
           textoBotao={editando ? "Salvar alteração" : "Adicionar"}
           onAdicionar={adicionarMontado}
