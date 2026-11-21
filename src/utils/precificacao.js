@@ -24,8 +24,14 @@ export function percentuaisDaLoja(f, taxas) {
   };
 }
 
-/** Soma dos percentuais que saem de cada venda (sem o custo do produto). */
-export const somaPct = (p) => Number(p.maquininha || 0) + Number(p.fixas || 0) + Number(p.variaveis || 0) + Number(p.impostos || 0) + Number(p.lucro || 0);
+/** Soma dos percentuais que saem de cada venda (sem o custo do produto). Lucro em R$ não entra aqui. */
+export const somaPct = (p) => Number(p.maquininha || 0) + Number(p.fixas || 0) + Number(p.variaveis || 0) + Number(p.impostos || 0) + (p.lucroValor ? 0 : Number(p.lucro || 0));
+
+/**
+ * Gasto do mês em R$ (aluguel R$ 3.000, MEI R$ 80…) virado em % das vendas do mês.
+ * null quando não dá para saber (sem vendas no mês).
+ */
+export const pctDoMes = (valorMes, vendasMes) => (Number(vendasMes) > 0 ? r1((Number(valorMes || 0) / Number(vendasMes)) * 100) : null);
 
 /** Arredonda para cima no próximo ,90 (ou ,00 quando passa de R$ 100): R$ 23,14 → R$ 23,90. */
 export function precoBonito(v) {
@@ -44,10 +50,13 @@ export function precoDoProduto(custo, preco, p) {
   const preco$ = Number(preco || 0);
   if (typeof custo !== "number") return { situacao: "sem-custo" };
   if (total >= 1) return { situacao: "impossivel" };
-  const ideal = r2(custo / (1 - total));
+  // Lucro em R$ por venda (ex.: R$ 5 em cada prato) entra junto com o custo.
+  const lucroValor = Number(p.lucroValor || 0);
+  const ideal = r2((custo + lucroValor) / (1 - total));
   const sugerido = precoBonito(ideal);
+  const pctGastos = somaPct(p) - (p.lucroValor ? 0 : Number(p.lucro || 0));
   // Com o preço de hoje: quanto sobra de verdade em cada venda depois de tudo.
-  const gastosNoPreco = (preco$ * (somaPct(p) - Number(p.lucro || 0))) / 100;
+  const gastosNoPreco = (preco$ * pctGastos) / 100;
   const lucroReal = r2(preco$ - custo - gastosNoPreco);
   const partes = (valor) => {
     const v = Number(valor || 0);
@@ -67,6 +76,6 @@ export function precoDoProduto(custo, preco, p) {
     situacao: preco$ + 0.005 >= ideal ? "bom" : "baixo",
     partes: partes(preco$),
     partesIdeal: partes(sugerido),
-    lucroNoSugerido: r2(sugerido - custo - (sugerido * (somaPct(p) - Number(p.lucro || 0))) / 100),
+    lucroNoSugerido: r2(sugerido - custo - (sugerido * pctGastos) / 100),
   };
 }

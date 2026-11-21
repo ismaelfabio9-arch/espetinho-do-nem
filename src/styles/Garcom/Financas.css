@@ -104,3 +104,10 @@
 .pc-partes li { display: flex; justify-content: space-between; gap: 8px; padding: 5px 0; border-bottom: 1px dashed var(--border); font-size: 13.5px; }
 .pc-partes li.pc-lucro { color: #15803d; font-weight: 800; border-bottom: 0; }
 .pc-partes li span:last-child { white-space: nowrap; }
+.pc-campo { flex-wrap: wrap; }
+.pc-campo > span:first-child { flex: 1 1 200px; min-width: 0; }
+.pc-input em { font-style: normal; font-size: 12.5px; min-width: 52px; }
+.pc-modo { display: inline-flex; border: 1px solid var(--border); border-radius: 9px; overflow: hidden; }
+.pc-modo button { border: 0; background: var(--card); color: var(--muted); font-weight: 800; padding: 7px 9px; font-size: 13px; cursor: pointer; }
+.pc-modo button.ativo { background: var(--green); color: #fff; }
+.pc-equiv { flex-basis: 100%; text-align: right; color: #0f766e !important; font-weight: 700 !important; }

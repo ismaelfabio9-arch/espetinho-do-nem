@@ -8,7 +8,7 @@ import { useTaxas } from "../../utils/taxas";
 import { moeda } from "../../utils/tipoVenda";
 import { GRUPOS, SEM_CATEGORIA_FIN, TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
 import { custoDaFicha, perdasNoPeriodo } from "../../utils/insumos";
-import { percentuaisDaLoja, precoDoProduto, somaPct } from "../../utils/precificacao";
+import { pctDoMes, percentuaisDaLoja, precoDoProduto, somaPct } from "../../utils/precificacao";
 import "../../styles/Garcom/RelatorioGerencial.css";
 import "../../styles/Garcom/Financas.css";
 import "../../styles/Garcom/Insumos.css";
@@ -559,30 +559,58 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, irCustos }) {
   useEffect(() => {
     if (salvo && !form) {
       const t = (v) => (typeof v === "number" ? String(v).replace(".", ",") : "");
-      setForm({ maquininha: t(salvo.maquininha), fixas: t(salvo.fixas), variaveis: t(salvo.variaveis), impostos: t(salvo.impostos ?? 0), lucro: t(salvo.lucro ?? 15) });
+      const modo = (k) => (salvo[`${k}Modo`] === "valor" ? "valor" : "pct");
+      setForm({
+        maquininha: t(salvo.maquininha), maquininhaModo: "pct",
+        fixas: t(salvo.fixas), fixasModo: modo("fixas"),
+        variaveis: t(salvo.variaveis), variaveisModo: modo("variaveis"),
+        impostos: t(salvo.impostos ?? 0), impostosModo: modo("impostos"),
+        lucro: t(salvo.lucro ?? 15), lucroModo: modo("lucro"),
+        vendasMes: t(salvo.vendasMes),
+      });
     }
   }, [salvo, form]);
   if (!form) return <p className="fin-carregando">Carregando…</p>;
 
-  const pctDe = (v) => {
-    const n = Number(String(v ?? "").replace(",", "."));
-    return String(v ?? "").trim() !== "" && Number.isFinite(n) && n >= 0 && n < 100 ? n : null;
+  const numDe = (v, max = Infinity) => {
+    const t = String(v ?? "").trim();
+    const n = Number(t.includes(",") ? t.replace(/\./g, "").replace(",", ".") : t);
+    return t !== "" && Number.isFinite(n) && n >= 0 && n < max ? n : null;
   };
-  // Em branco = automático (pelo movimento da loja).
+  // Quanto a loja vende por mês: o digitado ou o dos últimos 30 dias (para virar R$ do mês em %).
+  const vendasMes = numDe(form.vendasMes) ?? (auto.vendas > 0 ? auto.vendas : null);
+  // Valor de um campo em %: digitado em %, digitado em R$ por mês (÷ vendas do mês) ou automático.
+  const pctCampo = (k, autoV) => {
+    const v = numDe(form[k], form[`${k}Modo`] === "valor" ? Infinity : 100);
+    if (v === null) return autoV ?? 0;
+    if (form[`${k}Modo`] === "valor") return pctDoMes(v, vendasMes) ?? 0;
+    return v;
+  };
+  const lucroEmValor = form.lucroModo === "valor";
   const p = {
-    maquininha: pctDe(form.maquininha) ?? auto.maquininha ?? 0,
-    fixas: pctDe(form.fixas) ?? auto.fixas ?? 0,
-    variaveis: pctDe(form.variaveis) ?? auto.variaveis ?? 0,
-    impostos: pctDe(form.impostos) ?? 0,
-    lucro: pctDe(form.lucro) ?? 0,
+    maquininha: pctCampo("maquininha", auto.maquininha),
+    fixas: pctCampo("fixas", auto.fixas),
+    variaveis: pctCampo("variaveis", auto.variaveis),
+    impostos: pctCampo("impostos", 0),
+    lucro: lucroEmValor ? 0 : numDe(form.lucro, 100) ?? 0,
+    lucroValor: lucroEmValor ? numDe(form.lucro) ?? 0 : 0,
   };
   const total = somaPct(p);
   const fmtPct = (n) => `${String(Math.round(n * 10) / 10).replace(".", ",")}%`;
+  const precisaVendas = ["fixas", "variaveis", "impostos"].some((k) => form[`${k}Modo`] === "valor" && numDe(form[k]) !== null) && !vendasMes;
 
   async function salvar() {
-    const v = (k) => pctDe(form[k]);
+    const v = (k) => numDe(form[k]);
     try {
-      await setDoc(doc(db, ...L(), "configuracoes", "precificacao"), { maquininha: v("maquininha"), fixas: v("fixas"), variaveis: v("variaveis"), impostos: v("impostos") ?? 0, lucro: v("lucro") ?? 0, atualizadoEm: new Date().toISOString() });
+      await setDoc(doc(db, ...L(), "configuracoes", "precificacao"), {
+        maquininha: v("maquininha"),
+        fixas: v("fixas"), fixasModo: form.fixasModo,
+        variaveis: v("variaveis"), variaveisModo: form.variaveisModo,
+        impostos: v("impostos") ?? 0, impostosModo: form.impostosModo,
+        lucro: v("lucro") ?? 0, lucroModo: form.lucroModo,
+        vendasMes: v("vendasMes"),
+        atualizadoEm: new Date().toISOString(),
+      });
       setMsg("✓ Salvo");
     } catch {
       setMsg("Não foi possível salvar. Confira a internet.");
@@ -590,14 +618,25 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, irCustos }) {
     setTimeout(() => setMsg(""), 2000);
   }
 
+  const emReais = (pct) => (vendasMes ? ` · ${R((vendasMes * pct) / 100)} por mês` : "");
   const campos = [
-    { k: "maquininha", nome: "Taxa da maquininha", dica: auto.vendas > 0 ? `automático: ${fmtPct(auto.maquininha)} (o que a maquininha levou nos últimos 30 dias)` : `automático: ${fmtPct(auto.maquininha)} (taxa do crédito)` },
-    { k: "fixas", nome: "Despesas fixas", dica: auto.fixas !== null ? `automático: ${fmtPct(auto.fixas)} (aluguel, funcionários, contas ÷ vendas dos últimos 30 dias)` : "sem vendas nos últimos 30 dias: digite quanto acha (ex.: 20)" },
-    { k: "variaveis", nome: "Despesas variáveis", dica: auto.variaveis !== null ? `automático: ${fmtPct(auto.variaveis)} (entregador, divulgação… ÷ vendas)` : "sem vendas nos últimos 30 dias: digite (ex.: 5)" },
-    { k: "impostos", nome: "Impostos", dica: "MEI paga valor fixo (deixe 0); Simples Nacional costuma ser de 4% a 6%" },
-    { k: "lucro", nome: "Lucro que você quer", dica: "o que sobra limpo em cada venda (restaurante costuma ficar entre 10% e 20%)" },
+    { k: "maquininha", nome: "Taxa da maquininha", soPct: true, dica: auto.vendas > 0 ? `automático: ${fmtPct(auto.maquininha)} (o que a maquininha levou nos últimos 30 dias)` : `automático: ${fmtPct(auto.maquininha)} (taxa do crédito)` },
+    { k: "fixas", nome: "Despesas fixas", porMes: true, dica: auto.fixas !== null ? `automático: ${fmtPct(auto.fixas)}${emReais(auto.fixas)} (aluguel, funcionários, contas dos últimos 30 dias)` : "sem vendas nos últimos 30 dias: digite em % ou o total do mês em R$" },
+    { k: "variaveis", nome: "Despesas variáveis", porMes: true, dica: auto.variaveis !== null ? `automático: ${fmtPct(auto.variaveis)}${emReais(auto.variaveis)} (entregador, divulgação… dos últimos 30 dias)` : "sem vendas nos últimos 30 dias: digite em % ou o total do mês em R$" },
+    { k: "impostos", nome: "Impostos", porMes: true, dica: "MEI: o valor do boleto do mês em R$ (DAS) · Simples Nacional: costuma ser de 4% a 6%" },
+    { k: "lucro", nome: "Lucro que você quer", porVenda: true, dica: lucroEmValor ? "R$ limpos em cada produto vendido" : "% de cada venda que sobra limpo (restaurante costuma ficar entre 10% e 20%)" },
   ];
-
+  const explicaValor = (c) => {
+    if (c.soPct || form[`${c.k}Modo`] !== "valor") {
+      const v = numDe(form[c.k], 100);
+      return v && c.porMes && vendasMes ? `= ${R((vendasMes * v) / 100)} por mês` : "";
+    }
+    const v = numDe(form[c.k]);
+    if (v === null) return "";
+    if (c.porVenda) return `= R$ ${fmt(v)} em cada venda`;
+    const pc = pctDoMes(v, vendasMes);
+    return pc === null ? "informe quanto vende por mês" : `= ${fmtPct(pc)} das vendas`;
+  };
   const linhas = (produtos || [])
     .filter((x) => x.nome && x.ativo !== false)
     .map((x) => ({ produto: x, custo: custos[x.id], ficha: typeof daFicha?.[x.id] === "number", r: precoDoProduto(custos[x.id], x.preco, p) }))
@@ -613,21 +652,47 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, irCustos }) {
         <p className="fin-explica">Além do custo do produto, cada venda paga a maquininha, uma parte das despesas da loja e os impostos. Deixe em branco para o sistema calcular pelo movimento da loja.</p>
         <div className="pc-campos">
           {campos.map((c) => (
-            <label key={c.k} className="pc-campo">
+            <div key={c.k} className="pc-campo">
               <span>
                 {c.nome}
                 <small>{c.dica}</small>
               </span>
               <span className="pc-input">
-                <input inputMode="decimal" placeholder={c.k === "lucro" || c.k === "impostos" ? "0" : "auto"} aria-label={`${c.nome} (%)`} value={form[c.k]} onChange={(e) => setForm({ ...form, [c.k]: e.target.value })} />
-                %
+                {!c.soPct && (
+                  <span className="pc-modo" role="group" aria-label={`${c.nome}: em % ou R$`}>
+                    <button type="button" aria-pressed={form[`${c.k}Modo`] !== "valor"} className={form[`${c.k}Modo`] !== "valor" ? "ativo" : ""} onClick={() => setForm({ ...form, [`${c.k}Modo`]: "pct", [c.k]: "" })}>%</button>
+                    <button type="button" aria-pressed={form[`${c.k}Modo`] === "valor"} className={form[`${c.k}Modo`] === "valor" ? "ativo" : ""} onClick={() => setForm({ ...form, [`${c.k}Modo`]: "valor", [c.k]: "" })}>R$</button>
+                  </span>
+                )}
+                <input
+                  inputMode="decimal"
+                  placeholder={form[`${c.k}Modo`] === "valor" ? "0,00" : c.k === "lucro" || c.k === "impostos" ? "0" : "auto"}
+                  aria-label={`${c.nome} (${form[`${c.k}Modo`] === "valor" ? (c.porVenda ? "R$ por venda" : "R$ por mês") : "%"})`}
+                  value={form[c.k]}
+                  onChange={(e) => setForm({ ...form, [c.k]: e.target.value })}
+                />
+                <em>{form[`${c.k}Modo`] === "valor" ? (c.porVenda ? "por venda" : "por mês") : "%"}</em>
               </span>
-            </label>
+              {explicaValor(c) && <small className="pc-equiv">{explicaValor(c)}</small>}
+            </div>
           ))}
         </div>
+        <label className="pc-campo">
+          <span>
+            Quanto a loja vende por mês
+            <small>{auto.vendas > 0 ? `automático: ${R(auto.vendas)} (últimos 30 dias). Usado para virar os gastos do mês em %.` : "Sem vendas nos últimos 30 dias: digite quanto vende (ou espera vender) por mês."}</small>
+          </span>
+          <span className="pc-input">
+            <input inputMode="decimal" placeholder={auto.vendas > 0 ? "auto" : "0,00"} aria-label="Quanto a loja vende por mês (R$)" value={form.vendasMes} onChange={(e) => setForm({ ...form, vendasMes: e.target.value })} />
+            <em>R$</em>
+          </span>
+        </label>
+        {precisaVendas && <p className="fin-aviso">⚠️ Para usar gasto do mês em R$, informe quanto a loja vende por mês.</p>}
         <p className={`pc-resumo ${total >= 100 ? "ruim" : ""}`}>
           {total >= 100
             ? `A soma passou de 100% (${fmtPct(total)}): não tem preço que pague. Diminua o lucro ou as despesas.`
+            : lucroEmValor
+            ? `De cada R$ 100,00 vendidos: R$ ${fmt(total)} vão para taxas, despesas e impostos. O resto paga o custo do produto e o seu lucro de R$ ${fmt(p.lucroValor)} em cada venda.`
             : `De cada R$ 100,00 vendidos: R$ ${fmt(total - p.lucro)} vão para taxas, despesas e impostos, R$ ${fmt(p.lucro)} são o seu lucro e R$ ${fmt(100 - total)} pagam o custo do produto.`}
         </p>
         <div className="ins-modal-botoes">
