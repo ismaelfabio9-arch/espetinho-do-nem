@@ -336,7 +336,7 @@ function Fechamento({ caixa, r, nomeLoja, voltar }) {
         <Linha nome="Vendas em dinheiro" valor={res.dinheiro} />
         <Linha nome="Suprimentos" valor={res.suprimentos} />
         <Linha nome="Sangrias" valor={-res.sangrias} />
-        <Linha nome="Tinha que ter na gaveta" valor={caixa.esperado} total />
+        <Linha nome="Tem que ter na gaveta" valor={caixa.esperado} total />
         <Linha nome="Contado na gaveta" valor={caixa.contado} />
         {Number(caixa.diferenca) === 0 ? <div className="fin-linha fin-total"><div><span>Gaveta</span></div><strong className="fin-pos">✓ Bateu</strong></div> : <Linha nome={Number(caixa.diferenca) < 0 ? "Faltou na gaveta" : "Sobrou na gaveta"} valor={caixa.diferenca} total />}
         {Number(caixa.retiradoNoFechamento) > 0 && <Linha nome="Retirado no fechamento" valor={caixa.retiradoNoFechamento} />}
