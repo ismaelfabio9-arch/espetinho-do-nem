@@ -58,14 +58,35 @@ export function precoDoProduto(custo, preco, p) {
   // Com o preço de hoje: quanto sobra de verdade em cada venda depois de tudo.
   const gastosNoPreco = (preco$ * pctGastos) / 100;
   const lucroReal = r2(preco$ - custo - gastosNoPreco);
-  const partes = (valor) => {
+  // A conta em degraus, do preço até o lucro limpo (o que confundia era mostrar só o último número).
+  const degraus = (valor) => {
     const v = Number(valor || 0);
+    const taxas = (v * (Number(p.maquininha || 0) + Number(p.variaveis || 0) + Number(p.impostos || 0))) / 100;
+    const fixas = (v * Number(p.fixas || 0)) / 100;
+    const depoisCusto = v - custo;
+    const depoisTaxas = depoisCusto - taxas;
+    return {
+      preco: r2(v),
+      custo: r2(custo),
+      depoisCusto: r2(depoisCusto),
+      taxas: r2(taxas),
+      maquininha: r2((v * Number(p.maquininha || 0)) / 100),
+      variaveis: r2((v * Number(p.variaveis || 0)) / 100),
+      impostos: r2((v * Number(p.impostos || 0)) / 100),
+      depoisTaxas: r2(depoisTaxas),
+      fixas: r2(fixas),
+      lucro: r2(depoisTaxas - fixas),
+      pct: (x) => (v > 0 ? Math.round((x / v) * 100) : null),
+    };
+  };
+  const partes = (valor) => {
+    const d = degraus(valor);
     return [
-      { nome: "Custo do produto", valor: r2(custo) },
-      { nome: "Taxa da maquininha", valor: r2((v * Number(p.maquininha || 0)) / 100) },
-      { nome: "Despesas fixas (aluguel, funcionários…)", valor: r2((v * Number(p.fixas || 0)) / 100) },
-      { nome: "Despesas variáveis (entregador, embalagem…)", valor: r2((v * Number(p.variaveis || 0)) / 100) },
-      { nome: "Impostos", valor: r2((v * Number(p.impostos || 0)) / 100) },
+      { nome: "Custo do produto", valor: d.custo },
+      { nome: "Taxa da maquininha", valor: d.maquininha },
+      { nome: "Despesas variáveis (entregador, embalagem…)", valor: d.variaveis },
+      { nome: "Impostos", valor: d.impostos },
+      { nome: "Parte das despesas fixas (aluguel, funcionários…)", valor: d.fixas },
     ].filter((x) => x.valor > 0);
   };
   return {
@@ -76,6 +97,8 @@ export function precoDoProduto(custo, preco, p) {
     situacao: preco$ + 0.005 >= ideal ? "bom" : "baixo",
     partes: partes(preco$),
     partesIdeal: partes(sugerido),
+    hoje: degraus(preco$),
+    noSugerido: degraus(sugerido),
     lucroNoSugerido: r2(sugerido - custo - (sugerido * pctGastos) / 100),
   };
 }

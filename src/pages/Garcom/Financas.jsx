@@ -725,9 +725,10 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, irCustos }) {
                     {typeof custo === "number" ? `Custo ${R(custo)}${ficha ? " (ficha)" : ""} · vende por ${R(x.preco)}` : `Vende por ${R(x.preco)} · sem custo`}
                   </small>
                   {r.situacao === "bom" || r.situacao === "baixo" ? (
-                    <small className={r.lucroReal < 0 ? "fin-neg" : ""}>
-                      Lucro por venda: <b>{R(r.lucroReal)}</b>
-                      {r.margemReal !== null ? ` (${r.margemReal}%)` : ""}
+                    <small>
+                      Sobra depois do custo: <b>{R(r.hoje.depoisCusto)}</b> · lucro limpo:{" "}
+                      <b className={r.lucroReal < 0 ? "fin-neg" : "pc-verde"}>{R(r.lucroReal)}</b>
+                      {r.margemReal !== null ? ` (${pctTxt(r.margemReal)})` : ""}
                     </small>
                   ) : null}
                 </span>
@@ -749,9 +750,14 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, irCustos }) {
                     Preço ideal: <b>{R(r.ideal)}</b> · sugerido <b>{R(r.sugerido)}</b> (lucro de {R(r.lucroNoSugerido)} por venda)
                   </p>
                   <div className="pc-colunas">
-                    <Partes titulo={`Vendendo a ${R(x.preco)} (hoje)`} partes={r.partes} lucro={r.lucroReal} />
-                    {r.situacao === "baixo" && <Partes titulo={`Vendendo a ${R(r.sugerido)} (sugerido)`} partes={r.partesIdeal} lucro={r.lucroNoSugerido} />}
+                    <Escada titulo={`Vendendo a ${R(x.preco)} (hoje)`} d={r.hoje} fixasPct={p.fixas} />
+                    {r.situacao === "baixo" && <Escada titulo={`Vendendo a ${R(r.sugerido)} (sugerido)`} d={r.noSugerido} fixasPct={p.fixas} />}
                   </div>
+                  {p.fixas > 0 && (
+                    <p className="pc-nota">
+                      A <b>parte das despesas fixas</b> é quanto cada venda ajuda a pagar do aluguel, funcionários e contas do mês ({String(Math.round(p.fixas * 10) / 10).replace(".", ",")}% de cada venda). Vendendo mais no mês, essa parte cai e o lucro limpo sobe.
+                    </p>
+                  )}
                 </div>
               )}
             </li>
@@ -762,16 +768,28 @@ function PrecoCerto({ produtos, custos, daFicha, f30, taxas, irCustos }) {
   );
 }
 
-function Partes({ titulo, partes, lucro }) {
+const pctTxt = (n) => (n < 0 ? `− ${Math.abs(n)}%` : `${n}%`);
+
+/** A conta em degraus: preço → − custo → − taxas e impostos → − parte das despesas fixas → lucro limpo. */
+function Escada({ titulo, d, fixasPct }) {
+  const taxasTxt = [d.maquininha > 0 ? `maquininha ${R(d.maquininha)}` : "", d.variaveis > 0 ? `variáveis ${R(d.variaveis)}` : "", d.impostos > 0 ? `impostos ${R(d.impostos)}` : ""].filter(Boolean).join(" · ");
   return (
-    <div className="pc-partes">
+    <div className="pc-partes pc-escada">
       <strong>{titulo}</strong>
       <ul>
-        {partes.map((x) => (
-          <li key={x.nome}><span>{x.nome}</span><span>{R(x.valor)}</span></li>
-        ))}
-        <li className={lucro < 0 ? "fin-neg" : "pc-lucro"}><span>{lucro < 0 ? "Prejuízo" : "Seu lucro"}</span><span>{R(lucro)}</span></li>
+        <li className="pc-degrau"><span>Vende por</span><span>{R(d.preco)}</span></li>
+        <li><span>− Custo do produto</span><span>{R(d.custo)}</span></li>
+        <li className="pc-degrau"><span>= Sobra depois do custo</span><span>{R(d.depoisCusto)} <small>({pctTxt(d.pct(d.depoisCusto))})</small></span></li>
+        {d.taxas > 0 && (
+          <>
+            <li><span>− Taxas e impostos<small>{taxasTxt}</small></span><span>{R(d.taxas)}</span></li>
+            <li className="pc-degrau"><span>= Sobra para pagar as contas da loja</span><span>{R(d.depoisTaxas)} <small>({pctTxt(d.pct(d.depoisTaxas))})</small></span></li>
+          </>
+        )}
+        {d.fixas > 0 && <li><span>− Parte das despesas fixas<small>{String(Math.round(fixasPct * 10) / 10).replace(".", ",")}% de cada venda</small></span><span>{R(d.fixas)}</span></li>}
+        <li className={d.lucro < 0 ? "pc-final fin-neg" : "pc-final pc-lucro"}><span>= {d.lucro < 0 ? "Prejuízo" : "Lucro limpo"}</span><span>{R(d.lucro)} <small>({pctTxt(d.pct(d.lucro))})</small></span></li>
       </ul>
     </div>
   );
 }
+

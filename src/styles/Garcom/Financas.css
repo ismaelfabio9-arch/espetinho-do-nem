@@ -111,3 +111,10 @@
 .pc-modo button { border: 0; background: var(--card); color: var(--muted); font-weight: 800; padding: 7px 9px; font-size: 13px; cursor: pointer; }
 .pc-modo button.ativo { background: var(--green); color: #fff; }
 .pc-equiv { flex-basis: 100%; text-align: right; color: #0f766e !important; font-weight: 700 !important; }
+.pc-verde { color: #15803d !important; }
+.pc-escada li span small { display: block; color: var(--muted); font-size: 12px; font-weight: 500; }
+.pc-escada li span:last-child small { display: inline; }
+.pc-escada li.pc-degrau { font-weight: 800; border-bottom-style: solid; }
+.pc-escada li.pc-final { font-weight: 800; border-bottom: 0; font-size: 15px; }
+.pc-nota { margin: 10px 0 0 !important; color: var(--muted); font-size: 13px; }
+.pc-escada li.pc-lucro, .pc-escada li.pc-lucro span { color: #15803d !important; } .pc-escada li.fin-neg, .pc-escada li.fin-neg span { color: var(--red) !important; } .pc-escada li.pc-degrau span:first-child, .pc-escada li.pc-degrau span:last-child { color: var(--text); }
