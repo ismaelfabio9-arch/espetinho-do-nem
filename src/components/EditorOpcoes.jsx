@@ -154,7 +154,7 @@ export default function EditorOpcoes({ tipo, ed, onTipo, onChange, semVem = fals
             </button>
           ))}
         </div>
-        {tipo === "simples" && <p className="eo-dica">Entra direto no pedido com um toque, sem perguntar nada.</p>}
+        {tipo === "simples" && <p className="eo-dica">Entra direto no pedido com um toque, sem perguntar nada. Tem tipo para escolher (ex.: arroz branco ou integral, feijão carioca ou preto)? Toque em "Com escolha".</p>}
       </div>
 
       {comVem && semVem && (
@@ -185,7 +185,7 @@ export default function EditorOpcoes({ tipo, ed, onTipo, onChange, semVem = fals
       {tipo !== "simples" && (
         <div className="eo-bloco">
           <span className="eo-rotulo">{tipo === "sabor" ? "Sabores" : "O cliente escolhe"}</span>
-          <p className="eo-dica">{tipo === "lanche" ? "Ex.: Normal ou Artesanal (+ R$ 4,00), a carne, até 2 patês." : tipo === "recheio" ? "Ex.: o tamanho (Pequeno, Médio + R$ 5,00…) ou o recheio." : tipo === "sabor" ? "Se um sabor custar mais, ponha quanto a mais." : "Ex.: o feijão (Carioca, Preto)."} {tipo === "prato" ? "No prato a escolha não muda o preço: porção a mais de arroz ou feijão vai em Adicionais com preço (ou como acompanhamento)." : "Na 1ª escolha ponha o preço de cada opção (ex.: 6 sabores R$ 13, 10 sabores R$ 16); nas outras, só quanto custa a mais."}</p>
+          <p className="eo-dica">{tipo === "lanche" ? "Ex.: Normal ou Artesanal (+ R$ 4,00), a carne, até 2 patês." : tipo === "recheio" ? "Ex.: o tipo (arroz branco ou integral), o tamanho (6 sabores, 10 sabores) ou o recheio." : tipo === "sabor" ? "Se um sabor custar mais, ponha quanto a mais." : "Ex.: o feijão (Carioca, Preto)."} {tipo === "prato" ? "No prato a escolha não muda o preço: porção a mais de arroz ou feijão vai em Adicionais com preço (ou como acompanhamento)." : "Na 1ª escolha ponha o preço de cada opção (ex.: 6 sabores R$ 13, 10 sabores R$ 16); nas outras, só quanto custa a mais."}</p>
           {ed.escolhas.map((g, i) => (
             <div key={i} className="eo-grupo">
               <div className="eo-linha">
@@ -245,9 +245,15 @@ export default function EditorOpcoes({ tipo, ed, onTipo, onChange, semVem = fals
                 if (nomes.length < 2 || !sem.length) return null;
                 const base = precoPelasOpcoes(tipo, ed) ?? (Number(String(precoBase ?? "").replace(",", ".")) || 0);
                 return (
-                  <p className="eo-aviso">
-                    ⚠️ Sem preço: {sem.map((o) => o.nome.trim()).join(", ")}. {sem.length === nomes.length ? "Todos saem" : "Sai"} pelo preço do produto (R$ {moeda(base) || "0"}). Ponha o preço de cada um.
-                  </p>
+                  sem.length === nomes.length ? (
+                    <p className="eo-dica eo-mesmo-preco">
+                      Sem preço nas opções: todas saem pelo preço do produto (R$ {moeda(base) || "0"}). Se o preço muda (6 sabores R$ 13, 10 sabores R$ 16), ponha o preço de cada uma.
+                    </p>
+                  ) : (
+                    <p className="eo-aviso">
+                      ⚠️ Sem preço: {sem.map((o) => o.nome.trim()).join(", ")}. Sai pelo preço do produto (R$ {moeda(base) || "0"}). Ponha o preço de cada um.
+                    </p>
+                  )
                 );
               })()}
               <div className="eo-acoes">

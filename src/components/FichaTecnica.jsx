@@ -452,7 +452,7 @@ export function usePrecificacao() {
 
 /** Resumo do produto pelo custo dos ingredientes: quanto sobra em cada unidade (sem despesa fixa nem meta, que
  *  ficam no resultado do mês do Preço certo). */
-export function PrecoNoProduto({ custo, preco }) {
+export function PrecoNoProduto({ custo, preco, digitado = false }) {
   const salvo = usePrecificacao();
   if (salvo === null || typeof custo !== "number") return null;
   const p = Number(String(preco ?? "").replace(",", ".")) || 0;
@@ -477,7 +477,7 @@ export function PrecoNoProduto({ custo, preco }) {
     <div className={`pnp ${c.lucro > 0 ? "bom" : "baixo"}`}>
       <div className="pnp-conta">
         <span>Preço de hoje</span><b>{R(p)}</b>
-        <span>− Ingredientes (com a embalagem)</span><b>{R(custo)}</b>
+        <span>{digitado ? "− Custo digitado" : "− Ingredientes (com a embalagem)"}</span><b>{R(custo)}</b>
         {c.taxas > 0 && (<><span>− Maquininha e impostos</span><b>{R(c.taxas)}</b></>)}
         {c.parteContas > 0 && (<><span>− Parte das contas da loja</span><b>{R(c.parteContas)}</b></>)}
         <span className="pnp-total">= Lucro para você</span><b className="pnp-total">{R(c.lucro)}</b>
@@ -485,6 +485,8 @@ export function PrecoNoProduto({ custo, preco }) {
       <p>
         {c.faltaVendas
           ? "Falta a parte das contas: diga quanto a loja vende por mês em Preço certo."
+          : c.lucro < 0
+          ? `Prejuízo de ${R(-c.lucro)} em cada um.${c.minimo ? ` Precisa vender por pelo menos ${R(c.minimo)}.` : ""}`
           : `${String(c.margem).replace(".", ",")}% do preço é lucro.${c.minimo ? ` Abaixo de ${R(c.minimo)} dá prejuízo.` : ""}`}
       </p>
     </div>
@@ -505,10 +507,21 @@ export function FichaDoProduto({ produto, precoAtual, onNomes }) {
   const ativos = insumos.filter((i) => i.ativo !== false).sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"));
   const porId = Object.fromEntries(insumos.map((i) => [i.id, i]));
   const custo = custoFicha.temItens ? custoFicha.custo : custoManual;
+  const digitado = !custoFicha.temItens && typeof custoManual === "number";
+  // Custo digitado antes (sem ingredientes): fica valendo até o dono pôr os ingredientes ou apagar.
+  async function apagarDigitado() {
+    await setDoc(doc(db, ...L(), "custos", produto.id), { custo: null, nome: produto.nome, atualizadoEm: new Date().toISOString() }, { merge: true });
+  }
   return (
     <div className="fdp">
       <EditarFicha produto={produto} ficha={ficha} insumos={ativos} porId={porId} onCusto={aoCusto} precoAtual={precoAtual} onNomes={onNomes} />
-      <PrecoNoProduto custo={custo} preco={precoAtual ?? produto.preco} />
+      {digitado && (
+        <p className="fin-aviso fdp-digitado">
+          Este produto está com um custo digitado antes ({R(custoManual)}), sem ingredientes. Ponha os ingredientes acima (em gramas: ex. 150 g de arroz por porção) que o custo passa a ser deles.{" "}
+          <button type="button" className="ni-link" onClick={apagarDigitado}>Apagar o custo digitado</button>
+        </p>
+      )}
+      <PrecoNoProduto custo={custo} preco={precoAtual ?? produto.preco} digitado={digitado} />
     </div>
   );
 }
