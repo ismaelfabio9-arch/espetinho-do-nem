@@ -2,13 +2,13 @@ import { L } from "../../loja";
 import useNomeLoja from "../../hooks/useNomeLoja";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
+import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useTaxas } from "../../utils/taxas";
 import { GRUPOS, TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
 import { custoDaFicha, perdasNoPeriodo } from "../../utils/insumos";
-import { FichaDoProduto } from "../../components/FichaTecnica";
-import { ehCategoriaDeBebida, ehCategoriaDePrato } from "../../utils/montagem";
+import Custos from "./Custos";
+import { ehCategoriaDeBebida, ehCategoriaDePrato, precosDoCardapio } from "../../utils/montagem";
 import { PESO_INGREDIENTES_PADRAO, pctDoMes, pesoIngredientes, precoDoProduto, somaPct } from "../../utils/precificacao";
 import "../../styles/Garcom/RelatorioGerencial.css";
 import "../../styles/Garcom/Financas.css";
@@ -27,6 +27,7 @@ const R = (v) => (v < 0 ? `− R$ ${fmt(-v)}` : `R$ ${fmt(v)}`);
 const ABAS = [
   { id: "resumo", nome: "Lucro e caixa" },
   { id: "lancamentos", nome: "Despesas e compras" },
+  { id: "custos", nome: "Custos" },
   { id: "preco", nome: "Preço certo" },
 ];
 
@@ -107,7 +108,7 @@ function Financas({ abas = ["resumo", "lancamentos"], titulo = "Dinheiro", texto
               </button>
             ))}
           </div>}
-          {aba !== "preco" && (
+          {aba !== "preco" && aba !== "custos" && (
             <>
               <div className="fin-periodos">
                 {PERIODOS.map((p) => (
@@ -138,6 +139,8 @@ function Financas({ abas = ["resumo", "lancamentos"], titulo = "Dinheiro", texto
         <p className="fin-carregando">Carregando…</p>
       ) : aba === "lancamentos" ? (
         <Lancamentos f={f} categorias={categorias} />
+      ) : aba === "custos" ? (
+        <Custos produtos={produtos} custos={custos} daFicha={daFicha} custosDocs={custosDocs} fichas={fichas} />
       ) : aba === "preco" ? (
         <PrecoCerto produtos={produtos} custos={custos} daFicha={daFicha} />
       ) : (
@@ -459,9 +462,6 @@ function PrecoCerto({ produtos, custos, daFicha }) {
   const [soAbaixo, setSoAbaixo] = useState(false);
   const [msg, setMsg] = useState("");
   const [detalhe, setDetalhe] = useState({}); // { fixas: true } lista aberta
-  const [montar, setMontar] = useState(null); // produto com a janela de ingredientes aberta
-  const [fila, setFila] = useState(null); // { ids, i }: montando um prato depois do outro
-  const [digitar, setDigitar] = useState({});
   const [avisoMax, setAvisoMax] = useState({}); // { lucro: "Máximo 63%…" }
   useEffect(
     () =>
@@ -481,7 +481,7 @@ function PrecoCerto({ produtos, custos, daFicha }) {
         fixas: t(salvo.fixas), fixasModo: modo("fixas"),
         variaveis: t(salvo.variaveis), variaveisModo: modo("variaveis"),
         impostos: t(salvo.impostos ?? 0), impostosModo: modo("impostos"),
-        lucro: t(salvo.lucro), lucroModo: modo("lucro"),
+        meta: t(salvo.meta), metaModo: "valor",
         vendasMes: t(salvo.vendasMes),
         conta: salvo.conta === "ingredientes" ? "ingredientes" : "completo",
         pesoIngredientes: t(pesoIngredientes(salvo)),
@@ -511,7 +511,8 @@ function PrecoCerto({ produtos, custos, daFicha }) {
     if (modoCampo(k) === "valor") return pctDoMes(v, vendasMes) ?? 0;
     return v;
   };
-  const lucroEmValor = form.lucroModo === "valor";
+  // O lucro vem do quanto o dono quer tirar para ele no mês (R$), dividido pelas vendas do mês.
+  const meta = numDe(form.meta);
   // "Só os ingredientes": lucro = preço − ingredientes (maquininha, despesas e impostos não entram).
   const soIngredientes = form.conta === "ingredientes";
   const p = {
@@ -519,14 +520,14 @@ function PrecoCerto({ produtos, custos, daFicha }) {
     fixas: soIngredientes ? 0 : pctCampo("fixas"),
     variaveis: soIngredientes ? 0 : pctCampo("variaveis"),
     impostos: soIngredientes ? 0 : pctCampo("impostos"),
-    lucro: soIngredientes ? 100 - (numDe(form.pesoIngredientes, 100) || PESO_INGREDIENTES_PADRAO) : lucroEmValor ? 0 : numDe(form.lucro, 100) ?? 0,
-    lucroValor: !soIngredientes && lucroEmValor ? numDe(form.lucro) ?? 0 : 0,
+    lucro: soIngredientes ? 100 - (numDe(form.pesoIngredientes, 100) || PESO_INGREDIENTES_PADRAO) : meta ? pctDoMes(meta, vendasMes) ?? 0 : 0,
+    lucroValor: 0,
     soIngredientes,
   };
   const total = somaPct(p);
   const fmtPct = (n) => `${String(Math.round(n * 10) / 10).replace(".", ",")}%`;
   // O total nunca passa de 100%: um campo em % aceita no máximo o que sobra das outras partes.
-  const parteDe = (k) => (k === "lucro" ? (lucroEmValor ? 0 : p.lucro) : p[k] || 0);
+  const parteDe = (k) => (k === "meta" ? p.lucro : p[k] || 0);
   const maximoDe = (k) => Math.max(0, Math.floor((100 - (total - parteDe(k))) * 10) / 10);
   function mudarCampo(k, txt) {
     const emPct = k === "maquininha" || modoCampo(k) !== "valor";
@@ -541,8 +542,8 @@ function PrecoCerto({ produtos, custos, daFicha }) {
     if (avisoMax[k]) setAvisoMax({ ...avisoMax, [k]: "" });
   }
   // Gastos do mês em R$: quanto somam e se passam do que a loja vende (aí não dá para virar %).
-  const gastosMesR = ["fixas", "variaveis", "impostos"].reduce((s2, k) => s2 + (modoCampo(k) === "valor" ? numDe(valorCampo(k)) || 0 : 0), 0);
-    const precisaVendas = ["fixas", "variaveis", "impostos"].some((k) => modoCampo(k) === "valor" && numDe(valorCampo(k)) !== null) && !vendasMes;
+  const gastosMesR = ["fixas", "variaveis", "impostos", "meta"].reduce((s2, k) => s2 + (modoCampo(k) === "valor" ? numDe(valorCampo(k)) || 0 : 0), 0);
+  const precisaVendas = ["fixas", "variaveis", "impostos", "meta"].some((k) => modoCampo(k) === "valor" && numDe(valorCampo(k)) !== null) && !vendasMes;
 
   async function mudarConta(conta) {
     setForm({ ...form, conta });
@@ -563,12 +564,12 @@ function PrecoCerto({ produtos, custos, daFicha }) {
         fixasItens: (form.fixasItens || []).filter((i) => String(i.nome || "").trim() && numDe(i.valor)).map((i) => ({ nome: String(i.nome).trim().slice(0, 40), valor: numDe(i.valor) })),
         variaveisItens: (form.variaveisItens || []).filter((i) => String(i.nome || "").trim() && numDe(i.valor)).map((i) => ({ nome: String(i.nome).trim().slice(0, 40), valor: numDe(i.valor) })),
         impostos: v("impostos") ?? 0, impostosModo: form.impostosModo,
-        lucro: v("lucro") ?? 0, lucroModo: form.lucroModo,
+        meta: v("meta"),
         vendasMes: v("vendasMes"),
         conta: form.conta,
         pesoIngredientes: numDe(form.pesoIngredientes, 100) || PESO_INGREDIENTES_PADRAO,
         atualizadoEm: new Date().toISOString(),
-      });
+      }, { merge: true });
       setMsg("✓ Salvo");
     } catch {
       setMsg("Não foi possível salvar. Confira a internet.");
@@ -581,7 +582,7 @@ function PrecoCerto({ produtos, custos, daFicha }) {
     { k: "fixas", nome: "Despesas fixas", porMes: true, dica: "aluguel, funcionários, contas: em % ou o total do mês em R$" },
     { k: "variaveis", nome: "Despesas variáveis", porMes: true, dica: "entregador, divulgação…: em % ou o total do mês em R$" },
     { k: "impostos", nome: "Impostos", porMes: true, dica: "MEI: o valor do boleto do mês em R$ (DAS) · Simples Nacional: costuma ser de 4% a 6%" },
-    { k: "lucro", nome: "Lucro que você quer", porVenda: true, dica: lucroEmValor ? "R$ limpos em cada produto vendido" : "% de cada venda que sobra limpo (restaurante costuma ficar entre 10% e 20%)" },
+    { k: "meta", nome: "Quanto quero tirar para mim por mês", soValor: true, dica: "A parte do dono, depois de pagar o custo dos produtos, as taxas, as despesas e os impostos. O sistema divide pelo que a loja vende no mês." },
   ];
   const explicaValor = (c) => {
     if (c.soPct || modoCampo(c.k) !== "valor") {
@@ -590,7 +591,6 @@ function PrecoCerto({ produtos, custos, daFicha }) {
     }
     const v = numDe(valorCampo(c.k));
     if (v === null) return "";
-    if (c.porVenda) return `= R$ ${fmt(v)} em cada venda`;
     const pc = pctDoMes(v, vendasMes);
     if (pc === null) return "informe quanto vende por mês";
     return pc >= 100 ? `é mais do que a loja vende no mês (${R(vendasMes)})` : `= ${fmtPct(pc)} das vendas`;
@@ -601,7 +601,6 @@ function PrecoCerto({ produtos, custos, daFicha }) {
     .sort((a, b) => String(a.produto.categoria || "").localeCompare(String(b.produto.categoria || ""), "pt-BR") || String(a.produto.nome).localeCompare(String(b.produto.nome), "pt-BR"));
   const abaixo = linhas.filter((l) => l.r.situacao === "baixo").length;
   // Produtos ainda sem ingredientes (mesmo com custo digitado): a fila do "um por um".
-  const semFicha = linhas.filter((l) => !l.ficha);
   const semCusto = linhas.filter((l) => l.r.situacao === "sem-custo").length;
   const mostrar = soAbaixo ? linhas.filter((l) => l.r.situacao === "baixo") : linhas;
   // Em blocos por categoria: pratos (prato feito, do dia) primeiro, acompanhamentos e porções no meio, bebidas no fim.
@@ -656,7 +655,7 @@ function PrecoCerto({ produtos, custos, daFicha }) {
                 <small>{c.dica}</small>
               </span>
               <span className="pc-input">
-                {!c.soPct && (
+                {!c.soPct && !c.soValor && (
                   <span className="pc-modo" role="group" aria-label={`${c.nome}: em % ou R$`}>
                     <button type="button" aria-pressed={form[`${c.k}Modo`] !== "valor"} className={form[`${c.k}Modo`] !== "valor" ? "ativo" : ""} onClick={() => setForm({ ...form, [`${c.k}Modo`]: "pct", [c.k]: "" })}>%</button>
                     <button type="button" aria-pressed={form[`${c.k}Modo`] === "valor"} className={form[`${c.k}Modo`] === "valor" ? "ativo" : ""} onClick={() => setForm({ ...form, [`${c.k}Modo`]: "valor", [c.k]: "" })}>R$</button>
@@ -665,12 +664,12 @@ function PrecoCerto({ produtos, custos, daFicha }) {
                 <input
                   inputMode="decimal"
                   placeholder={modoCampo(c.k) === "valor" ? "0,00" : "0"}
-                  aria-label={`${c.nome} (${modoCampo(c.k) === "valor" ? (c.porVenda ? "R$ por venda" : "R$ por mês") : "%"})`}
+                  aria-label={`${c.nome} (${modoCampo(c.k) === "valor" ? "R$ por mês" : "%"})`}
                   value={usaItens(c.k) ? fmt(totalItens(c.k)) : form[c.k]}
                   readOnly={usaItens(c.k)}
                   onChange={(e) => mudarCampo(c.k, e.target.value)}
                 />
-                <em>{modoCampo(c.k) === "valor" ? (c.porVenda ? "por venda" : "por mês") : "%"}</em>
+                <em>{modoCampo(c.k) === "valor" ? "por mês" : "%"}</em>
               </span>
               {explicaValor(c) && <small className="pc-equiv">{explicaValor(c)}</small>}
               {avisoMax[c.k] && <small className="pc-equiv pc-max">{avisoMax[c.k]}</small>}
@@ -706,11 +705,9 @@ function PrecoCerto({ produtos, custos, daFicha }) {
             ? `Preço bom = os ingredientes serem no máximo ${fmtPct(100 - p.lucro)} do preço. O que sobra (${fmtPct(p.lucro)}) paga a loja e o seu lucro.`
             : total >= 100
             ? gastosMesR > 0 && vendasMes && gastosMesR >= vendasMes
-              ? `Os gastos do mês (${R(gastosMesR)}) são iguais ou maiores do que a loja vende por mês (${R(vendasMes)}): não sobra nada para o custo dos produtos. Confira os gastos ou o quanto a loja vende.`
+              ? `Os gastos do mês e o que você quer tirar (${R(gastosMesR)}) são iguais ou maiores do que a loja vende por mês (${R(vendasMes)}): não sobra nada para o custo dos produtos. Confira os valores ou o quanto a loja vende.`
               : `As partes chegaram a 100% de cada venda: não sobra nada para pagar o custo do produto. Diminua algum valor acima.`
-            : lucroEmValor
-            ? `De cada R$ 100,00 vendidos: R$ ${fmt(total)} vão para taxas, despesas e impostos. O resto paga o custo do produto e o seu lucro de R$ ${fmt(p.lucroValor)} em cada venda.`
-            : `De cada R$ 100,00 vendidos: R$ ${fmt(total - p.lucro)} vão para taxas, despesas e impostos, R$ ${fmt(p.lucro)} são o seu lucro e R$ ${fmt(100 - total)} pagam o custo do produto.`}
+            : `De cada R$ 100,00 vendidos: R$ ${fmt(total - p.lucro)} vão para taxas, despesas e impostos, R$ ${fmt(p.lucro)} são para você e R$ ${fmt(100 - total)} pagam o custo do produto.${meta && vendasMes ? ` Com todos os produtos no preço sugerido e vendendo ${R(vendasMes)} no mês, sobram ${R(meta)} para você.` : ""}`}
         </p>
         <div className="ins-modal-botoes">
           <span className="fin-ok">{msg}</span>
@@ -720,14 +717,9 @@ function PrecoCerto({ produtos, custos, daFicha }) {
 
       <div className="relatorio-documento">
         <h2>Preço de cada produto</h2>
-        {semFicha.length > 0 && (
-          <button type="button" className="btn-verde pc-todos" onClick={() => { setFila({ ids: semFicha.map((l) => l.produto.id), i: 0 }); setMontar(semFicha[0].produto); }}>
-            🧮 Montar o custo de todos os que faltam ({semFicha.length}), um por um
-          </button>
-        )}
         <p className="fin-explica">
           {total >= 100
-            ? "As despesas e o lucro chegaram a 100% de cada venda: confira os valores acima antes de olhar os preços."
+            ? "As despesas e o que você quer tirar chegaram a 100% de cada venda: confira os valores acima antes de olhar os preços."
             : abaixo > 0
             ? `${abaixo} ${abaixo === 1 ? "produto está" : "produtos estão"} abaixo do preço ideal.`
             : linhas.some((l) => l.r.situacao === "bom")
@@ -736,7 +728,7 @@ function PrecoCerto({ produtos, custos, daFicha }) {
           {semCusto > 0 ? ` ${semCusto} sem custo cadastrado.` : ""}
         </p>
         {semCusto > 0 && (
-          <p className="fin-aviso">⚠️ Sem o custo não dá para calcular o preço. Digite o custo aqui mesmo, ou ponha os ingredientes do produto em Produtos → editar.</p>
+          <p className="fin-aviso">⚠️ Sem o custo não dá para calcular o preço. <Link to="/cardapio?aba=custos">Pôr os custos na aba Custos →</Link></p>
         )}
         <label className="ins-check">
           <input type="checkbox" checked={soAbaixo} onChange={(e) => setSoAbaixo(e.target.checked)} /> Mostrar só os que estão abaixo
@@ -758,33 +750,36 @@ function PrecoCerto({ produtos, custos, daFicha }) {
                   </small>
                   {r.situacao === "bom" || r.situacao === "baixo" ? (
                     <small>
-                      Sobra depois do custo: <b>{R(r.hoje.depoisCusto)}</b> · lucro limpo:{" "}
+                      {p.soIngredientes ? "Sobra para a loja e você" : "Lucro limpo por unidade (para você)"}:{" "}
                       <b className={r.lucroReal < 0 ? "fin-neg" : "pc-verde"}>{R(r.lucroReal)}</b>
-                      {r.margemReal !== null ? ` (${pctTxt(r.margemReal)})` : ""}
+                      {r.margemReal !== null ? ` · margem ${pctTxt(r.margemReal)}` : ""}
                     </small>
                   ) : null}
                 </span>
                 <span className="pc-status">
-                  {r.situacao === "bom" && <b className="pc-chip bom">✓ Preço bom</b>}
+                  {r.situacao === "bom" && (
+                    <>
+                      <b className="pc-chip bom">✓ Preço bom</b>
+                      <small>mínimo {R(r.sugerido)}</small>
+                    </>
+                  )}
                   {r.situacao === "baixo" && (
                     <>
                       <b className="pc-chip baixo">Abaixo</b>
-                      <small>ideal {R(r.sugerido)}</small>
+                      <small>mínimo {R(r.sugerido)}</small>
                     </>
                   )}
                   {r.situacao === "sem-custo" && <b className="pc-chip">Sem custo</b>}
                   {r.situacao === "impossivel" && <b className="pc-chip baixo">⚠️ Confira as despesas</b>}
                 </span>
               </button>
-              <div className="pc-acoes">
-                <button type="button" className="ins-btn entrada" onClick={() => { setFila(null); setMontar(x); }}>
-                  🧮 {ficha ? "Ver os ingredientes" : "Montar o custo com os ingredientes"}
-                </button>
-                {!ficha && typeof custo !== "number" && !digitar[x.id] && (
-                  <button type="button" className="ni-link" onClick={() => setDigitar({ ...digitar, [x.id]: true })}>ou digitar o custo</button>
-                )}
-              </div>
-              {!ficha && (typeof custo === "number" || digitar[x.id]) && <CustoDigitado produto={x} custo={custo} />}
+              {r.situacao === "sem-custo" ? (
+                <div className="pc-acoes">
+                  <Link className="ni-link" to={`/cardapio?aba=custos&busca=${encodeURIComponent(x.nome)}`}>Pôr o custo →</Link>
+                </div>
+              ) : (
+                <PrecoVenda produto={x} sugerido={r.situacao === "bom" || r.situacao === "baixo" ? r.sugerido : null} />
+              )}
               {aberto === x.id && (r.situacao === "bom" || r.situacao === "baixo") && (
                 <div className="pc-detalhe">
                   <p>
@@ -807,29 +802,6 @@ function PrecoCerto({ produtos, custos, daFicha }) {
           ))}
         </ul>
       </div>
-      {montar && (
-        <div className="ins-modal" role="dialog" aria-modal="true" aria-label={`Custo de ${montar.nome}`} onClick={() => { setMontar(null); setFila(null); }}>
-          <div className="ins-modal-caixa pc-montar" onClick={(e) => e.stopPropagation()}>
-            <div className="pc-montar-topo">
-              <h2>{montar.nome}</h2>
-              <button type="button" className="prod-ficha-x" aria-label="Fechar" onClick={() => { setMontar(null); setFila(null); }}>✕</button>
-            </div>
-            {fila && <p className="pc-fila">Produto {fila.i + 1} de {fila.ids.length}</p>}
-            <p className="fin-explica">Diga o que vai em 1 {montar.nome} e quanto de cada. O sistema soma a comida, põe a parte das despesas e diz o preço para vender.</p>
-            <FichaDoProduto key={montar.id} produto={montar} precoAtual={montar.preco} />
-            {fila && (
-              <div className="pc-fila-botoes">
-                <button type="button" className="ins-btn" disabled={fila.i === 0} onClick={() => { const i = fila.i - 1; setFila({ ...fila, i }); setMontar((produtos || []).find((x) => x.id === fila.ids[i]) || null); }}>← Anterior</button>
-                {fila.i < fila.ids.length - 1 ? (
-                  <button type="button" className="btn-verde" onClick={() => { const i = fila.i + 1; setFila({ ...fila, i }); setMontar((produtos || []).find((x) => x.id === fila.ids[i]) || null); }}>Próximo produto →</button>
-                ) : (
-                  <button type="button" className="btn-verde" onClick={() => { setFila(null); setMontar(null); }}>✓ Terminei</button>
-                )}
-              </div>
-            )}
-          </div>
-        </div>
-      )}
     </>
   );
 }
@@ -891,27 +863,39 @@ function ItensDespesa({ nome, sugestoes, itens, aberto, abrir, total, mudar }) {
   );
 }
 
-/** Custo digitado (produto sem ingredientes na ficha, ex.: bebida pronta), direto na lista do Preço certo. */
-function CustoDigitado({ produto, custo }) {
+/** Preço de venda do produto, direto no Preço certo: digita ou usa o sugerido e salva no cardápio. */
+function PrecoVenda({ produto, sugerido }) {
   const [texto, setTexto] = useState(null);
-  const [ok, setOk] = useState(false);
-  async function gravar() {
-    if (texto === null) return;
-    const vazio = texto.trim() === "";
-    await setDoc(doc(db, ...L(), "custos", produto.id), { custo: vazio ? null : lerValor(texto), nome: produto.nome, atualizadoEm: new Date().toISOString() }, { merge: true });
-    setTexto(null);
-    setOk(true);
-    setTimeout(() => setOk(false), 1500);
+  const [msg, setMsg] = useState("");
+  const atual = Number(produto.preco || 0);
+  const temOpcoes = !!precosDoCardapio(produto);
+  if (temOpcoes) return <p className="pc-preco"><small>Tem preço por opção ({precosDoCardapio(produto).map((o) => o.nome).join(", ")}): mude em Produtos → editar.</small></p>;
+  const valor = texto ?? fmt(atual);
+  const novo = lerValor(valor);
+  const mudou = Number.isFinite(novo) && novo > 0 && Math.abs(novo - atual) > 0.004;
+  async function salvar() {
+    if (!mudou) return;
+    try {
+      await updateDoc(doc(db, ...L(), "produtos", produto.id), { preco: Math.round(novo * 100) / 100 });
+      setTexto(null);
+      setMsg("✓ Preço salvo no cardápio");
+    } catch {
+      setMsg("Não foi possível salvar. Confira a internet.");
+    }
+    setTimeout(() => setMsg(""), 2500);
   }
   return (
-    <label className="pc-custo-dig">
-      <span>{typeof custo === "number" ? "Custo digitado" : "Digite o custo de 1 unidade"}</span>
+    <div className="pc-preco">
       <span className="pc-input">
-        R$
-        <input inputMode="decimal" placeholder="0,00" aria-label={`Custo de ${produto.nome}`} value={texto ?? (typeof custo === "number" ? fmt(custo) : "")} onChange={(e) => setTexto(e.target.value)} onBlur={gravar} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
-        <em className="fin-ok">{ok ? "✓" : ""}</em>
+        Vender por R$
+        <input inputMode="decimal" aria-label={`Preço de ${produto.nome}`} value={valor} onChange={(e) => { setTexto(e.target.value); setMsg(""); }} onKeyDown={(e) => e.key === "Enter" && salvar()} />
       </span>
-    </label>
+      {sugerido !== null && (novo > 0 ? novo : atual) < sugerido - 0.004 && (
+        <button type="button" className="ins-btn" onClick={() => { setTexto(fmt(sugerido)); setMsg(""); }}>Usar o sugerido ({R(sugerido)})</button>
+      )}
+      {mudou && <button type="button" className="btn-verde" onClick={salvar}>Salvar preço</button>}
+      {msg && <small>{msg}</small>}
+    </div>
   );
 }
 
