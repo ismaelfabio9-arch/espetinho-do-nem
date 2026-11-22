@@ -175,11 +175,13 @@ export function imprimir(conteudoHTML, larguraPapel = "58mm") {
               padding: 10px 8px 24px;
               font-family: 'Courier New', monospace;
               font-size: 12px;
+              font-weight: 900;
+              -webkit-text-stroke: 0.4px #000;
               color: #000;
               background: #fff;
             }
             .linha-central { text-align: center; }
-            .negrito { font-weight: 700; }
+            .negrito { font-weight: 900; }
             .grande { font-size: 15px; }
             .pequeno { font-size: 10px; }
             .separador {
@@ -219,4 +221,4 @@ export function imprimir(conteudoHTML, larguraPapel = "58mm") {
       }
     }, 400);
   });
-}
+    }
