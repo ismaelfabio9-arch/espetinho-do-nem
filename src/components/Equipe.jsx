@@ -15,7 +15,9 @@ export default function Equipe() {
   const dono = String(loja.ownerEmail || "").toLowerCase();
   // Acesso por link da IFTech (cliente sem acesso ao e-mail): mostra o nome do celular, não o e-mail interno.
   const nomeDoLink = (m) => Object.values(loja.acessosPorLink || {}).find((x) => x?.email === m)?.nome || "";
-  const souDono = eu === dono;
+  const donosLink = loja.donosLink || [];
+  const ehDono = (m) => m === dono || donosLink.includes(m);
+  const souDono = ehDono(eu);
 
   async function mudar(corpo) {
     setBusy(true);
@@ -40,9 +42,9 @@ export default function Equipe() {
         {(loja.memberEmails || []).map((m) => (
           <li key={m} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "6px 0", borderTop: "1px solid rgba(0,0,0,.08)", fontSize: 14 }}>
             <span style={{ wordBreak: "break-all" }}>
-              {ehAcessoPorLink(m) ? `📱 Entrada por link${nomeDoLink(m) ? ` (${nomeDoLink(m)})` : ""}` : m} {m === dono ? "(dono)" : ""}
+              {ehAcessoPorLink(m) ? `📱 Entrada por link${nomeDoLink(m) ? ` (${nomeDoLink(m)})` : ""}` : m} {ehDono(m) ? "(dono)" : ""}
             </span>
-            {souDono && m !== dono && (
+            {souDono && m !== dono && m !== eu && (
               <button disabled={busy} onClick={() => mudar({ remove: m })} style={{ border: "none", background: "none", color: "#b91c1c" }}>
                 Remover
               </button>

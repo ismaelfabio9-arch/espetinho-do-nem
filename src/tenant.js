@@ -27,7 +27,8 @@ export function souDonoAgora() {
   if (!MULTI) return true;
   const eu = String(state.user?.email || auth.currentUser?.email || "").toLowerCase();
   const dono = String(state.loja?.ownerEmail || "").toLowerCase();
-  return !!eu && eu === dono;
+  // Cada aparelho do dono que entrou pelo link da IFTech (celular, PC…) também é dono.
+  return !!eu && (eu === dono || (state.loja?.donosLink || []).includes(eu));
 }
 export function useSouDono() {
   const [dono, setDono] = useState(souDonoAgora);
