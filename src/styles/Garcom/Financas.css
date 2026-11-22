@@ -111,6 +111,7 @@
 .pc-modo button { border: 0; background: var(--card); color: var(--muted); font-weight: 800; padding: 7px 9px; font-size: 13px; cursor: pointer; }
 .pc-modo button.ativo { background: var(--green); color: #fff; }
 .pc-equiv { flex-basis: 100%; text-align: right; color: #0f766e !important; font-weight: 700 !important; }
+.pc-equiv.pc-max { color: #b45309 !important; }
 .pc-verde { color: #15803d !important; }
 .pc-escada li span small { display: block; color: var(--muted); font-size: 12px; font-weight: 500; }
 .pc-escada li span:last-child small { display: inline; }
