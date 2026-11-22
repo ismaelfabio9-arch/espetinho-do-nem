@@ -1075,7 +1075,7 @@ function Produtos() {
                 </label>
               </div>
               {fotosLigado && <FotoProduto produto={produto} foto={fotos[produto.id] || null} />}
-              <EditorOpcoes semVem={financasLigado} ingredientes={nomesIngredientes || []} tipo={ficha.tipo} ed={ficha.ed} onTipo={(t) => setFicha({ ...ficha, tipo: t, erro: "" })} onChange={(ed) => setFicha({ ...ficha, ed, erro: "" })} />
+              <EditorOpcoes precoBase={ficha.preco} semVem={financasLigado} ingredientes={nomesIngredientes || []} tipo={ficha.tipo} ed={ficha.ed} onTipo={(t) => setFicha({ ...ficha, tipo: t, erro: "" })} onChange={(ed) => setFicha({ ...ficha, ed, erro: "" })} />
               {financasLigado && (
                 <div className="prod-ficha-ingred prod-ficha-custo">
                   <span className="eo-rotulo">🧮 Ingredientes</span>

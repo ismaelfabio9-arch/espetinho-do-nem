@@ -14,7 +14,7 @@ const moeda = (v) => Number(v || 0).toFixed(2).replace(".", ",");
 function tocarOpcao(g, atual, op, maxAgora) {
   const max = maxAgora ?? maxDoGrupo(g);
   // Recheios pelo tamanho: toque tira; com o limite cheio, o novo troca o último que entrou.
-  if (g.maxDe) {
+  if (g.maxDe || g.livre) {
     const l = escolhidas(atual);
     if (l.includes(op)) return l.filter((x) => x !== op);
     return l.length < max ? [...l, op] : [...l.slice(0, max - 1), op];
@@ -123,7 +123,7 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
           <div key={g.nome}>
             <div className="montar-grupo">
               {g.nome.toUpperCase()}
-              {g.maxDe ? ` · ${escolhidas(escolha.escolhas[g.nome]).length} de ${maxNaEscolha(g, escolha.escolhas)}` : maxDoGrupo(g) > 1 && ` · escolha até ${maxDoGrupo(g)}`}
+              {g.livre ? " · quantos quiser (opcional)" : g.maxDe ? ` · ${escolhidas(escolha.escolhas[g.nome]).length} de ${maxNaEscolha(g, escolha.escolhas)}` : maxDoGrupo(g) > 1 && ` · escolha até ${maxDoGrupo(g)}`}
             </div>
             {g.maxDe && (
               <div className="montar-misto">

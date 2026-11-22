@@ -18,7 +18,7 @@ export function escolhaPadrao(produto) {
   const escolhas = {};
   (m.escolhas || []).forEach((g) => {
     // Recheios "pelo tamanho" começam vazios: o cliente escolhe (ou toca em Misto).
-    if (g.maxDe) escolhas[g.nome] = [];
+    if (g.maxDe || g.livre) escolhas[g.nome] = [];
     else if ((g.opcoes || []).length) escolhas[g.nome] = g.opcoes[0];
   });
   return { tirar: [], escolhas, extras: [], outros: [], obs: "" };
@@ -42,6 +42,8 @@ export function limparEscolha(produto, escolha) {
   const escolhas = { ...(escolha?.escolhas || {}) };
   (m.escolhas || []).forEach((g) => {
     if (grupoCortado(g, escolha?.tirar)) delete escolhas[g.nome];
+    // Opcional (acompanhamentos, molhos) sem nada marcado: não vai.
+    else if (g.livre && !escolhidas(escolhas[g.nome]).length) delete escolhas[g.nome];
   });
   return { ...escolha, escolhas };
 }
@@ -83,11 +85,16 @@ export const numeroDe = (t) => {
 };
 /**
  * Quantas o cliente escolhe neste grupo agora. Grupo "pelo tamanho" (maxDe: "Tamanho"): o número do tamanho
- * escolhido ("10 sabores" → até 10). Os outros: o "até N" do cadastro. Igual no servidor.
+ * escolhido (maxPor do cadastro, ou o número do nome: "10 sabores" → até 10). Os outros: o "até N". Igual no servidor.
  */
 export function maxNaEscolha(g, escolhas) {
+  // Acompanhamentos e molhos (livre): quantos quiser, nenhum também.
+  if (g?.livre) return Math.max(1, Math.min(20, (g.opcoes || []).length));
   if (!g?.maxDe) return maxDoGrupo(g);
-  return Math.max(1, Math.min(20, numeroDe(escolhidas(escolhas?.[g.maxDe])[0]) || 1));
+  const tam = escolhidas(escolhas?.[g.maxDe])[0];
+  // O número que o dono pôs em cada tamanho (açaí 300 ml = 3); sem ele, o número do nome (6 sabores = 6).
+  const n = Number(g.maxPor?.[tam]) > 0 ? Number(g.maxPor[tam]) : numeroDe(tam);
+  return Math.max(1, Math.min(20, n || 1));
 }
 /** Sorteia n opções do grupo (o "Misto"). */
 export function sortear(opcoes, n) {
