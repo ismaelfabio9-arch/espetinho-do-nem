@@ -9,7 +9,8 @@ import {
   setDoc,
   writeBatch,
 } from "firebase/firestore";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
+import { FichaDoProduto } from "../../components/FichaTecnica";
 import { db } from "../../firebase";
 import { produtos as produtosEspetinho, CATEGORIAS_PRONTAS, CARDAPIOS_EXEMPLO } from "../../data/produtos";
 import {
@@ -55,6 +56,9 @@ function Produtos() {
   const [categorias, setCategorias] = useState([]);
   // Editar produto: toca na linha e abre a ficha (nome, preço, categoria, opções e excluir).
   const [ficha, setFicha] = useState(null);
+  // Nomes dos ingredientes do produto aberto (dono com Ingredientes): viram o "O que vem" do cardápio ao salvar.
+  const [nomesIngredientes, setNomesIngredientes] = useState(null);
+  const [params, setParams] = useSearchParams();
   const [busca, setBusca] = useState("");
   // Montagem do prato (almoço): o que vem, as escolhas e o que vai a mais.
   const [montagemAberta, setMontagemAberta] = useState(null);
@@ -264,7 +268,21 @@ function Produtos() {
     setAdicionando(false);
   }
 
+  // ?editar=<id> (link do Preço certo): abre o produto direto.
+  useEffect(() => {
+    const id = params.get("editar");
+    if (!id || ficha) return;
+    const prod = produtos.find((x) => x.id === id);
+    if (!prod) return;
+    abrirFicha(prod);
+    const p = new URLSearchParams(params);
+    p.delete("editar");
+    setParams(p, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, produtos]);
+
   function abrirFicha(produto) {
+    setNomesIngredientes(null);
     setFicha({ id: produto.id, nome: produto.nome || "", preco: String(produto.preco ?? ""), categoria: produto.categoria || "", tipo: tipoDe(produto), ed: opcoesParaEditar(produto), erro: "", salvando: false });
   }
 
@@ -285,7 +303,10 @@ function Produtos() {
     if (nomeJaExiste) return setFicha({ ...ficha, erro: "Já existe um produto com esse nome nessa categoria." });
     const erroOpcoes = erroDasOpcoes(ficha.tipo, ficha.ed);
     if (erroOpcoes) return setFicha({ ...ficha, erro: erroOpcoes });
-    const montagem = opcoesParaSalvar(ficha.tipo, ficha.ed);
+    // Com os ingredientes no produto, o que vem no prato/lanche = os ingredientes (uma lista só).
+    const comVem = ficha.tipo === "prato" || ficha.tipo === "lanche";
+    const edSalvar = financasLigado && comVem && nomesIngredientes?.length ? { ...ficha.ed, vem: nomesIngredientes } : ficha.ed;
+    const montagem = opcoesParaSalvar(ficha.tipo, edSalvar);
 
     setFicha({ ...ficha, erro: "", salvando: true });
     try {
@@ -1045,11 +1066,13 @@ function Produtos() {
                 </label>
               </div>
               {fotosLigado && <FotoProduto produto={produto} foto={fotos[produto.id] || null} />}
-              <EditorOpcoes tipo={ficha.tipo} ed={ficha.ed} onTipo={(t) => setFicha({ ...ficha, tipo: t, erro: "" })} onChange={(ed) => setFicha({ ...ficha, ed, erro: "" })} />
+              <EditorOpcoes semVem={financasLigado} tipo={ficha.tipo} ed={ficha.ed} onTipo={(t) => setFicha({ ...ficha, tipo: t, erro: "" })} onChange={(ed) => setFicha({ ...ficha, ed, erro: "" })} />
               {financasLigado && (
-                <Link className="prod-ficha-custo-link" to={`/cardapio?aba=preco&ingredientes=${encodeURIComponent(produto.id)}`}>
-                  🧮 Ingredientes e preço certo deste produto →
-                </Link>
+                <div className="prod-ficha-ingred prod-ficha-custo">
+                  <span className="eo-rotulo">🧮 Ingredientes</span>
+                  <p className="eo-dica">O que vai em 1 {produto.nome || "unidade"} e quanto de cada (arroz, feijão, frango…). Soma o custo; o preço de cada ingrediente fica na aba Ingredientes. Produto comprado pronto (refrigerante) não precisa.</p>
+                  <FichaDoProduto key={produto.id} produto={produto} precoAtual={ficha.preco} onNomes={setNomesIngredientes} />
+                </div>
               )}
               {ficha.erro && <p className="prod-ficha-erro">{ficha.erro}</p>}
               <div className="prod-ficha-botoes">

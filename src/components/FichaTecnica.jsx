@@ -7,7 +7,7 @@ import { L } from "../loja";
 import { custoDaFicha, daFicha, daParaQuantos, itensJuntos, mostrarQtd, paraFicha, unidadeDe } from "../utils/insumos";
 import { tipoDe } from "../utils/montagem";
 import { lerValor } from "../utils/financas";
-import { percentuaisFinais, precoDoProduto } from "../utils/precificacao";
+import { contribuicaoDe, pctPorVenda, pesoIngredientes, precoBonito } from "../utils/precificacao";
 import "../styles/Garcom/Financas.css";
 import "../styles/Garcom/Insumos.css";
 
@@ -163,7 +163,7 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
             )}
             {trocouUnidade && (
               <p className="fin-aviso ni-troca">
-                Trocando de {unidadeDe(editar.unidade).nomeLongo} para {nomeUn}: confira o preço e o quanto tem abaixo, e a quantidade de {f.nome || "dele"} nos produtos que usam (Preço certo → Ver os ingredientes).
+                Trocando de {unidadeDe(editar.unidade).nomeLongo} para {nomeUn}: confira o preço e o quanto tem abaixo, e a quantidade de {f.nome || "dele"} nos produtos que usam (Produtos → editar → Ingredientes).
               </p>
             )}
           </div>
@@ -314,7 +314,7 @@ const pctPreco = (v, preco) => {
 };
 const paraLinhas = (itens, porId) => (itens || []).map((it) => ({ insumoId: it.insumoId, qtd: String(paraFicha(it.qtd, porId[it.insumoId]?.unidade)).replace(".", ",") }));
 
-function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
+function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNomes }) {
   const [criados, setCriados] = useState({}); // ingredientes criados aqui (até o banco devolver)
   const todos = { ...criados, ...porId };
   const [linhas, setLinhas] = useState(() => paraLinhas(itensJuntos(ficha), porId));
@@ -334,6 +334,18 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
   useEffect(() => {
     onCusto?.(custoTxt === "" ? null : Number(custoTxt), temItens);
   }, [custoTxt, temItens, onCusto]);
+  // Os nomes dos ingredientes (na ordem) viram o "O que vem" do cardápio quando o produto é salvo. O que já vinha
+  // no prato e ainda não é ingrediente cadastrado (ex.: Salada) continua no cardápio.
+  const nomesJson = JSON.stringify(
+    (() => {
+      const daFichaNomes = linhas.filter((l) => l.insumoId && todos[l.insumoId]?.nome).map((l) => todos[l.insumoId].nome);
+      const semCadastro = doCadastro(produto).filter((n) => !acharInsumo(Object.values(todos), n) && !daFichaNomes.some((x) => sem(x) === sem(n)));
+      return daFichaNomes.length ? [...daFichaNomes, ...semCadastro] : [];
+    })()
+  );
+  useEffect(() => {
+    onNomes?.(JSON.parse(nomesJson));
+  }, [nomesJson, onNomes]);
   const lista = [...insumos, ...Object.values(criados).filter((c) => !porId[c.id])];
 
   // Salva sozinha um instante depois de cada mudança (sem botão a mais na tela do produto).
@@ -392,7 +404,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
             <strong>{R(custo)}</strong>
             {(() => {
               const da = daParaQuantos({ itens }, todos);
-              return da ? <small className="ficha-da">{da.quantos === 0 ? `${da.limitante} está sem estoque registrado (registre a compra em Estoque para o sistema contar quantos dá para fazer)` : `Com o estoque de hoje dá para fazer mais ${da.quantos}${da.limitante ? ` (quem acaba primeiro: ${da.limitante})` : ""}`}</small> : null;
+              return da ? <small className="ficha-da">{da.quantos === 0 ? `${da.limitante} está sem estoque registrado (registre a compra em Ingredientes para o sistema contar quantos dá para fazer)` : `Com o estoque de hoje dá para fazer mais ${da.quantos}${da.limitante ? ` (quem acaba primeiro: ${da.limitante})` : ""}`}</small> : null;
             })()}
             {preco > 0 && (
               <small>
@@ -431,42 +443,53 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
   );
 }
 
-/** Percentuais do Preço certo (Finanças) já calculados: config salva + movimento dos últimos 30 dias. */
-export function usePercentuaisPreco() {
-  // Só o que o dono preencheu no Preço certo: nada automático (em branco = 0).
+/** O que o dono salvou no Preço certo (configuracoes/precificacao); null enquanto carrega. */
+export function usePrecificacao() {
   const [salvo, setSalvo] = useState(null);
   useEffect(() => onSnapshot(doc(db, ...L(), "configuracoes", "precificacao"), (s) => setSalvo(s.data() || {}), () => setSalvo({})), []);
-  if (salvo === null) return null;
-  return percentuaisFinais(salvo);
+  return salvo;
 }
 
-/** Resumo do preço certo de um produto (custo, preço de hoje e o sugerido). */
+/** Resumo do produto pelo custo dos ingredientes: quanto sobra em cada unidade (sem despesa fixa nem meta, que
+ *  ficam no resultado do mês do Preço certo). */
 export function PrecoNoProduto({ custo, preco }) {
-  const p = usePercentuaisPreco();
-  if (p === null || typeof custo !== "number") return null;
-  const r = precoDoProduto(custo, Number(String(preco ?? "").replace(",", ".")) || 0, p);
-  if (r.situacao === "impossivel")
-    return <p className="pnp baixo pnp-aviso">⚠️ As despesas e o que você quer tirar no mês chegaram ao que a loja vende: não tem preço que pague. Confira em Cardápio e estoque → Preço certo (e o "Quanto a loja vende por mês").</p>;
-  if (r.situacao !== "bom" && r.situacao !== "baixo") return null;
-  const d = r.noSugerido;
-  return (
-    <div className={`pnp ${r.situacao}`}>
-      <div className="pnp-conta">
-        <span>Só de ingredientes (comida)</span><b>{R(d.custo)}</b>
-        {d.taxas > 0 && (<><span>+ Maquininha e impostos</span><b>{R(d.taxas)}</b></>)}
-        {d.fixas > 0 && (<><span>+ Parte do aluguel, funcionários e contas</span><b>{R(d.fixas)}</b></>)}
-        <span>{p.soIngredientes ? "+ O resto (paga a loja e o seu lucro)" : "+ Seu lucro"}</span><b>{R(d.lucro)}</b>
-        <span className="pnp-total">= Preço para vender</span><b className="pnp-total">{R(r.sugerido)}</b>
+  const salvo = usePrecificacao();
+  if (salvo === null || typeof custo !== "number") return null;
+  const p = Number(String(preco ?? "").replace(",", ".")) || 0;
+  if (salvo.conta === "ingredientes") {
+    const peso = pesoIngredientes(salvo);
+    const minimo = precoBonito(custo / (peso / 100));
+    const bom = p >= minimo - 0.004;
+    return (
+      <div className={`pnp ${bom ? "bom" : "baixo"}`}>
+        <div className="pnp-conta">
+          <span>Ingredientes (comida)</span><b>{R(custo)}</b>
+          <span>Preço de hoje</span><b>{R(p)}</b>
+          <span className="pnp-total">Preço mínimo ({String(peso).replace(".", ",")}% de ingredientes)</span><b className="pnp-total">{R(minimo)}</b>
+        </div>
+        <p>{bom ? `✓ Preço bom: os ingredientes são ${p > 0 ? Math.round((custo / p) * 100) : 0}% do preço.` : `Abaixo do mínimo: os ingredientes pesam demais no preço.`}</p>
       </div>
-      <p>
-        {r.situacao === "bom" ? `✓ Vendendo a ${R(r.hoje.preco)} (hoje) está bom: lucro limpo de ${R(r.lucroReal)} em cada um.` : `Vendendo a ${R(r.hoje.preco)} (hoje) o lucro limpo é ${R(r.lucroReal)}: abaixo do que você quer.`}
-      </p>
+    );
+  }
+  const pv = pctPorVenda(salvo);
+  const c = contribuicaoDe(custo, p, pv);
+  if (!c) return null;
+  const taxas = Math.round(((p * pv) / 100) * 100) / 100;
+  return (
+    <div className={`pnp ${c.contrib > 0 ? "bom" : "baixo"}`}>
+      <div className="pnp-conta">
+        <span>Preço de hoje</span><b>{R(p)}</b>
+        <span>− Ingredientes (comida)</span><b>{R(custo)}</b>
+        {taxas > 0 && (<><span>− Maquininha, impostos e variáveis</span><b>{R(taxas)}</b></>)}
+        <span className="pnp-total">= Lucro por unidade</span><b className="pnp-total">{R(c.contrib)}</b>
+      </div>
+      <p>Margem real de {String(c.margem).replace(".", ",")}%. Se esse lucro paga as despesas e a sua meta, o Preço certo mostra no resultado do mês.</p>
     </div>
   );
 }
 
 /** Ingredientes do produto (o custo sai deles: o preço de cada um fica em Cardápio e estoque → Custos) + preço certo. */
-export function FichaDoProduto({ produto, precoAtual }) {
+export function FichaDoProduto({ produto, precoAtual, onNomes }) {
   const [insumos, setInsumos] = useState(null);
   const [ficha, setFicha] = useState(undefined);
   const [custoManual, setCustoManual] = useState(undefined);
@@ -481,7 +504,7 @@ export function FichaDoProduto({ produto, precoAtual }) {
   const custo = custoFicha.temItens ? custoFicha.custo : custoManual;
   return (
     <div className="fdp">
-      <EditarFicha produto={produto} ficha={ficha} insumos={ativos} porId={porId} onCusto={aoCusto} precoAtual={precoAtual} />
+      <EditarFicha produto={produto} ficha={ficha} insumos={ativos} porId={porId} onCusto={aoCusto} precoAtual={precoAtual} onNomes={onNomes} />
       <PrecoNoProduto custo={custo} preco={precoAtual ?? produto.preco} />
     </div>
   );
