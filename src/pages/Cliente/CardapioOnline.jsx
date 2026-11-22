@@ -79,7 +79,7 @@ export default function CardapioOnline() {
             // Produto sem categoria ou sem nome não pode derrubar a página (tela preta).
             const cat = String(p.categoria || "").trim() || "Outros";
             if (!grupos[cat]) grupos[cat] = { categoria: cat, itens: [] };
-            grupos[cat].itens.push({ id: p.id, nome: String(p.nome || "Produto"), preco: Number(p.preco || 0) || 0, montagem: p.montagem || null, tipo: p.tipo || null });
+            grupos[cat].itens.push({ id: p.id, nome: String(p.nome || "Produto"), preco: Number(p.preco || 0) || 0, montagem: p.montagem || null, tipo: p.tipo || null, ordem: p.ordem });
           });
         setProdutos(ordenarGruposPorCategoria(Object.values(grupos), categoriasDocs));
       }),

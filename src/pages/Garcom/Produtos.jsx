@@ -30,7 +30,7 @@ import FotoProduto from "../../components/FotoProduto";
 import EditorOpcoes, { erroDasOpcoes, opcoesParaEditar, opcoesParaSalvar } from "../../components/EditorOpcoes";
 import { useFotos } from "../../utils/fotos";
 import { FichaDoProduto } from "../../components/FichaTecnica";
-import { MODELOS, TIPOS, lerMontagem, temMontagem, textoMontagem, tipoDe, tipoInfo, tipoPelaCategoria } from "../../utils/montagem";
+import { MODELOS, TIPOS, lerMontagem, precosDoCardapio, temMontagem, textoMontagem, tipoDe, tipoInfo, tipoPelaCategoria } from "../../utils/montagem";
 
 
 // Lojas da IFTech (e a demonstração do site): categorias prontas, cardápios de exemplo e tipo nas categorias.
@@ -995,9 +995,16 @@ function Produtos() {
                       {fotos[produto.id] && <img className="prod-item-foto" src={fotos[produto.id]} alt="" loading="lazy" />}
                       <span className="prod-item-nome">
                         {produto.nome}
+                        {(produto.montagem?.vem || []).length > 0 && <small className="prod-item-vem">{produto.montagem.vem.join(", ")}</small>}
                         {comOpcoes && !ok && <small className="prod-tag falta">{info.emoji} falta pôr as opções</small>}
                       </span>
-                      <strong className="prod-item-preco">R$ {formatarMoeda(produto.preco)}</strong>
+                      <strong className="prod-item-preco">
+                        {precosDoCardapio(produto)
+                          ? precosDoCardapio(produto).map((x) => (
+                              <span key={x.nome} className="prod-item-preco-op"><small>{x.nome}</small> R$ {formatarMoeda(x.preco)}</span>
+                            ))
+                          : `R$ ${formatarMoeda(produto.preco)}`}
+                      </strong>
                     </button>
                   );
                 })}

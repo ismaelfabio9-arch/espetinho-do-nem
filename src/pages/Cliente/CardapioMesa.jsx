@@ -131,6 +131,7 @@ function CardapioMesa() {
           preco: Number(produto.preco || 0),
           montagem: produto.montagem || null,
           tipo: produto.tipo || null,
+          ordem: produto.ordem,
         });
 
         return resultado;

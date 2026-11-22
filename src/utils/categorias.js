@@ -81,7 +81,10 @@ export function ordenarGruposPorCategoria(grupos, categoriasDocs) {
     ordemPorNome[c.nome] = typeof c.ordem === "number" ? c.ordem : 9999;
   });
 
-  return [...grupos].sort((a, b) => {
+  // Dentro da categoria: a ordem do produto quando tem (ex.: a do cardápio impresso); sem ordem, como estava.
+  const pos = (i) => (typeof i?.ordem === "number" ? i.ordem : 9999);
+  const comItens = grupos.map((g) => (Array.isArray(g.itens) && g.itens.some((i) => typeof i?.ordem === "number") ? { ...g, itens: [...g.itens].sort((x, y) => pos(x) - pos(y)) } : g));
+  return comItens.sort((a, b) => {
     const ordemA = ordemPorNome[a.categoria] ?? 9999;
     const ordemB = ordemPorNome[b.categoria] ?? 9999;
 

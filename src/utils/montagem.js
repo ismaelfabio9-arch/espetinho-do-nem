@@ -77,6 +77,17 @@ export const maxDoGrupo = (g) => Math.max(1, Math.min(6, Number(g?.max) || 1));
 /** Soma do que as opções escolhidas acrescentam no preço. */
 export const precoDoGrupo = (g, v) => escolhidas(v).reduce((s, op) => s + precoOpcao(g, op), 0);
 
+/**
+ * Os preços para mostrar no card, como no cardápio impresso: Normal R$ 22 · Artesanal R$ 26, ou Pequeno R$ 5 ·
+ * Médio R$ 10 · Grande R$ 16. Vem da 1ª escolha que muda o preço (até 4 opções); null quando o preço é um só.
+ */
+export function precosDoCardapio(produto) {
+  const g = (produto?.montagem?.escolhas || []).find((x) => maxDoGrupo(x) === 1 && (x.opcoes || []).length >= 2 && (x.opcoes || []).length <= 4 && x.opcoes.some((o) => precoOpcao(x, o) > 0));
+  if (!g) return null;
+  const base = Number(produto.preco || 0);
+  return g.opcoes.map((o) => ({ nome: o, preco: Math.round((base + precoOpcao(g, o)) * 100) / 100 }));
+}
+
 /** Quanto a opção escolhida acrescenta (ex.: recheio de carne de sol +3, tamanho 500 ml +6). */
 export function precoOpcao(grupo, opcao) {
   const v = Number(grupo?.precos?.[opcao]);

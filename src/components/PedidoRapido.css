@@ -40,3 +40,10 @@ body.dark .rapido-item .rapido-montar { color: #9ca3af !important; }
 .rapido-item.com-foto { padding-top: 0; overflow: hidden; }
 .rapido-foto { display: block; width: calc(100% + 24px); margin: 0 -12px 2px; aspect-ratio: 4 / 3; object-fit: cover; background: #222; }
 .rapido-item.com-foto .rapido-qtd { top: 8px; box-shadow: 0 0 0 2px rgba(0,0,0,.35); }
+
+/* Dois ou três preços no card (Normal / Artesanal, Pequeno / Médio / Grande), como no cardápio impresso. */
+.rapido-precos { display: grid; gap: 1px; color: #22c55e; font-weight: 700; font-size: 13.5px; }
+.rapido-precos small { color: #9ca3af; font-weight: 600; font-size: 11.5px; margin-right: 2px; }
+body:not(.dark) .rapido-precos small { color: #6b7280; }
+.rapido-vem { font-size: 11.5px; line-height: 1.3; color: #9ca3af; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+body:not(.dark) .rapido-vem { color: #6b7280; }
