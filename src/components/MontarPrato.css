@@ -37,3 +37,7 @@ body:not(.dark) .montar-outro-linha input, body:not(.dark) .montar-obs { backgro
 
 /* Foto do produto no topo da janela (planos Completo e Premium). */
 .montar-foto { display: block; width: 100%; max-height: 220px; object-fit: cover; border-radius: 14px; margin-bottom: 10px; background: #222; }
+.montar-misto { display: flex; align-items: center; gap: 10px; margin: 2px 0 8px; flex-wrap: wrap; }
+.montar-misto small { color: #9ca3af; font-size: 12.5px; }
+.montar-misto-btn { border-color: #f59e0b; color: #fbbf24; }
+.montar-adicionar:disabled { opacity: 0.6; cursor: not-allowed; }

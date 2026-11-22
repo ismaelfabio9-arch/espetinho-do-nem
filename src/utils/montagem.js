@@ -17,7 +17,9 @@ export function escolhaPadrao(produto) {
   const m = produto?.montagem || {};
   const escolhas = {};
   (m.escolhas || []).forEach((g) => {
-    if ((g.opcoes || []).length) escolhas[g.nome] = g.opcoes[0];
+    // Recheios "pelo tamanho" começam vazios: o cliente escolhe (ou toca em Misto).
+    if (g.maxDe) escolhas[g.nome] = [];
+    else if ((g.opcoes || []).length) escolhas[g.nome] = g.opcoes[0];
   });
   return { tirar: [], escolhas, extras: [], outros: [], obs: "" };
 }
@@ -51,7 +53,7 @@ export function nomeMontado(produto, escolha) {
   (m.escolhas || []).forEach((g) => {
     const ops = escolhidas(escolha?.escolhas?.[g.nome]);
     if (!ops.length || grupoCortado(g, escolha?.tirar)) return;
-    const op = ops.join(" e ");
+    const op = ops.length > 2 ? `${ops.slice(0, -1).join(", ")} e ${ops[ops.length - 1]}` : ops.join(" e ");
     partes.push(baixa(op).includes(baixa(g.nome)) ? baixa(op) : `${baixa(g.nome)} ${baixa(op)}`);
   });
   (m.vem || []).forEach((v) => {
@@ -74,6 +76,28 @@ export function nomeMontado(produto, escolha) {
 export const escolhidas = (v) => (Array.isArray(v) ? v.map(String) : typeof v === "string" && v ? [v] : []);
 /** Quantas opções o grupo deixa escolher (1, ou o "até N" do cadastro). */
 export const maxDoGrupo = (g) => Math.max(1, Math.min(6, Number(g?.max) || 1));
+/** O número no nome da opção ("6 sabores" → 6); null quando não tem. */
+export const numeroDe = (t) => {
+  const n = parseInt(String(t || "").match(/\d+/)?.[0], 10);
+  return Number.isFinite(n) && n > 0 ? n : null;
+};
+/**
+ * Quantas o cliente escolhe neste grupo agora. Grupo "pelo tamanho" (maxDe: "Tamanho"): o número do tamanho
+ * escolhido ("10 sabores" → até 10). Os outros: o "até N" do cadastro. Igual no servidor.
+ */
+export function maxNaEscolha(g, escolhas) {
+  if (!g?.maxDe) return maxDoGrupo(g);
+  return Math.max(1, Math.min(20, numeroDe(escolhidas(escolhas?.[g.maxDe])[0]) || 1));
+}
+/** Sorteia n opções do grupo (o "Misto"). */
+export function sortear(opcoes, n) {
+  const l = [...(opcoes || [])];
+  for (let i = l.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [l[i], l[j]] = [l[j], l[i]];
+  }
+  return l.slice(0, Math.max(0, n));
+}
 /** Soma do que as opções escolhidas acrescentam no preço. */
 export const precoDoGrupo = (g, v) => escolhidas(v).reduce((s, op) => s + precoOpcao(g, op), 0);
 

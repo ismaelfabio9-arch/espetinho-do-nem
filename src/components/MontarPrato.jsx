@@ -1,7 +1,7 @@
 // Janela "Montar o prato": o que vem no prato (toque para tirar), as escolhas, o que vai a mais
 // e a bebida em um toque. Usada pelo garçom (MesaDetalhe) e pelo cliente no QR Code da mesa.
 import { useState } from "react";
-import { cobraEscolhas, escolhaPadrao, escolhidas, grupoCortado, limparEscolha, maxDoGrupo, nomeMontado, precoMontado, precoOpcao, tipoDe, tipoInfo } from "../utils/montagem";
+import { cobraEscolhas, escolhaPadrao, escolhidas, grupoCortado, limparEscolha, maxDoGrupo, maxNaEscolha, nomeMontado, precoMontado, precoOpcao, sortear, tipoDe, tipoInfo } from "../utils/montagem";
 import "./MontarPrato.css";
 
 const moeda = (v) => Number(v || 0).toFixed(2).replace(".", ",");
@@ -11,8 +11,14 @@ const moeda = (v) => Number(v || 0).toFixed(2).replace(".", ",");
  * Toque numa opção. Grupo de 1: troca. Grupo de "até N": marca/desmarca (fica pelo menos 1; cheio, troca a
  * mais antiga). Guarda texto com 1 escolhida e lista com mais.
  */
-function tocarOpcao(g, atual, op) {
-  const max = maxDoGrupo(g);
+function tocarOpcao(g, atual, op, maxAgora) {
+  const max = maxAgora ?? maxDoGrupo(g);
+  // Recheios pelo tamanho: toque tira; com o limite cheio, o novo troca o último que entrou.
+  if (g.maxDe) {
+    const l = escolhidas(atual);
+    if (l.includes(op)) return l.filter((x) => x !== op);
+    return l.length < max ? [...l, op] : [...l.slice(0, max - 1), op];
+  }
   if (max === 1) return op;
   let lista = escolhidas(atual);
   if (lista.includes(op)) lista = lista.length > 1 ? lista.filter((x) => x !== op) : lista;
@@ -60,7 +66,20 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
     setEscolha({ ...escolha, tirar, escolhas });
   }
 
+  // Trocou o tamanho (10 → 6 sabores): os recheios a mais saem (fica os primeiros).
+  function escolher(g, op) {
+    const escolhas = { ...escolha.escolhas, [g.nome]: tocarOpcao(g, escolha.escolhas[g.nome], op, maxNaEscolha(g, escolha.escolhas)) };
+    (m.escolhas || []).forEach((x) => {
+      if (x.maxDe === g.nome) escolhas[x.nome] = escolhidas(escolhas[x.nome]).slice(0, maxNaEscolha(x, escolhas));
+    });
+    setEscolha({ ...escolha, escolhas });
+  }
+  // A escolha que define o preço (tamanho, Normal/Artesanal): mostra o preço final de cada opção (6 sabores R$ 13).
+  const grupoPreco = (m.escolhas || []).find((g) => !(Number(g.max) > 1) && !g.maxDe && (g.opcoes || []).some((o) => precoOpcao(g, o) > 0)) || null;
+  const faltaRecheio = (m.escolhas || []).find((g) => g.maxDe && !grupoCortado(g, escolha.tirar) && !escolhidas(escolha.escolhas[g.nome]).length);
+
   function adicionar() {
+    if (faltaRecheio) return;
     const final = limparEscolha(produto, escolha);
     onAdicionar({
       prato: {
@@ -104,13 +123,25 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
           <div key={g.nome}>
             <div className="montar-grupo">
               {g.nome.toUpperCase()}
-              {maxDoGrupo(g) > 1 && ` · escolha até ${maxDoGrupo(g)}`}
+              {g.maxDe ? ` · ${escolhidas(escolha.escolhas[g.nome]).length} de ${maxNaEscolha(g, escolha.escolhas)}` : maxDoGrupo(g) > 1 && ` · escolha até ${maxDoGrupo(g)}`}
             </div>
+            {g.maxDe && (
+              <div className="montar-misto">
+                <button type="button" className="montar-op montar-misto-btn" onClick={() => setEscolha({ ...escolha, escolhas: { ...escolha.escolhas, [g.nome]: sortear(g.opcoes, maxNaEscolha(g, escolha.escolhas)) } })}>
+                  🎲 Misto
+                </button>
+                <small>Sorteia os {maxNaEscolha(g, escolha.escolhas)}; toque para tirar ou trocar.</small>
+              </div>
+            )}
             <div className="montar-opcoes">
               {g.opcoes.map((op) => (
-                <button type="button" key={op} className={escolhidas(escolha.escolhas[g.nome]).includes(op) ? "montar-op escolhida" : "montar-op"} onClick={() => setEscolha({ ...escolha, escolhas: { ...escolha.escolhas, [g.nome]: tocarOpcao(g, escolha.escolhas[g.nome], op) } })}>
+                <button type="button" key={op} className={escolhidas(escolha.escolhas[g.nome]).includes(op) ? "montar-op escolhida" : "montar-op"} onClick={() => escolher(g, op)}>
                   {op}
-                  {cobraEscolhas(produto) && precoOpcao(g, op) ? ` · + R$ ${moeda(precoOpcao(g, op))}` : ""}
+                  {cobraEscolhas(produto) && g === grupoPreco
+                    ? ` · R$ ${moeda(Number(produto.preco || 0) + precoOpcao(g, op))}`
+                    : cobraEscolhas(produto) && precoOpcao(g, op)
+                    ? ` · + R$ ${moeda(precoOpcao(g, op))}`
+                    : ""}
                 </button>
               ))}
             </div>
@@ -169,8 +200,8 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
           </>
         )}
 
-        <button type="button" className="montar-adicionar" onClick={adicionar}>
-          {textoBotao} · R$ {moeda(total)}
+        <button type="button" className="montar-adicionar" onClick={adicionar} disabled={!!faltaRecheio}>
+          {faltaRecheio ? `Escolha os ${String(faltaRecheio.nome).toLowerCase()} (ou toque em Misto)` : `${textoBotao} · R$ ${moeda(total)}`}
         </button>
       </div>
     </div>

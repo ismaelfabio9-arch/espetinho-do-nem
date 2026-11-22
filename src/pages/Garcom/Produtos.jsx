@@ -29,7 +29,7 @@ import "../../styles/Garcom/Produtos.css";
 import { useRecurso } from "../../recursos";
 import FotoProduto from "../../components/FotoProduto";
 import { useSouDono } from "../../tenant";
-import EditorOpcoes, { erroDasOpcoes, opcoesParaEditar, opcoesParaSalvar } from "../../components/EditorOpcoes";
+import EditorOpcoes, { erroDasOpcoes, opcoesParaEditar, opcoesParaSalvar, precoPelasOpcoes } from "../../components/EditorOpcoes";
 import { useFotos } from "../../utils/fotos";
 import { MODELOS, TIPOS, lerMontagem, precosDoCardapio, temMontagem, textoMontagem, tipoDe, tipoInfo, tipoPelaCategoria } from "../../utils/montagem";
 
@@ -290,7 +290,9 @@ function Produtos() {
     const produto = produtos.find((p) => p.id === ficha?.id);
     if (!produto) return setFicha(null);
     const nomeTratado = ficha.nome.trim();
-    const preco = Number(String(ficha.preco).replace(",", "."));
+    // Com o preço de cada opção (6 sabores R$ 13, 10 sabores R$ 16), o preço do produto é o menor deles.
+    const precoOpcoes = precoPelasOpcoes(ficha.tipo, ficha.ed);
+    const preco = precoOpcoes ?? Number(String(ficha.preco).replace(",", "."));
     const categoria = ficha.categoria || produto.categoria;
     if (!nomeTratado) return setFicha({ ...ficha, erro: "O nome não pode ficar em branco." });
     if (!Number.isFinite(preco) || preco < 0) return setFicha({ ...ficha, erro: "Confira o preço." });
@@ -1054,7 +1056,14 @@ function Produtos() {
               <div className="prod-ficha-dupla">
                 <label>
                   Preço (R$)
-                  <input type="number" inputMode="decimal" step="0.01" value={ficha.preco} onChange={(e) => setFicha({ ...ficha, preco: e.target.value, erro: "" })} />
+                  {precoPelasOpcoes(ficha.tipo, ficha.ed) !== null ? (
+                    <>
+                      <input type="text" readOnly value={String(precoPelasOpcoes(ficha.tipo, ficha.ed).toFixed(2)).replace(".", ",")} aria-describedby="prod-preco-op" />
+                      <small id="prod-preco-op" className="prod-preco-op">pelo preço das opções (o menor)</small>
+                    </>
+                  ) : (
+                    <input type="number" inputMode="decimal" step="0.01" value={ficha.preco} onChange={(e) => setFicha({ ...ficha, preco: e.target.value, erro: "" })} />
+                  )}
                 </label>
                 <label>
                   Categoria
@@ -1066,7 +1075,7 @@ function Produtos() {
                 </label>
               </div>
               {fotosLigado && <FotoProduto produto={produto} foto={fotos[produto.id] || null} />}
-              <EditorOpcoes semVem={financasLigado} tipo={ficha.tipo} ed={ficha.ed} onTipo={(t) => setFicha({ ...ficha, tipo: t, erro: "" })} onChange={(ed) => setFicha({ ...ficha, ed, erro: "" })} />
+              <EditorOpcoes semVem={financasLigado} ingredientes={nomesIngredientes || []} tipo={ficha.tipo} ed={ficha.ed} onTipo={(t) => setFicha({ ...ficha, tipo: t, erro: "" })} onChange={(ed) => setFicha({ ...ficha, ed, erro: "" })} />
               {financasLigado && (
                 <div className="prod-ficha-ingred prod-ficha-custo">
                   <span className="eo-rotulo">🧮 Ingredientes</span>
