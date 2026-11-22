@@ -105,7 +105,8 @@ export function precoDoProduto(custo, preco, p) {
 
 /**
  * Percentuais finais a partir do que foi salvo em configuracoes/precificacao (Preço certo) e do automático
- * (movimento da loja). Campo em branco = automático; em "valor" = R$ do mês ÷ vendas do mês; lucro em valor = R$ por venda.
+ * Nada é automático: campo em branco = 0 (o sistema não inventa número); em "valor" = R$ do mês ÷ vendas do mês
+ * informadas pelo dono; lucro em valor = R$ por venda.
  */
 /** Quanto os ingredientes podem pesar no preço, em % (Só os ingredientes). Restaurante costuma ficar entre 25% e 35%. */
 export const PESO_INGREDIENTES_PADRAO = 30;
@@ -114,11 +115,11 @@ export const pesoIngredientes = (salvo) => {
   return v > 0 && v < 100 ? v : PESO_INGREDIENTES_PADRAO;
 };
 
-export function percentuaisFinais(salvo = {}, auto = {}) {
-  const vendasMes = typeof salvo.vendasMes === "number" && salvo.vendasMes > 0 ? salvo.vendasMes : auto.vendas > 0 ? auto.vendas : null;
-  const campo = (k, autoV) => {
+export function percentuaisFinais(salvo = {}) {
+  const vendasMes = typeof salvo.vendasMes === "number" && salvo.vendasMes > 0 ? salvo.vendasMes : null;
+  const campo = (k) => {
     const v = salvo[k];
-    if (typeof v !== "number") return autoV ?? 0;
+    if (typeof v !== "number") return 0;
     if (salvo[`${k}Modo`] === "valor") return pctDoMes(v, vendasMes) ?? 0;
     return v;
   };
@@ -130,11 +131,11 @@ export function percentuaisFinais(salvo = {}, auto = {}) {
   if (so)
     return { maquininha: 0, fixas: 0, variaveis: 0, impostos: 0, lucro: 100 - pesoIngredientes(salvo), lucroValor: 0, soIngredientes: true };
   return {
-    maquininha: typeof salvo.maquininha === "number" ? salvo.maquininha : auto.maquininha ?? 0,
-    fixas: campo("fixas", auto.fixas),
-    variaveis: campo("variaveis", auto.variaveis),
-    impostos: campo("impostos", 0),
-    lucro: lucroEmValor ? 0 : typeof salvo.lucro === "number" ? salvo.lucro : 15,
+    maquininha: typeof salvo.maquininha === "number" ? salvo.maquininha : 0,
+    fixas: campo("fixas"),
+    variaveis: campo("variaveis"),
+    impostos: campo("impostos"),
+    lucro: lucroEmValor ? 0 : typeof salvo.lucro === "number" ? salvo.lucro : 0,
     lucroValor: lucroEmValor ? Number(salvo.lucro || 0) : 0,
   };
 }
