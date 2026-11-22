@@ -15,7 +15,7 @@ import { NovoInsumo } from "../../components/FichaTecnica";
 import { custoDaFicha, itensJuntos, unidadeDe } from "../../utils/insumos";
 import { lerValor } from "../../utils/financas";
 import { ehCategoriaDeBebida } from "../../utils/montagem";
-import { contribuicaoDe, pctPorVenda } from "../../utils/precificacao";
+import { contaDoProduto } from "../../utils/precificacao";
 import { Movimentar } from "./Insumos";
 import { mostrarQtd } from "../../utils/insumos";
 
@@ -145,14 +145,14 @@ export default function Custos({ produtos, insumos, fichas }) {
     const semIngredientes = [];
     const incompletos = [];
     const abaixo = [];
-    const pv = pctPorVenda(salvo);
     feitos.forEach((x) => {
       const f = fichaDe[x.id];
       if (!f || !itensJuntos(f).length) return semIngredientes.push(x.nome);
       const c = custoDaFicha(f, porId);
       if (c === null) return incompletos.push(x.nome);
-      const r = contribuicaoDe(c, x.preco, pv);
-      if (r && r.contrib < 0) abaixo.push(`${x.nome} (vende ${R(Number(x.preco || 0))}, custo ${R(c)})`);
+      // Dá prejuízo depois de tudo (ingredientes, taxas e a parte das contas): o mesmo do Preço certo.
+      const r = salvo.conta === "ingredientes" ? null : contaDoProduto(c, x.preco, salvo);
+      if (r && r.lucro < 0) abaixo.push(`${x.nome} (vende ${R(Number(x.preco || 0))}, prejuízo de ${R(-r.lucro)})`);
     });
     setConferido({
       total: ativos.length,
@@ -241,7 +241,7 @@ export default function Custos({ produtos, insumos, fichas }) {
           {conferido.semPreco.length > 0 && <p>⚠️ Sem preço: {conferido.semPreco.join(", ")}.</p>}
           {conferido.incompletos.length > 0 && <p>⚠️ Custo incompleto (algum ingrediente sem preço): {conferido.incompletos.join(", ")}.</p>}
           {conferido.semIngredientes.length > 0 && <p>⚠️ Ainda sem ingredientes (Produtos → editar): {conferido.semIngredientes.join(", ")}.</p>}
-          {conferido.abaixo.length > 0 && <p>⚠️ Dão prejuízo (o custo e as taxas passam do preço): {conferido.abaixo.join("; ")}.</p>}
+          {conferido.abaixo.length > 0 && <p>⚠️ Dão prejuízo (ingredientes, taxas e contas passam do preço): {conferido.abaixo.join("; ")}.</p>}
           <Link to="/cardapio?aba=preco" className="cu-link">Ver no Preço certo →</Link>
         </div>
       )}

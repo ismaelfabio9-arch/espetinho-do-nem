@@ -82,17 +82,12 @@ function Financas({ abas = ["resumo", "lancamentos"], titulo = "Dinheiro", texto
     return { custos: { ...m, ...f }, daFicha: f };
   }, [custosDocs, fichas, insumos]);
   const carregando = dias === null || hoje === null || produtos === null || custosDocs === null || lancamentos === null || fichas === null || insumos === null || movs === null;
-  // Preço certo: quanto cada produto vendeu de verdade nos últimos 30 dias (só para mostrar ao lado da previsão).
-  const vendidos30 = useMemo(() => {
-    if (carregando || !abas.includes("preco")) return {};
+  // Preço certo: quanto a loja vendeu de verdade nos últimos 30 dias (só para mostrar ao lado do "vende por mês").
+  const vendas30 = useMemo(() => {
+    if (carregando || !abas.includes("preco")) return 0;
     const hojeD = new Date();
     const de = isoDia(new Date(hojeD.getFullYear(), hojeD.getMonth(), hojeD.getDate() - 29));
-    const r = calcularFinancas({ vendas: juntarVendas(dias, hoje), produtos, custos, lancamentos, taxas, de, ate: isoDia(hojeD) });
-    const m = {};
-    (r.produtos || []).forEach((x) => {
-      if (x.produtoId) m[x.produtoId] = (m[x.produtoId] || 0) + Number(x.qtd || 0);
-    });
-    return m;
+    return Number(calcularFinancas({ vendas: juntarVendas(dias, hoje), produtos, custos, lancamentos, taxas, de, ate: isoDia(hojeD) }).vendas || 0);
   }, [carregando, abas, dias, hoje, produtos, custos, lancamentos, taxas]);
   const f = useMemo(
     () => (carregando ? null : calcularFinancas({ vendas: juntarVendas(dias, hoje), produtos, custos, lancamentos, taxas, de: faixa.de, ate: faixa.ate, perdas: perdasNoPeriodo(movs, faixa.de, faixa.ate).total })),
@@ -153,7 +148,7 @@ function Financas({ abas = ["resumo", "lancamentos"], titulo = "Dinheiro", texto
       ) : aba === "custos" ? (
         <Custos produtos={produtos} insumos={insumos} fichas={fichas} />
       ) : aba === "preco" ? (
-        <PrecoCerto produtos={produtos} custos={custos} daFicha={daFicha} vendidos30={vendidos30} />
+        <PrecoCerto produtos={produtos} custos={custos} daFicha={daFicha} vendas30={vendas30} />
       ) : (
         <Resumo f={f} nomeLoja={nomeLoja} faixa={faixa} />
       )}
@@ -194,7 +189,7 @@ function Resumo({ f, nomeLoja, faixa }) {
           <Linha nome="Despesas variáveis" valor={-f.variaveis} detalhe="Entregador, divulgação, consertos, outras" />
           <Linha nome="Despesas fixas" valor={-f.fixas} detalhe="Aluguel, funcionários, contas, contador" />
           {f.perdas > 0 && <Linha nome="Perdas de mercadoria" valor={-f.perdas} detalhe="Estragou, venceu ou faltou na contagem (Matéria-prima)" />}
-          <Linha nome="Lucro líquido" valor={f.lucro} total detalhe={f.margem === null ? null : `${f.margem}% das vendas`} />
+          <Linha nome="Lucro líquido: sobrou para retirar" valor={f.lucro} total detalhe={f.margem === null ? "Depois de pagar tudo: produtos, taxas e contas" : `${f.margem}% das vendas · depois de pagar tudo: produtos, taxas e contas`} />
         </div>
         {f.equilibrio !== null && (
           <p className={`fin-equilibrio ${f.vendas >= f.equilibrio ? "ok" : ""}`}>

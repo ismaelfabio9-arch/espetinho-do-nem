@@ -1,21 +1,19 @@
-// Preço certo (Cardápio e estoque → Preço certo, só o dono).
-// Conta completa = modelo por contribuição (utils/precificacao.js → resultadoDoMes):
-//   - cada produto tem a sua margem: contribuição por unidade = preço − custo − taxas e impostos da venda;
-//   - a meta de retirada do dono é conferida no RESULTADO DO MÊS (Σ contribuição × quantidade − despesas);
-//   - a quantidade é a previsão do dono (por dia × dias que abre); o que falta é avisado, nada é inventado.
+// Preço certo (Cardápio e estoque → Preço certo, só o dono). Estimativa POR PRODUTO, depois de tudo:
+//   preço − ingredientes (com a embalagem) − maquininha e impostos da venda − parte das contas do mês = lucro.
+// A parte das contas = contas do mês ÷ quanto a loja vende no mês (um número só, que o dono informa); somada no
+// mês, dá as contas (não desconta duas vezes). Sem meta: o que sobrou de verdade fica em Dinheiro → Lucro e caixa.
 // Só os ingredientes = conta simples: os ingredientes podem pesar no máximo X% do preço.
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { deleteField, doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 import { L } from "../../loja";
 import { ehCategoriaDeBebida, ehCategoriaDePrato, precosDoCardapio } from "../../utils/montagem";
-import { PESO_INGREDIENTES_PADRAO, pesoIngredientes, precoBonito, resultadoDoMes } from "../../utils/precificacao";
+import { PESO_INGREDIENTES_PADRAO, contaDoProduto, pctDasContas, pctPorVenda, pesoIngredientes, precoBonito } from "../../utils/precificacao";
 
 const fmt = (v) => Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const R = (v) => (v < 0 ? `− R$ ${fmt(-v)}` : `R$ ${fmt(v)}`);
 const fmtPct = (n) => `${String(Math.round(n * 10) / 10).replace(".", ",")}%`;
-const qtdTxt = (n) => String(Math.round(n * 100) / 100).replace(".", ",");
 /** "1.234,50", "12,5" ou "12.5" → número; vazio ou inválido → null. */
 const numDe = (v, max = Infinity) => {
   const t = String(v ?? "").trim();
@@ -30,11 +28,10 @@ const LISTAS = {
   variaveis: ["Embalagens", "Entregador (motoboy)", "Taxa de aplicativo de entrega", "Divulgação e anúncios"],
 };
 
-export default function PrecoCerto({ produtos, custos, daFicha, vendidos30 = {} }) {
+export default function PrecoCerto({ produtos, custos, daFicha, vendas30 = 0 }) {
   const [salvo, setSalvo] = useState(null); // configuracoes/precificacao
   const [form, setForm] = useState(null);
   const [precos, setPrecos] = useState({}); // preço digitado (simula antes de salvar) { id: texto }
-  const [qtds, setQtds] = useState({}); // quantos por dia digitado { id: texto }
   const [detalhe, setDetalhe] = useState({});
   const [filtro, setFiltro] = useState("todos");
   const [msg, setMsg] = useState("");
@@ -52,8 +49,7 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendidos30 = {} 
         fixas: t(salvo.fixas), fixasModo: m("fixas", "valor"),
         fixasItens: (salvo.fixasItens || []).map((i) => ({ nome: i.nome, valor: t(i.valor) })),
         variaveisItens: (salvo.variaveisItens || []).map((i) => ({ nome: i.nome, valor: t(i.valor) })),
-        meta: t(salvo.meta),
-        diasMes: t(salvo.diasMes),
+        vendasMes: t(salvo.vendasMes),
       });
     }
   }, [salvo, form]);
@@ -72,40 +68,33 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendidos30 = {} 
   const usaItens = (k) => totalItens(k) > 0;
   const valorDe = (k) => (usaItens(k) ? Math.round(totalItens(k) * 100) / 100 : numDe(form[k]));
   const modoDe = (k) => (usaItens(k) ? "valor" : form[`${k}Modo`]);
-  // O que está na tela (ainda sem salvar) vira a configuração usada na conta: tudo recalcula na hora.
-  const qtdDia = { ...(salvo.qtdDia || {}) };
-  Object.entries(qtds).forEach(([id, txt]) => {
-    const n = numDe(txt);
-    if (n === null) delete qtdDia[id];
-    else qtdDia[id] = n;
-  });
+  // O que está na tela (ainda sem salvar) é o que a conta usa: tudo recalcula na hora.
   const config = {
     maquininha: numDe(form.maquininha, 100),
     impostos: valorDe("impostos"), impostosModo: modoDe("impostos"),
     variaveis: valorDe("variaveis"), variaveisModo: modoDe("variaveis"),
     fixas: valorDe("fixas"), fixasModo: modoDe("fixas"),
-    meta: numDe(form.meta),
-    diasMes: numDe(form.diasMes, 32),
-    qtdDia,
+    vendasMes: numDe(form.vendasMes),
   };
-  const precosNum = {};
-  Object.entries(precos).forEach(([id, txt]) => {
-    const n = numDe(txt);
-    if (n !== null && n > 0) precosNum[id] = n;
-  });
-  const res = resultadoDoMes({ produtos: ativos, custos, salvo: config, precos: precosNum });
+  const pv = pctPorVenda(config);
+  const contas = pctDasContas(config);
   const soIngredientes = form.conta === "ingredientes";
   const peso = numDe(form.pesoIngredientes, 100) || PESO_INGREDIENTES_PADRAO;
+  const precoDe = (x) => {
+    const n = numDe(precos[x.id]);
+    return n !== null && n > 0 ? n : Number(x.preco || 0);
+  };
 
-  // As partes em % de cada venda nunca passam de 100%: cada campo aceita no máximo o que sobra.
+  // As partes em % de cada venda nunca passam de 100%: cada campo em % aceita no máximo o que sobra.
   const pctDe = (k) => (k === "maquininha" ? config.maquininha || 0 : config[`${k}Modo`] === "pct" ? config[k] || 0 : 0);
   const avisoMax = form._avisoMax || {};
   function mudarCampo(k, txt) {
-    const emPct = k === "maquininha" || ((k === "impostos" || k === "variaveis") && form[`${k}Modo`] === "pct");
+    const emPct = k === "maquininha" || form[`${k}Modo`] === "pct";
     const n = emPct ? numDe(txt) : null;
-    const max = Math.max(0, Math.floor((99 - (res.pv - pctDe(k))) * 10) / 10);
+    const usado = pv + (contas.emPct || 0) - pctDe(k);
+    const max = Math.max(0, Math.floor((99 - usado) * 10) / 10);
     if (n !== null && n > max) {
-      setForm({ ...form, [k]: String(max).replace(".", ","), _avisoMax: { ...avisoMax, [k]: `Máximo ${fmtPct(max)}: com as outras partes, cada venda já paga ${fmtPct(res.pv - pctDe(k))}.` } });
+      setForm({ ...form, [k]: String(max).replace(".", ","), _avisoMax: { ...avisoMax, [k]: `Máximo ${fmtPct(max)}: com as outras partes, cada venda já paga ${fmtPct(usado)}.` } });
       return;
     }
     setForm({ ...form, [k]: txt, _avisoMax: { ...avisoMax, [k]: "" } });
@@ -134,8 +123,7 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendidos30 = {} 
           fixas: config.fixas, fixasModo: config.fixasModo,
           fixasItens: itens("fixas"),
           variaveisItens: itens("variaveis"),
-          meta: config.meta,
-          diasMes: config.diasMes,
+          vendasMes: config.vendasMes,
           atualizadoEm: new Date().toISOString(),
         },
         { merge: true }
@@ -147,25 +135,9 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendidos30 = {} 
     setTimeout(() => setMsg(""), 2000);
   }
 
-  // Quantos por dia: salva sozinho ao sair do campo (vazio = não sabe ainda).
-  async function salvarQtd(id) {
-    if (!(id in qtds)) return;
-    const n = numDe(qtds[id]);
-    try {
-      await setDoc(doc(db, ...L(), "configuracoes", "precificacao"), { qtdDia: { [id]: n === null ? deleteField() : n } }, { merge: true });
-      setQtds((q) => {
-        const c = { ...q };
-        delete c[id];
-        return c;
-      });
-    } catch {
-      setMsgProduto({ ...msgProduto, [id]: "Não foi possível salvar. Confira a internet." });
-    }
-  }
-
   async function salvarPreco(x) {
-    const n = precosNum[x.id];
-    if (!n) return;
+    const n = numDe(precos[x.id]);
+    if (!(n > 0)) return;
     try {
       await updateDoc(doc(db, ...L(), "produtos", x.id), { preco: Math.round(n * 100) / 100 });
       setPrecos((p) => {
@@ -180,7 +152,7 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendidos30 = {} 
     setTimeout(() => setMsgProduto((m) => ({ ...m, [x.id]: "" })), 2500);
   }
 
-  const campoPct = (k, nome, dica, { comModo = false, lista = null, padraoValor = false } = {}) => (
+  const campo = (k, nome, dica, { comModo = false, lista = null, padraoValor = false } = {}) => (
     <div key={k} className="pc-campo">
       <span>
         {nome}
@@ -218,21 +190,25 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendidos30 = {} 
     </div>
   );
 
-  // Lista de produtos (por categoria) com o filtro.
-  const linhas = res.linhas.filter((l) =>
-    filtro === "pouco" ? l.situacao === "pouco" || l.situacao === "prejuizo" : filtro === "faltam" ? l.custo === null || l.porDia === null : true
-  );
+  // A conta de cada produto (com o preço digitado, se tiver).
+  const linhas = ativos.map((x) => {
+    const custo = typeof custos[x.id] === "number" ? custos[x.id] : null;
+    const preco = precoDe(x);
+    const c = soIngredientes ? null : contaDoProduto(custo, preco, config);
+    const minIng = custo !== null ? precoBonito(custo / (peso / 100)) : null;
+    const situacao = custo === null ? "sem-custo" : !(preco > 0) ? "sem-preco" : soIngredientes ? (preco >= minIng - 0.004 ? "ok" : "baixo") : c.lucro < 0 ? "prejuizo" : "ok";
+    return { x, custo, preco, c, minIng, situacao };
+  });
+  const mostrar = linhas.filter((l) => (filtro === "prejuizo" ? l.situacao === "prejuizo" || l.situacao === "baixo" : filtro === "sem" ? l.situacao === "sem-custo" : true));
   const grupos = Object.values(
-    linhas.reduce((acc, l) => {
-      const nome = String(l.categoria || "").trim() || "Sem categoria";
+    mostrar.reduce((acc, l) => {
+      const nome = String(l.x.categoria || "").trim() || "Sem categoria";
       (acc[nome] = acc[nome] || { nome, itens: [] }).itens.push(l);
       return acc;
     }, {})
   );
-  const porId = Object.fromEntries(ativos.map((x) => [x.id, x]));
-  const nPouco = res.linhas.filter((l) => l.situacao === "pouco" || l.situacao === "prejuizo").length;
-  const nFaltam = res.linhas.filter((l) => l.custo === null || l.porDia === null).length;
-  const lista = (nomes, n = 6) => `${nomes.slice(0, n).join(", ")}${nomes.length > n ? ` e mais ${nomes.length - n}` : ""}`;
+  const nPrejuizo = linhas.filter((l) => l.situacao === "prejuizo" || l.situacao === "baixo").length;
+  const nSem = linhas.filter((l) => l.situacao === "sem-custo").length;
 
   return (
     <>
@@ -245,7 +221,7 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendidos30 = {} 
           </button>
           <button type="button" role="radio" aria-checked={!soIngredientes} className={!soIngredientes ? "ativo" : ""} onClick={() => mudarConta("completo")}>
             <b>📊 Conta completa</b>
-            <small>Custos, taxas, despesas e a sua meta do mês.</small>
+            <small>Ingredientes, taxas, impostos e as contas da loja.</small>
           </button>
         </div>
 
@@ -264,100 +240,65 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendidos30 = {} 
           </div>
         ) : (
           <>
-            <h3 className="pc-sec">O que sai de cada venda</h3>
-            <p className="fin-explica">Junto com cada venda, em % do preço. O que ficar em branco conta como 0.</p>
+            <h3 className="pc-sec">O que sai em cada venda</h3>
+            <p className="fin-explica">Em % do preço. O que ficar em branco conta como 0. A embalagem entra nos ingredientes do produto.</p>
             <div className="pc-campos">
-              {campoPct("maquininha", "Taxa da maquininha", "% que a maquininha cobra em cada venda")}
-              {campoPct("impostos", "Impostos", "Simples Nacional: em % de cada venda · MEI: o boleto do mês (DAS) em R$", { comModo: true })}
-              {campoPct("variaveis", "Despesas variáveis", "embalagem, entregador, aplicativo…: em % de cada venda ou o total do mês em R$", { comModo: true, lista: LISTAS.variaveis })}
+              {campo("maquininha", "Taxa da maquininha", "% que a maquininha cobra em cada venda")}
+              {campo("impostos", "Impostos", "Simples Nacional: em % de cada venda · MEI: o boleto do mês (DAS) em R$", { comModo: true })}
             </div>
-            <h3 className="pc-sec">Despesas do mês</h3>
-            <p className="fin-explica">Descontadas uma vez só, no resultado do mês (não entram no preço de cada produto).</p>
-            <div className="pc-campos">{campoPct("fixas", "Despesas fixas", "aluguel, funcionários, luz, água, contador…", { comModo: true, lista: LISTAS.fixas, padraoValor: true })}</div>
-            <h3 className="pc-sec">Sua meta</h3>
+            <h3 className="pc-sec">Contas da loja no mês</h3>
+            <p className="fin-explica">Divididas pelo que a loja vende no mês: cada venda paga a sua parte (sem descontar duas vezes).</p>
             <div className="pc-campos">
+              {campo("fixas", "Despesas fixas", "aluguel, funcionários, luz, água, contador…", { comModo: true, lista: LISTAS.fixas, padraoValor: true })}
+              {campo("variaveis", "Despesas variáveis", "entregador, aplicativo, divulgação…: o total do mês em R$ ou em % de cada venda", { comModo: true, lista: LISTAS.variaveis })}
               <label className="pc-campo">
                 <span>
-                  Quanto quero tirar para mim por mês
-                  <small>O que sobra para o dono depois de pagar os produtos, as taxas, os impostos e as despesas.</small>
+                  Quanto a loja vende por mês
+                  <small>
+                    Um valor aproximado, em R$ (não precisa saber de cada produto).
+                    {vendas30 > 0 ? ` O sistema registrou ${R(vendas30)} de vendas nos últimos 30 dias.` : ""}
+                  </small>
                 </span>
                 <span className="pc-input">
-                  <input inputMode="decimal" placeholder="0,00" aria-label="Quanto quero tirar para mim por mês (R$)" value={form.meta} onChange={(e) => setForm({ ...form, meta: e.target.value })} />
-                  <em>por mês</em>
-                </span>
-              </label>
-              <label className="pc-campo">
-                <span>
-                  Dias que a loja abre no mês
-                  <small>Para virar a previsão de cada produto (por dia) no total do mês.</small>
-                </span>
-                <span className="pc-input">
-                  <input inputMode="numeric" placeholder="0" aria-label="Dias que a loja abre no mês" value={form.diasMes} onChange={(e) => setForm({ ...form, diasMes: e.target.value })} />
-                  <em>dias</em>
+                  <input inputMode="decimal" placeholder="0,00" aria-label="Quanto a loja vende por mês (R$)" value={form.vendasMes} onChange={(e) => setForm({ ...form, vendasMes: e.target.value })} />
+                  <em>R$</em>
                 </span>
               </label>
             </div>
+            {contas.pct === null ? (
+              <p className="fin-aviso">⚠️ Para dividir as contas ({R(contas.contasMes)} por mês) entre os produtos, diga quanto a loja vende por mês.</p>
+            ) : (
+              contas.pct > 0 && (
+                <p className="pc-resumo">
+                  {contas.contasMes > 0 && contas.vendasMes ? `As contas do mês (${R(contas.contasMes)}) são ${fmtPct(contas.pct - contas.emPct)} do que a loja vende (${R(contas.vendasMes)}). ` : ""}
+                  Cada produto paga {fmtPct(contas.pct)} do preço para as contas{pv > 0 ? ` e ${fmtPct(pv)} de maquininha e impostos` : ""}.
+                </p>
+              )
+            )}
           </>
         )}
         <button type="button" className="btn-verde pc-salvar" onClick={salvar}>Salvar</button>
         {msg && <p className="fin-ok-msg">{msg}</p>}
       </div>
 
-      {!soIngredientes && (
-        <div className="relatorio-documento">
-          <h2>Resultado do mês (previsão)</h2>
-          <p className="fin-explica">Com o preço, o custo e a previsão de venda de cada produto. O resultado de verdade, com as vendas fechadas, fica em Dinheiro → Lucro e caixa.</p>
-          {!res.completo && (
-            <div className="fin-aviso pc-faltam" role="status">
-              <b>Faltam dados para fechar a conta:</b>
-              <ul>
-                {res.faltando.semDias && <li>Os dias que a loja abre no mês (acima).</li>}
-                {res.faltando.semQtd.length > 0 && <li>Quantos vende por dia ({res.faltando.semQtd.length}): {lista(res.faltando.semQtd)}. Se não vende, ponha 0.</li>}
-                {res.faltando.semCusto.length > 0 && <li>Custo (ingredientes) ({res.faltando.semCusto.length}): {lista(res.faltando.semCusto)}.</li>}
-                {res.faltando.semPreco.length > 0 && <li>Preço: {lista(res.faltando.semPreco)}.</li>}
-              </ul>
-              <small>Enquanto faltar, os números abaixo contam só os produtos completos.</small>
-            </div>
-          )}
-          <div className="fin-conta">
-            <Linha nome="Faturamento previsto" valor={res.faturamento} detalhe="Preço × quantidade de cada produto" />
-            <Linha nome="Custo dos produtos" valor={-res.custoProdutos} detalhe="Ingredientes × quantidade" />
-            <Linha nome="Taxas e impostos das vendas" valor={-res.taxas} detalhe={res.pv > 0 ? `${fmtPct(res.pv)} de cada venda` : null} />
-            <Linha nome="Margem de contribuição" valor={res.mc} sub detalhe={res.margemMc !== null ? `${fmtPct(res.margemMc)} do faturamento` : null} />
-            <Linha nome="Despesas do mês" valor={-res.despesas.total} detalhe={[res.despesas.fixas ? `fixas ${R(res.despesas.fixas)}` : "", res.despesas.variaveis ? `variáveis ${R(res.despesas.variaveis)}` : "", res.despesas.impostos ? `impostos ${R(res.despesas.impostos)}` : ""].filter(Boolean).join(" · ") || null} />
-            <Linha nome="Resultado líquido estimado" valor={res.resultado} total />
-          </div>
-          {res.meta > 0 && (
-            <p className={`pc-resumo ${res.falta > 0 ? "ruim" : ""}`}>
-              Meta de retirada: {R(res.meta)} por mês ·{" "}
-              {res.falta > 0 ? `faltam ${R(res.falta)} para chegar na meta.` : `passa da meta em ${R(-res.falta)}.`}
-              {res.falta > 0 && res.margemNecessaria !== null && ` Para chegar, a margem de contribuição da loja precisa ficar em ${fmtPct(res.margemNecessaria)} na média (hoje ${fmtPct(res.margemMc ?? 0)}): suba o preço dos que contribuem pouco ou venda mais deles.`}
-            </p>
-          )}
-          {!res.meta && <p className="fin-explica">Ponha a sua meta (acima) para o sistema dizer quanto falta.</p>}
-        </div>
-      )}
-
       <div className="relatorio-documento">
-        <h2>Preço de cada produto</h2>
+        <h2>Lucro de cada produto</h2>
         <p className="fin-explica">
           {soIngredientes
             ? `Preço bom = os ingredientes serem no máximo ${fmtPct(peso)} do preço.`
-            : "Cada produto tem a sua margem. Digite o preço e quantos vende por dia: o resultado do mês acima recalcula na hora. O custo vem dos ingredientes de cada produto."}
+            : "Estimativa de quanto sobra para você em cada um, depois de tudo. Pode digitar outro preço para ver como fica. O que sobrou de verdade no mês fica em Dinheiro → Lucro e caixa."}
         </p>
-        {!soIngredientes && (
-          <div className="fin-periodos" role="group" aria-label="Filtrar produtos">
-            {[
-              { id: "todos", nome: `Todos (${res.linhas.length})` },
-              { id: "pouco", nome: `Contribuem pouco (${nPouco})` },
-              { id: "faltam", nome: `Faltam dados (${nFaltam})` },
-            ].map((f) => (
-              <button key={f.id} type="button" className={filtro === f.id ? "ativo" : ""} aria-pressed={filtro === f.id} onClick={() => setFiltro(f.id)}>
-                {f.nome}
-              </button>
-            ))}
-          </div>
-        )}
+        <div className="fin-periodos" role="group" aria-label="Filtrar produtos">
+          {[
+            { id: "todos", nome: `Todos (${linhas.length})` },
+            { id: "prejuizo", nome: soIngredientes ? `Abaixo (${nPrejuizo})` : `Dão prejuízo (${nPrejuizo})` },
+            { id: "sem", nome: `Sem custo (${nSem})` },
+          ].map((f) => (
+            <button key={f.id} type="button" className={filtro === f.id ? "ativo" : ""} aria-pressed={filtro === f.id} onClick={() => setFiltro(f.id)}>
+              {f.nome}
+            </button>
+          ))}
+        </div>
         <ul className="pc-lista">
           {grupos.map((g) => (
             <Fragment key={g.nome}>
@@ -365,76 +306,60 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendidos30 = {} 
                 <h3>{g.nome}</h3>
                 <small>{g.itens.length} {g.itens.length === 1 ? "produto" : "produtos"}</small>
               </li>
-              {g.itens.map((l) => {
-                const x = porId[l.id];
+              {g.itens.map(({ x, custo, preco, c, minIng, situacao }) => {
                 const opcoes = precosDoCardapio(x);
-                const precoTxt = precos[l.id] ?? fmt(Number(x.preco || 0));
-                const mudouPreco = precosNum[l.id] !== undefined && Math.abs(precosNum[l.id] - Number(x.preco || 0)) > 0.004;
-                const minIng = typeof l.custo === "number" ? precoBonito(l.custo / (peso / 100)) : null;
-                const real = vendidos30[l.id];
-                const chip = soIngredientes
-                  ? l.custo === null
-                    ? <b className="pc-chip baixo">Sem custo</b>
-                    : l.preco >= minIng - 0.004
-                    ? <b className="pc-chip bom">✓ Preço bom</b>
-                    : <b className="pc-chip baixo">Abaixo</b>
-                  : {
-                      "sem-custo": <b className="pc-chip baixo">Sem custo</b>,
-                      "sem-preco": <b className="pc-chip baixo">Sem preço</b>,
-                      prejuizo: <b className="pc-chip ruim">Prejuízo</b>,
-                      pouco: <b className="pc-chip baixo">Contribui pouco</b>,
-                      ok: <b className="pc-chip bom">✓ Contribui bem</b>,
-                    }[l.situacao];
-                const sugerido = soIngredientes ? minIng : l.recomendado;
+                const mudouPreco = numDe(precos[x.id]) > 0 && Math.abs(numDe(precos[x.id]) - Number(x.preco || 0)) > 0.004;
+                const minimo = soIngredientes ? minIng : c?.minimo ?? null;
                 return (
-                  <li key={l.id} className={`pc-item pc-prod ${l.situacao}`}>
+                  <li key={x.id} className={`pc-item pc-prod ${situacao}`}>
                     <div className="pc-linha pc-linha-fixa">
                       <span className="pc-nome">
-                        <strong>{l.nome}</strong>
-                        <small>
-                          {l.custo !== null ? `Custo ${R(l.custo)}${typeof daFicha?.[l.id] === "number" ? " (ingredientes)" : ""}` : <>Sem custo: <Link to={`/cardapio?aba=produtos&editar=${encodeURIComponent(l.id)}`}>pôr os ingredientes</Link></>}
-                        </small>
-                        {l.contrib !== null && (
+                        <strong>{x.nome}</strong>
+                        {custo === null && (
                           <small>
-                            {soIngredientes ? (
-                              <>Ingredientes = <b>{fmtPct((l.custo / l.preco) * 100)}</b> do preço · sobra <b>{R(l.preco - l.custo)}</b></>
-                            ) : (
-                              <>
-                                Lucro por unidade: <b className={l.contrib < 0 ? "fin-neg" : "pc-verde"}>{R(l.contrib)}</b> · margem real {fmtPct(l.margem)}
-                                {l.contribMes !== null && <> · no mês <b>{R(l.contribMes)}</b></>}
-                              </>
-                            )}
+                            Sem custo: <Link to={`/cardapio?aba=produtos&editar=${encodeURIComponent(x.id)}`}>pôr os ingredientes</Link>
                           </small>
                         )}
+                        {soIngredientes && custo !== null && preco > 0 && (
+                          <small>Ingredientes {R(custo)} = <b>{fmtPct((custo / preco) * 100)}</b> do preço · sobra <b>{R(preco - custo)}</b></small>
+                        )}
                       </span>
-                      <span className="pc-status">{chip}</span>
+                      <span className="pc-status">
+                        {situacao === "sem-custo" && <b className="pc-chip baixo">Sem custo</b>}
+                        {situacao === "prejuizo" && <b className="pc-chip ruim">Prejuízo</b>}
+                        {situacao === "baixo" && <b className="pc-chip baixo">Abaixo</b>}
+                        {situacao === "ok" && !soIngredientes && <b className="pc-chip bom">{fmtPct(c.margem)} de lucro</b>}
+                        {situacao === "ok" && soIngredientes && <b className="pc-chip bom">✓ Preço bom</b>}
+                      </span>
                     </div>
+                    {c && (
+                      <div className="pc-conta-prod" aria-label={`Conta de ${x.nome}`}>
+                        <span>Preço de venda</span><b>{R(c.preco)}</b>
+                        <span>− Ingredientes{typeof daFicha?.[x.id] === "number" ? "" : " (custo digitado)"}</span><b>{R(-c.custo)}</b>
+                        {c.taxas > 0 && (<><span>− Maquininha e impostos</span><b>{R(-c.taxas)}</b></>)}
+                        {c.parteContas !== null && c.parteContas > 0 && (<><span>− Parte das contas da loja</span><b>{R(-c.parteContas)}</b></>)}
+                        {c.faltaVendas && (<><span>− Parte das contas da loja</span><b>?</b></>)}
+                        <span className="pc-total">= Lucro para você</span><b className={`pc-total ${c.lucro < 0 ? "fin-neg" : "pc-verde"}`}>{R(c.lucro)} ({fmtPct(c.margem)})</b>
+                      </div>
+                    )}
                     <div className="pc-preco">
                       {opcoes ? (
-                        <small>Preço por opção ({opcoes.map((o) => o.nome).join(", ")}): a conta usa o preço base {R(Number(x.preco || 0))}. Mude em Produtos → editar.</small>
+                        <small>Preço por opção ({opcoes.map((o) => `${o.nome} ${R(o.preco)}`).join(" · ")}): a conta usa o menor. Mude em Produtos → editar.</small>
                       ) : (
                         <span className="pc-input">
                           Preço R$
-                          <input inputMode="decimal" aria-label={`Preço de ${l.nome}`} value={precoTxt} onChange={(e) => setPrecos({ ...precos, [l.id]: e.target.value })} onKeyDown={(e) => e.key === "Enter" && salvarPreco(x)} />
+                          <input inputMode="decimal" aria-label={`Preço de ${x.nome}`} value={precos[x.id] ?? fmt(Number(x.preco || 0))} onChange={(e) => setPrecos({ ...precos, [x.id]: e.target.value })} onKeyDown={(e) => e.key === "Enter" && salvarPreco(x)} />
                         </span>
-                      )}
-                      {!soIngredientes && (
-                        <span className="pc-input">
-                          Vende
-                          <input inputMode="decimal" placeholder="?" aria-label={`Quantos ${l.nome} vende por dia`} value={qtds[l.id] ?? (l.porDia !== null ? qtdTxt(l.porDia) : "")} onChange={(e) => setQtds({ ...qtds, [l.id]: e.target.value })} onBlur={() => salvarQtd(l.id)} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
-                          por dia
-                        </span>
-                      )}
-                      {!opcoes && sugerido !== null && l.preco < sugerido - 0.004 && (soIngredientes || l.situacao === "pouco") && (
-                        <button type="button" className="ins-btn" onClick={() => setPrecos({ ...precos, [l.id]: fmt(sugerido) })}>
-                          {soIngredientes ? "Usar o mínimo" : "Usar o recomendado"} ({R(sugerido)})
-                        </button>
                       )}
                       {mudouPreco && <button type="button" className="btn-verde" onClick={() => salvarPreco(x)}>Salvar preço</button>}
-                      {!soIngredientes && typeof real === "number" && real > 0 && <small>Vendido de verdade nos últimos 30 dias: {qtdTxt(real)}</small>}
-                      {!soIngredientes && l.recomendado !== null && l.situacao === "pouco" && <small>Recomendado {R(l.recomendado)}: leva a margem deste produto até a que a loja precisa ({fmtPct(res.margemNecessaria)}). É uma sugestão; o preço é você quem decide.</small>}
-                      {mudouPreco && !soIngredientes && <small>Com esse preço o resultado do mês fica em {R(res.resultado)} (ainda não salvo).</small>}
-                      {msgProduto[l.id] && <small>{msgProduto[l.id]}</small>}
+                      {!opcoes && minimo !== null && preco < minimo - 0.004 && (
+                        <button type="button" className="ins-btn" onClick={() => setPrecos({ ...precos, [x.id]: fmt(soIngredientes ? minimo : precoBonito(minimo)) })}>
+                          Usar o mínimo ({R(soIngredientes ? minimo : precoBonito(minimo))})
+                        </button>
+                      )}
+                      {!soIngredientes && minimo !== null && <small>Abaixo de {R(minimo)} este produto dá prejuízo.</small>}
+                      {c?.faltaVendas && <small>Diga quanto a loja vende por mês (acima) para entrar a parte das contas.</small>}
+                      {msgProduto[x.id] && <small>{msgProduto[x.id]}</small>}
                     </div>
                   </li>
                 );
@@ -442,23 +367,11 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendidos30 = {} 
             </Fragment>
           ))}
         </ul>
-        {res.linhas.some((l) => l.custo === null) && (
+        {nSem > 0 && (
           <p className="fin-explica">O custo de cada produto sai dos ingredientes dele (Produtos → editar) e do preço de cada ingrediente (aba <Link to="/cardapio?aba=ingredientes">Ingredientes</Link>).</p>
         )}
       </div>
     </>
-  );
-}
-
-function Linha({ nome, valor, detalhe, total, sub }) {
-  return (
-    <div className={`fin-linha${total ? " fin-total" : sub ? " fin-sub" : ""}`}>
-      <div>
-        <span>{nome}</span>
-        {detalhe && <small>{detalhe}</small>}
-      </div>
-      <strong className={valor < 0 ? "fin-neg" : total ? "fin-pos" : ""}>{R(valor)}</strong>
-    </div>
   );
 }
 
