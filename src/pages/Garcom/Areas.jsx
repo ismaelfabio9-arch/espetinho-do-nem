@@ -5,6 +5,7 @@
 import Area from "../../components/Area";
 import SeLigado from "../../components/SeLigado";
 import { useRecurso } from "../../recursos";
+import { useSouDono } from "../../tenant";
 import Caixa from "./Caixa";
 import HistoricoMesas from "./HistoricoMesas";
 import Historico from "./Historico";
@@ -34,7 +35,10 @@ export function Vendas() {
 
 /** Estoque: ingredientes (com contagem, perdas e histórico) e a quantidade do dia por produto, numa fileira de abas só. */
 function EstoqueArea() {
-  const ingredientes = useRecurso("custos");
+  // Ingredientes (com preço) só para o dono; a equipe fica com o estoque do dia.
+  const custos = useRecurso("custos");
+  const souDono = useSouDono();
+  const ingredientes = custos && souDono;
   const doDia = useRecurso("estoque");
   if (ingredientes) return <Insumos embutido dia={doDia ? <Estoque /> : null} />;
   return (
@@ -52,8 +56,8 @@ export function Dinheiro() {
       icone="💰"
       padrao="lucro"
       abas={[
-        { id: "lucro", nome: "Lucro e caixa", recurso: "financas", tela: () => <Financas abas={["resumo"]} titulo="Lucro e caixa" /> },
-        { id: "despesas", nome: "Despesas e compras", recurso: "financas", tela: () => <Financas abas={["lancamentos"]} titulo="Despesas e compras" /> },
+        { id: "lucro", nome: "Lucro e caixa", recurso: "financas", soDono: true, tela: () => <Financas abas={["resumo"]} titulo="Lucro e caixa" /> },
+        { id: "despesas", nome: "Despesas e compras", recurso: "financas", soDono: true, tela: () => <Financas abas={["lancamentos"]} titulo="Despesas e compras" /> },
       ]}
     />
   );
@@ -68,11 +72,12 @@ export function CardapioArea() {
       abas={[
         { id: "produtos", nome: "Produtos", tela: () => <Produtos /> },
         { id: "hoje", nome: "Cardápio de hoje", tela: () => <CardapioHoje /> },
-        { id: "estoque", nome: "Estoque", tela: () => <EstoqueArea /> },
+        { id: "estoque", nome: "Estoque", recurso: ["custos", "estoque"], tela: () => <EstoqueArea /> },
         {
           id: "preco",
           nome: "Preço certo",
           recurso: "custos",
+          soDono: true,
           tela: () => <Financas abas={["preco"]} titulo="Preço certo" texto="Quanto custa cada produto, por quanto vender e quanto sobra de lucro." />,
         },
       ]}

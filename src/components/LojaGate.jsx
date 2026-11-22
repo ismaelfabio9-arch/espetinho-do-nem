@@ -47,7 +47,17 @@ export default function LojaGate({ children }) {
             <button style={{ ...botao, background: "#eee", color: "#111" }} onClick={() => sair()}>Entrar com outra conta</button>
           </>
         )}
-        {t.status === "blocked" && (
+        {t.status === "blocked" && t.loja?.semanaGratis?.fim && (
+          <>
+            <p style={{ color: "#555" }}>
+              A semana grátis {t.loja?.name ? `da “${t.loja.name}” ` : ""}terminou. Tudo o que você cadastrou está guardado: contrate o plano e a loja volta
+              do jeito que estava, sem cadastrar nada de novo.
+            </p>
+            <a style={{ ...botao, lineHeight: "48px", textDecoration: "none" }} href="/ativar/espetinho">Contratar e continuar</a>
+            <button style={{ ...botao, background: "#eee", color: "#111" }} onClick={() => sair()}>Sair</button>
+          </>
+        )}
+        {t.status === "blocked" && !t.loja?.semanaGratis?.fim && (
           <>
             <p style={{ color: "#555" }}>
               A loja {t.loja?.name ? `“${t.loja.name}” ` : ""}está fora do ar. Se for a primeira mensalidade ou uma fatura em atraso, ela volta

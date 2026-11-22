@@ -81,7 +81,10 @@ export function ordenarGruposPorCategoria(grupos, categoriasDocs) {
     ordemPorNome[c.nome] = typeof c.ordem === "number" ? c.ordem : 9999;
   });
 
-  return [...grupos].sort((a, b) => {
+  // Dentro da categoria: a ordem do produto quando tem (ex.: a do cardápio impresso); sem ordem, como estava.
+  const pos = (i) => (typeof i?.ordem === "number" ? i.ordem : 9999);
+  const comItens = grupos.map((g) => (Array.isArray(g.itens) && g.itens.some((i) => typeof i?.ordem === "number") ? { ...g, itens: [...g.itens].sort((x, y) => pos(x) - pos(y)) } : g));
+  return comItens.sort((a, b) => {
     const ordemA = ordemPorNome[a.categoria] ?? 9999;
     const ordemB = ordemPorNome[b.categoria] ?? 9999;
 
@@ -171,6 +174,20 @@ export async function excluirCategoria(categoria, destino) {
   const produtosSnap = await getDocs(
     query(collection(db, ...L(), "produtos"), where("categoria", "==", categoria.nome))
   );
+
+  // Apagar junto (ex.: cardápio de exemplo posto por engano): o produto e o que é só dele
+  // (estoque do dia, ingredientes, custo e foto). Vendas já feitas não mudam.
+  if (destino?.tipo === "apagar") {
+    const refs = [];
+    produtosSnap.docs.forEach((p) => ["produtos", "estoque", "fichas", "custos", "fotos"].forEach((c) => refs.push(doc(db, ...L(), c, p.id))));
+    refs.push(doc(db, ...L(), "categorias", categoria.id));
+    for (let i = 0; i < refs.length; i += 400) {
+      const b = writeBatch(db);
+      refs.slice(i, i + 400).forEach((r) => b.delete(r));
+      await b.commit();
+    }
+    return;
+  }
 
   const batch = writeBatch(db);
 

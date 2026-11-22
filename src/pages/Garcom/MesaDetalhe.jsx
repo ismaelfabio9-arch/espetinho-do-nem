@@ -15,7 +15,7 @@ import {
   setDoc,
   getDoc,
 } from "firebase/firestore";
-import { db } from "../../firebase";
+import { auth, db } from "../../firebase";
 import { ordenarGruposPorCategoria, trocarOrdemCategorias } from "../../utils/categorias";
 import { ordenarItensCategoria, moverItemCategoria } from "../../utils/produtosOrdem";
 import { useConfigImpressora } from "../../hooks/useConfigImpressora";
@@ -32,6 +32,8 @@ import MontarPrato from "../../components/MontarPrato";
 import PratoNoPedido from "../../components/PratoNoPedido";
 import { totalNoCartao, useTaxas } from "../../utils/taxas";
 import { useRecurso } from "../../recursos";
+import ContaParcial from "../../components/ContaParcial";
+import { falta as faltaDaConta, textoPagamentos, totalPago as totalPagoMesa } from "../../utils/conta";
 import { MONTAGEM_ALMOCO, emojiCategoria, pratosSemMontagem, sugestoesBebida, abreEscolha } from "../../utils/montagem";
 import { baixarInsumos } from "../../utils/insumos";
 
@@ -52,6 +54,9 @@ function MesaDetalhe() {
   const [todosPedidosIds, setTodosPedidosIds] = useState([]); // ✅ CORREÇÃO BUG 4
   const [mostrarPedidoMesa, setMostrarPedidoMesa] = useState(false);
   const [nomeCliente, setNomeCliente] = useState("");
+  // Partes da conta já pagas (mesas/<n>.pagamentos) e a janela da conta parcial.
+  const [pagamentosMesa, setPagamentosMesa] = useState([]);
+  const [contaParcial, setContaParcial] = useState(false);
   const [nomeClienteInput, setNomeClienteInput] = useState("");
   const [editandoNomeCliente, setEditandoNomeCliente] = useState(false);
   const [notificacao, setNotificacao] = useState("");
@@ -85,7 +90,9 @@ function MesaDetalhe() {
         const cliente = documento.data().cliente || "";
         setNomeCliente(cliente);
         setNomeClienteInput(cliente);
+        setPagamentosMesa(Array.isArray(documento.data().pagamentos) ? documento.data().pagamentos : []);
       } else {
+        setPagamentosMesa([]);
         setNomeCliente("");
         setNomeClienteInput("");
       }
@@ -682,7 +689,7 @@ if (pedidosDaMesa.length === 0) {
   }
 
   async function confirmarEncerrarComComprovante() {
-    if (!formaPagamentoEncerrar) {
+    if (!formaPagamentoEncerrar && faltaDaConta(totalMesa, pagamentosMesa) > 0) {
       mostrarNotificacao("Escolha a forma de pagamento.");
       return;
     }
@@ -710,8 +717,18 @@ if (pedidosDaMesa.length === 0) {
 
       // Taxa da maquininha repassada ao cliente (só débito/crédito com "passar para o cliente").
       const totalTodos = resultado.docs.reduce((s, d) => s + (d.data().itens || []).reduce((t, i) => t + Number(i.preco || 0) * Number(i.qtd || i.quantidade || 0), 0), 0);
-      const cartao = totalNoCartao(totalTodos, taxas, formaPagamento);
-      let taxaPendente = cartao.taxa;
+      // Partes já pagas (conta parcial): cobra só o que falta, na forma escolhida agora.
+      const parciais = pagamentosMesa;
+      const restante = faltaDaConta(totalTodos, parciais);
+      const cartao = totalNoCartao(restante, taxas, formaPagamento);
+      const pagamentosFinal = parciais.length
+        ? [...parciais.map(({ valor, forma, taxaCartao, taxaCartaoPct }) => ({ valor, forma, ...(taxaCartao ? { taxaCartao, taxaCartaoPct } : {}) })), ...(restante > 0 ? [{ valor: restante, forma: formaPagamento, ...(cartao.taxa ? { taxaCartao: cartao.taxa, taxaCartaoPct: cartao.taxaPct } : {}) }] : [])]
+        : null;
+      const formasUsadas = pagamentosFinal ? [...new Set(pagamentosFinal.map((x) => x.forma))] : [];
+      const formaDaVenda = pagamentosFinal ? (formasUsadas.length === 1 ? formasUsadas[0] : "Dividido") : formaPagamento;
+      const taxaTotal = pagamentosFinal ? Math.round(pagamentosFinal.reduce((t, x) => t + Number(x.taxaCartao || 0), 0) * 100) / 100 : cartao.taxa;
+      let taxaPendente = taxaTotal;
+      let primeiro = true;
 
       // Emite o comprovante do cliente ANTES de apagar os pedidos abertos,
       // já que os documentos de "pedidos" são a fonte dos itens/total.
@@ -731,10 +748,10 @@ if (pedidosDaMesa.length === 0) {
           cliente: nomeCliente,
           itens: todosItens,
           total: totalComprovante,
-          formaPagamento,
+          formaPagamento: pagamentosFinal ? textoPagamentos(pagamentosFinal) : formaPagamento,
           config: configImpressora,
-          taxaCartao: cartao.taxa,
-          taxaPct: cartao.taxaPct,
+          taxaCartao: taxaTotal,
+          taxaPct: pagamentosFinal ? 0 : cartao.taxaPct,
         });
 
         if (configImpressora.habilitada) {
@@ -761,6 +778,12 @@ if (pedidosDaMesa.length === 0) {
         // A taxa do cartão vai inteira no primeiro registro da mesa (fora do total dos itens).
         const taxaDoc = taxaPendente;
         taxaPendente = 0;
+        // Conta paga em partes: o 1º registro guarda todas as partes; os outros ficam "Dividido" (não contam de novo).
+        const ehPrimeiro = primeiro;
+        primeiro = false;
+        const pagamentoDoc = pagamentosFinal
+          ? { formaPagamento: ehPrimeiro ? formaDaVenda : "Dividido", ...(ehPrimeiro ? { pagamentos: pagamentosFinal } : {}), ...(taxaDoc ? { taxaCartao: taxaDoc } : {}) }
+          : { formaPagamento: formaPagamento || "", ...(taxaDoc ? { taxaCartao: taxaDoc, taxaCartaoPct: cartao.taxaPct } : {}) };
 
         await addDoc(collection(db, ...L(), "vendasDia"), {
           origem: "mesa",
@@ -769,8 +792,7 @@ if (pedidosDaMesa.length === 0) {
           itens: pedidoDados.itens || [],
           total: pedidoDados.total || 0,
           totalItens: pedidoDados.totalItens || 0,
-          formaPagamento: formaPagamento || "",
-          ...(taxaDoc ? { taxaCartao: taxaDoc, taxaCartaoPct: cartao.taxaPct } : {}),
+          ...pagamentoDoc,
           comprovanteEmitido: Boolean(emitirComprovante),
           ...sessaoMesa,
           finalizadoEm: new Date().toISOString(),
@@ -784,8 +806,7 @@ if (pedidosDaMesa.length === 0) {
           itens: pedidoDados.itens || [],
           total: pedidoDados.total || 0,
           totalItens: pedidoDados.totalItens || 0,
-          formaPagamento: formaPagamento || "",
-          ...(taxaDoc ? { taxaCartao: taxaDoc, taxaCartaoPct: cartao.taxaPct } : {}),
+          ...pagamentoDoc,
           comprovanteEmitido: Boolean(emitirComprovante),
           ...sessaoMesa,
           finalizadoEm: new Date().toISOString(),
@@ -804,6 +825,7 @@ if (pedidosDaMesa.length === 0) {
         {
           numero: Number(id),
           cliente: "",
+          pagamentos: [],
         },
         { merge: true }
       );
@@ -926,6 +948,17 @@ if (pedidosDaMesa.length === 0) {
             <p className="modal-total-encerrar">
               Total: <strong>R$ {formatarMoeda(totalGeralMesa)}</strong>
             </p>
+            {pagamentosMesa.length > 0 && (
+              <p className="modal-total-encerrar">
+                Já pago: <strong>R$ {formatarMoeda(totalPagoMesa(pagamentosMesa))}</strong> ({textoPagamentos(pagamentosMesa)})
+                <br />
+                {faltaDaConta(totalMesa, pagamentosMesa) > 0 ? (
+                  <>Falta: <strong>R$ {formatarMoeda(faltaDaConta(totalMesa, pagamentosMesa))}</strong> — escolha como vai pagar o que falta:</>
+                ) : (
+                  <strong>Tudo já foi pago.</strong>
+                )}
+              </p>
+            )}
 
             <div className="formas-pagamento">
               {FORMAS_PAGAMENTO.map((forma) => (
@@ -940,13 +973,17 @@ if (pedidosDaMesa.length === 0) {
               ))}
             </div>
 
-            {totalNoCartao(totalGeralMesa, taxas, formaPagamentoEncerrar).taxa > 0 && (
-              <p className="modal-cartao">
-                Taxa do cartão ({String(totalNoCartao(totalGeralMesa, taxas, formaPagamentoEncerrar).taxaPct).replace(".", ",")}%): + R$ {formatarMoeda(totalNoCartao(totalGeralMesa, taxas, formaPagamentoEncerrar).taxa)}
-                <br />
-                Cobrar na maquininha: <strong>R$ {formatarMoeda(totalNoCartao(totalGeralMesa, taxas, formaPagamentoEncerrar).total)}</strong>
-              </p>
-            )}
+            {(() => {
+              const base = pagamentosMesa.length ? faltaDaConta(totalMesa, pagamentosMesa) : totalGeralMesa;
+              const ct = totalNoCartao(base, taxas, formaPagamentoEncerrar);
+              return ct.taxa > 0 ? (
+                <p className="modal-cartao">
+                  Taxa do cartão ({String(ct.taxaPct).replace(".", ",")}%): + R$ {formatarMoeda(ct.taxa)}
+                  <br />
+                  Cobrar na maquininha: <strong>R$ {formatarMoeda(ct.total)}</strong>
+                </p>
+              ) : null;
+            })()}
 
             <div className="modal-acoes">
               <button
@@ -1085,10 +1122,42 @@ if (pedidosDaMesa.length === 0) {
         </button>
       </div>
 
+      {totalItensMesa > 0 && (
+        <button type="button" className="btn-imprimir-comanda" onClick={() => setContaParcial(true)}>
+          🧾 Conta parcial · dividir{pagamentosMesa.length ? ` · falta R$ ${formatarMoeda(faltaDaConta(totalMesa, pagamentosMesa))}` : ""}
+        </button>
+      )}
+
       {configImpressora.habilitada && totalItensMesa > 0 && (
         <button className="btn-imprimir-comanda" onClick={imprimirComandaManual} data-atalho="F1">
           🖨️ Imprimir comanda da mesa
         </button>
+      )}
+
+      {contaParcial && (
+        <ContaParcial
+          mesa={id}
+          itens={itensMesa}
+          total={totalMesa}
+          naoSalvo={total}
+          pagamentos={pagamentosMesa}
+          taxas={taxas}
+          podeImprimir={configImpressora.habilitada}
+          onFechar={() => setContaParcial(false)}
+          onImprimir={async () => {
+            const abriu = await imprimirComandaAgora(itensMesa, totalMesa, `CONTA PARCIAL (a mesa continua aberta)${pagamentosMesa.length ? ` · Já pago R$ ${formatarMoeda(totalPagoMesa(pagamentosMesa))} · Falta R$ ${formatarMoeda(faltaDaConta(totalMesa, pagamentosMesa))}` : ""}`);
+            if (!abriu) mostrarNotificacao("O celular bloqueou a janela de impressão. Libere as janelas (pop-ups) do site e tente de novo.");
+          }}
+          onReceber={async (p) => {
+            const novo = { id: `p${Date.now()}`, ...p, em: new Date().toISOString(), por: auth.currentUser?.email || "" };
+            await setDoc(doc(db, ...L(), "mesas", String(id)), { numero: Number(id), pagamentos: [...pagamentosMesa, novo] }, { merge: true });
+            mostrarNotificacao(`Recebido: R$ ${formatarMoeda(p.valor)} no ${p.forma}.`);
+          }}
+          onTirar={async (p) => {
+            await setDoc(doc(db, ...L(), "mesas", String(id)), { pagamentos: pagamentosMesa.filter((x) => x.id !== p.id) }, { merge: true });
+            mostrarNotificacao("Pagamento desfeito.");
+          }}
+        />
       )}
 
       {pedidoMesa && totalItensMesa > 0 && (

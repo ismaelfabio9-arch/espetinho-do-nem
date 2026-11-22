@@ -1,14 +1,13 @@
 // Ficha técnica (o que vai em cada produto), cadastro de ingrediente e o preço certo do produto.
 // Usado dentro do cadastro do produto (Cardápio e estoque → Produtos → editar) e na Matéria-prima.
 import { useCallback, useEffect, useState } from "react";
-import { addDoc, collection, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc } from "firebase/firestore";
+import { addDoc, collection, doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { L } from "../loja";
 import { custoDaFicha, daFicha, daParaQuantos, itensJuntos, mostrarQtd, paraFicha, unidadeDe } from "../utils/insumos";
 import { tipoDe } from "../utils/montagem";
-import { calcularFinancas, isoDia, juntarVendas, lerValor } from "../utils/financas";
-import { percentuaisDaLoja, percentuaisFinais, precoDoProduto } from "../utils/precificacao";
-import { useTaxas } from "../utils/taxas";
+import { lerValor } from "../utils/financas";
+import { percentuaisFinais, precoDoProduto } from "../utils/precificacao";
 import "../styles/Garcom/Financas.css";
 import "../styles/Garcom/Insumos.css";
 
@@ -434,20 +433,11 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual }) {
 
 /** Percentuais do Preço certo (Finanças) já calculados: config salva + movimento dos últimos 30 dias. */
 export function usePercentuaisPreco() {
-  const taxas = useTaxas();
+  // Só o que o dono preencheu no Preço certo: nada automático (em branco = 0).
   const [salvo, setSalvo] = useState(null);
-  const [dias, setDias] = useState(null);
-  const [hoje, setHoje] = useState(null);
-  const [lanc, setLanc] = useState(null);
   useEffect(() => onSnapshot(doc(db, ...L(), "configuracoes", "precificacao"), (s) => setSalvo(s.data() || {}), () => setSalvo({})), []);
-  useEffect(() => onSnapshot(query(collection(db, ...L(), "relatorioGerencial"), orderBy("criadoEm", "desc"), limit(40)), (s) => setDias(s.docs.map((d) => d.data())), () => setDias([])), []);
-  useEffect(() => onSnapshot(collection(db, ...L(), "vendasDia"), (s) => setHoje(s.docs.map((d) => d.data())), () => setHoje([])), []);
-  useEffect(() => onSnapshot(collection(db, ...L(), "despesas"), (s) => setLanc(s.docs.map((d) => d.data())), () => setLanc([])), []);
-  if (salvo === null || dias === null || hoje === null || lanc === null) return null;
-  const agora = new Date();
-  const de = isoDia(new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() - 29));
-  const f30 = calcularFinancas({ vendas: juntarVendas(dias, hoje), produtos: [], custos: {}, lancamentos: lanc, taxas, de, ate: isoDia(agora) });
-  return percentuaisFinais(salvo, percentuaisDaLoja(f30, taxas));
+  if (salvo === null) return null;
+  return percentuaisFinais(salvo);
 }
 
 /** Resumo do preço certo de um produto (custo, preço de hoje e o sugerido). */

@@ -1,0 +1,37 @@
+.cp { max-width: 520px; width: 100%; max-height: 92vh; overflow-y: auto; text-align: left; display: grid; gap: 12px; }
+.cp-topo { display: flex; justify-content: space-between; align-items: center; }
+.cp-topo h2 { margin: 0; font-size: 19px; }
+.cp-x { border: 0; background: var(--card-2, #f3f4f6); width: 34px; height: 34px; border-radius: 999px; cursor: pointer; color: inherit; }
+.cp-resumo { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 14px; }
+.cp-resumo b { font-size: 17px; margin-left: 4px; }
+.cp-verde { color: #16a34a; }
+.cp-falta { color: #dc2626; }
+.cp-aviso { margin: 0; padding: 8px 10px; border-radius: 10px; background: #fef3c7; color: #92400e; font-size: 13px; }
+.cp-abas { display: flex; gap: 6px; }
+.cp-abas button { flex: 1; padding: 9px 6px; border-radius: 10px; border: 1px solid var(--border, #e5e7eb); background: var(--card, #fff); color: inherit; font-weight: 700; cursor: pointer; font-size: 13.5px; }
+.cp-abas button.ativo { background: #16a34a; border-color: #16a34a; color: #fff; }
+.cp-itens, .cp-pagos, .cp-unidades, .cp-por-pessoa { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cp-itens li, .cp-pagos li, .cp-por-pessoa li { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 14px; }
+.cp-pagos li { color: #15803d; }
+.cp-tirar { border: 0; background: none; color: #dc2626; font-size: 12px; cursor: pointer; }
+.cp-botoes { display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end; }
+.cp-btn { padding: 10px 14px; border-radius: 10px; border: 1px solid var(--border, #e5e7eb); background: var(--card, #fff); color: inherit; font-weight: 700; cursor: pointer; }
+.cp-btn.verde { background: #16a34a; border-color: #16a34a; color: #fff; }
+.cp-btn.mini { padding: 6px 10px; font-size: 12.5px; }
+.cp-pessoas { display: flex; align-items: center; gap: 10px; font-size: 14px; flex-wrap: wrap; }
+.cp-pessoas button { width: 36px; height: 36px; border-radius: 10px; border: 1px solid var(--border, #e5e7eb); background: var(--card, #fff); color: inherit; font-size: 18px; cursor: pointer; }
+.cp-pessoas b { font-size: 20px; min-width: 24px; text-align: center; }
+.cp-cada { margin: 0; font-size: 16px; }
+.cp-cada b { font-size: 20px; color: #16a34a; }
+.cp-nomes { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 6px; }
+.cp-nomes input, .cp-valor input { padding: 9px; border-radius: 10px; border: 1px solid var(--border, #e5e7eb); background: var(--card, #fff); color: inherit; font-size: 15px; min-width: 0; }
+.cp-dica { margin: 0; font-size: 12.5px; color: var(--muted, #6b7280); }
+.cp-unidades li { display: grid; gap: 4px; padding: 8px; border-radius: 10px; background: var(--card-2, #f3f4f6); }
+.cp-un-nome small { color: var(--muted, #6b7280); margin-left: 4px; }
+.cp-donos { display: flex; flex-wrap: wrap; gap: 4px; }
+.cp-donos button { padding: 5px 9px; border-radius: 999px; border: 1px solid var(--border, #d1d5db); background: var(--card, #fff); color: inherit; font-size: 12.5px; cursor: pointer; }
+.cp-donos button.ativo { background: #16a34a; border-color: #16a34a; color: #fff; }
+.cp-receber { display: grid; gap: 8px; padding: 12px; border-radius: 12px; border: 2px solid #16a34a; }
+.cp-valor { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+.cp-valor input { font-size: 20px; width: 140px; }
+.cp-erro { margin: 0; color: #dc2626; font-size: 13px; }

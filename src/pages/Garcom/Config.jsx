@@ -1,6 +1,7 @@
 import { L, MULTI } from "../../loja";
 import useNomeLoja from "../../hooks/useNomeLoja";
 import Equipe from "../../components/Equipe";
+import { useSouDono } from "../../tenant";
 import TaxasMaquininha from "../../components/TaxasMaquininha";
 import CardapioOnlineConfig from "../../components/CardapioOnlineConfig";
 import { useState } from "react";
@@ -19,7 +20,7 @@ import { db } from "../../firebase";
 import "../../styles/Garcom/Config.css";
 import InstallModal from "../../components/InstallApp";
 import { isInstalled } from "../../utils/installPrompt";
-import { usePlanoQueLibera, useRecurso } from "../../recursos";
+import { useRecurso } from "../../recursos";
 import { useCaixaAberto } from "../../components/AvisoCaixa";
 import "../../styles/Garcom/AvisoCaixa.css";
 import WhatsLojaConfig from "../../components/WhatsLojaConfig";
@@ -30,8 +31,9 @@ const nomeProduto = (item) => item.nomeBase || String(item.nome || "").split(" �
 
 
 function Config() {
+  // Configurações da loja, Dinheiro e Preço certo: só o dono. A equipe fica com a impressora e o tema.
+  const souDono = useSouDono();
   const financasLigado = useRecurso("financas");
-  const financasPlano = usePlanoQueLibera("financas");
   const caixaAberto = useCaixaAberto(financasLigado);
   const nomeLoja = useNomeLoja();
   const [instalarAberto, setInstalarAberto] = useState(false);
@@ -208,11 +210,17 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
         <div>
           <Link to="/vendas">💵 Vendas</Link>
           <Link to="/cardapio">🍔 Cardápio e estoque</Link>
-          {(financasLigado || financasPlano) && <Link to="/dinheiro">💰 Dinheiro</Link>}
+          {financasLigado && souDono && <Link to="/dinheiro">💰 Dinheiro</Link>}
         </div>
       </div>
 
-      {MULTI && (
+      {!souDono && (
+        <p className="config-beta" style={{ margin: "0 0 14px", padding: "10px 14px", borderRadius: 12, background: "#f3f4f6", color: "#374151", fontSize: 14 }}>
+          🔒 As configurações da loja (equipe, taxas, WhatsApp, cardápio online e fechamento do dia) ficam com o dono da loja.
+        </p>
+      )}
+
+      {MULTI && souDono && (
         <a href="/sistemas/sistema-de-mesas#planos" style={{ textDecoration: "none" }}>
           <div className="config-card">
             <div className="config-icon">⭐</div>
@@ -225,7 +233,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
         </a>
       )}
 
-      {MULTI && (
+      {MULTI && souDono && (
         <Link to="/dono" style={{ textDecoration: "none" }}>
           <div className="config-card">
             <div className="config-icon">🏪</div>
@@ -238,12 +246,12 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
         </Link>
       )}
 
-      {MULTI && <Equipe />}
+      {MULTI && souDono && <Equipe />}
 
-      <WhatsLojaConfig />
-      <TaxasMaquininha />
+      {souDono && <WhatsLojaConfig />}
+      {souDono && <TaxasMaquininha />}
 
-      <CardapioOnlineConfig />
+      {souDono && <CardapioOnlineConfig />}
 
       <Link to="/config/impressora" style={{ textDecoration: "none" }}>
         <div className="config-card">
@@ -327,6 +335,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
         </label>
       </div>
 
+      {souDono && (
       <div className="config-card">
         <div className="config-icon">📊</div>
         <div style={{ flex: 1 }}>
@@ -352,8 +361,9 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
           <span className="slider"></span>
         </label>
       </div>
+      )}
 
-      {modalEncerrarDia && (
+      {modalEncerrarDia && souDono && (
         <div className="modal-fechar-dia">
           <div className="modal-fechar-dia-card">
             <div className="modal-fechar-dia-icone">⚠️</div>

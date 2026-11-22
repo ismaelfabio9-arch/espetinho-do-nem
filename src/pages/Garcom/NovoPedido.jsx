@@ -7,7 +7,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../../firebase";
 import Viagem from "./Viagem";
-import { planoQueLibera, useRecurso } from "../../recursos";
+import { useRecurso } from "../../recursos";
 import "../../styles/Garcom/NovoPedido.css";
 
 const ABAS = [
@@ -18,7 +18,7 @@ const ABAS = [
 
 const moeda = (v) => Number(v || 0).toFixed(2).replace(".", ",");
 
-function Abas({ aba, onTroca }) {
+function Abas({ aba, onTroca, abas = ABAS }) {
   return (
     <div className="novo-topo">
       <Link className="voltar" to="/">
@@ -26,7 +26,7 @@ function Abas({ aba, onTroca }) {
       </Link>
       <h1 className="novo-titulo">Novo pedido</h1>
       <div className="novo-abas" role="tablist" aria-label="Tipo do pedido">
-        {ABAS.map((a) => (
+        {abas.map((a) => (
           <button
             key={a.id}
             type="button"
@@ -105,27 +105,16 @@ export default function NovoPedido() {
   const aba = ABAS.some((a) => a.id === params.get("aba")) ? params.get("aba") : "mesa";
   const viagemLigado = useRecurso("viagem");
   const trocar = (id) => setParams(id === "mesa" ? {} : { aba: id }, { replace: true });
-  const topo = <Abas aba={aba} onTroca={trocar} />;
+  // Balcão e entrega fora do plano: as abas nem aparecem.
+  const topo = <Abas aba={viagemLigado ? aba : "mesa"} onTroca={trocar} abas={viagemLigado ? ABAS : ABAS.filter((a) => a.id === "mesa")} />;
 
   if (aba !== "mesa" && viagemLigado)
     return <Viagem modo={aba} topo={topo} />;
 
-  const plano = planoQueLibera("viagem");
   return (
     <div className="mesa-page">
       {topo}
-      {aba === "mesa" ? (
-        <EscolherMesa />
-      ) : (
-        <div className="card-principal">
-          <h2>{plano ? `Função do plano ${plano}` : "Função desligada"}</h2>
-          <p>
-            {plano
-              ? `Pedido de balcão e entrega lançada pelo garçom fazem parte do plano ${plano}. Para usar, fale com a IFTech pelo WhatsApp (81) 99245-8934.`
-              : "Esta função está desligada na sua loja. Para ligar de novo, fale com a IFTech."}
-          </p>
-        </div>
-      )}
+      <EscolherMesa />
     </div>
   );
 }

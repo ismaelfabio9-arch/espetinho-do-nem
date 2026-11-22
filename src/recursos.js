@@ -32,6 +32,8 @@ export const RECURSOS = {
   // Ingredientes (estoque de matéria-prima, ficha de cada produto) e Preço certo: só o Premium liga.
   // Lojas que já estavam no Completo antes de 22/11/2026 continuam com eles (ver temRecurso).
   custos: false,
+  // Foto de cada produto no cardápio: planos Completo e Premium.
+  fotos: false,
   beta: false,
 };
 
@@ -42,7 +44,7 @@ export const PLANO_DESLIGA = {
   premium: [],
 };
 /** Funções novas que só o plano liga (sem plano, ficam desligadas). */
-export const PLANO_LIGA = { basico: [], completo: ["financas"], premium: ["pedido-online", "financas", "custos"] };
+export const PLANO_LIGA = { basico: [], completo: ["financas", "fotos"], premium: ["pedido-online", "financas", "custos", "fotos"] };
 /** Lojas do Completo criadas antes desta data já usavam Ingredientes e Preço certo: continuam com eles. */
 export const CUSTOS_COMPLETO_ATE = "2026-11-22T00:00:00-03:00";
 const criadaEm = (loja) => {
@@ -107,6 +109,24 @@ export function useRecurso(nome) {
     };
   }, [nome]);
   return ligado;
+}
+
+/** Várias funções de uma vez: { nome: ligado }. A lista de nomes não muda durante a tela. */
+export function useRecursos(nomes) {
+  const chave = nomes.join("|");
+  const ler = () => Object.fromEntries(chave.split("|").filter(Boolean).map((n) => [n, temRecurso(n)]));
+  const [ligados, setLigados] = useState(ler);
+  useEffect(() => {
+    const fn = () => setLigados(Object.fromEntries(chave.split("|").filter(Boolean).map((n) => [n, temRecurso(n)])));
+    fn();
+    ouvintes.add(fn);
+    const sairTenant = subscribeTenant(fn);
+    return () => {
+      ouvintes.delete(fn);
+      sairTenant();
+    };
+  }, [chave]);
+  return ligados;
 }
 
 /** planoQueLibera(nome) que se atualiza quando o plano da loja carrega ou muda. */

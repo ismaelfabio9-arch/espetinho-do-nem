@@ -2,13 +2,25 @@
 // A aba fica no endereço (?aba=…), então os links antigos (/caixa, /historico…) caem na aba certa.
 import { Link, useSearchParams } from "react-router-dom";
 import SeLigado from "./SeLigado";
+import { useRecursos } from "../recursos";
+import { useSouDono } from "../tenant";
 import "../styles/Garcom/Area.css";
 
 /**
  * abas: [{ id, nome, recurso?, tela: () => JSX }]. padrao: id da aba quando o endereço não diz.
+ * recurso pode ser uma lista (a aba aparece se a loja tiver qualquer uma). Aba de função que o plano
+ * da loja não tem nem aparece.
  */
-export default function Area({ titulo, icone, texto, abas, padrao, param = "aba", sub = false }) {
+export default function Area({ titulo, icone, texto, abas: todas, padrao, param = "aba", sub = false }) {
   const [params, setParams] = useSearchParams();
+  const nomes = [...new Set(todas.flatMap((a) => (a.recurso ? [].concat(a.recurso) : [])))];
+  const ligados = useRecursos(nomes);
+  const souDono = useSouDono();
+  // Aba só do dono (Preço certo, Dinheiro): a equipe nem vê.
+  const tem = (a) => (!a.soDono || souDono) && (!a.recurso || [].concat(a.recurso).some((r) => ligados[r]));
+  const visiveis = todas.filter(tem);
+  // Nenhuma aba no plano (entrou pelo endereço): mostra o aviso da primeira.
+  const abas = visiveis.length ? visiveis : todas.slice(0, 1);
   const atual = abas.find((a) => a.id === params.get(param)) || abas.find((a) => a.id === padrao) || abas[0];
   const escolher = (id) => {
     const p = new URLSearchParams(params);
@@ -25,8 +37,13 @@ export default function Area({ titulo, icone, texto, abas, padrao, param = "aba"
       ))}
     </div>
   );
-  const tela = atual.recurso ? (
-    <SeLigado recurso={atual.recurso} embutido>
+  const tela = atual.soDono && !souDono ? (
+    <div className="container" style={{ padding: 24 }}>
+      <h1 style={{ marginTop: 8 }}>Só para o dono da loja</h1>
+      <p>Esta parte (dinheiro, custos e preços) fica só com o dono da loja.</p>
+    </div>
+  ) : atual.recurso && !tem(atual) ? (
+    <SeLigado recurso={[].concat(atual.recurso)[0]} embutido>
       {atual.tela()}
     </SeLigado>
   ) : (

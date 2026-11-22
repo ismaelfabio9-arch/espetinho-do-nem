@@ -26,8 +26,12 @@ import { ordenarItensCategoria } from "../../utils/produtosOrdem";
 import { slugify, formatarMoeda } from "../../utils/texto";
 import "../../styles/Garcom/Produtos.css";
 import { useRecurso } from "../../recursos";
+import FotoProduto from "../../components/FotoProduto";
+import { useSouDono } from "../../tenant";
+import EditorOpcoes, { erroDasOpcoes, opcoesParaEditar, opcoesParaSalvar } from "../../components/EditorOpcoes";
+import { useFotos } from "../../utils/fotos";
 import { FichaDoProduto } from "../../components/FichaTecnica";
-import { MODELOS, TIPOS, lerMontagem, temMontagem, textoMontagem, tipoDe, tipoInfo, tipoPelaCategoria } from "../../utils/montagem";
+import { MODELOS, TIPOS, lerMontagem, precosDoCardapio, temMontagem, textoMontagem, tipoDe, tipoInfo, tipoPelaCategoria } from "../../utils/montagem";
 
 
 // Lojas da IFTech (e a demonstração do site): categorias prontas, cardápios de exemplo e tipo nas categorias.
@@ -43,7 +47,11 @@ const normalizar = (t) =>
 
 function Produtos() {
   // Planos Completo e Premium: ingredientes (ficha técnica), custo e preço certo dentro do produto.
-  const financasLigado = useRecurso("custos");
+  const souDono = useSouDono();
+  const financasLigado = useRecurso("custos") && souDono;
+  // Fotos dos produtos: planos Completo e Premium.
+  const fotosLigado = useRecurso("fotos");
+  const fotos = useFotos(fotosLigado);
   const [produtos, setProdutos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   // Editar produto: toca na linha e abre a ficha (nome, preço, categoria, opções e excluir).
@@ -240,7 +248,14 @@ function Produtos() {
 
     // Sabor, recheio ou prato: já abre as opções com o modelo do tipo para o dono ajustar.
     if (tipoEscolhido !== "simples") {
-      setMontagemAberta({ id: produtoId, nome: nomeTratado, tipo: tipoEscolhido, novo: true, ...textoMontagem(MODELOS[tipoEscolhido]) });
+      // Começa vazio: o exemplo aparece só em cinza (e no botão "Usar o exemplo"), para nenhuma opção
+      // inventada (recheio, "Ovo = 2"…) ir parar no pedido sem o dono escrever.
+      // Abre a mesma tela de editar, já nas opções (sabor e tamanho já com o espaço da escolha).
+      const comEscolha = tipoEscolhido === "sabor" || tipoEscolhido === "recheio";
+      setFicha({
+        id: produtoId, nome: nomeTratado, preco: String(precoNovoProduto), categoria: categoriaTratada, tipo: tipoEscolhido, erro: "", salvando: false,
+        ed: { vem: [], extras: [], escolhas: comEscolha ? [{ nome: tipoEscolhido === "sabor" ? "Sabor" : "Tamanho", max: 1, opcoes: [{ nome: "", mais: "" }, { nome: "", mais: "" }, { nome: "", mais: "" }] }] : [] },
+      });
     }
     setTipoNovo("");
     setNovoNome("");
@@ -251,7 +266,7 @@ function Produtos() {
   }
 
   function abrirFicha(produto) {
-    setFicha({ id: produto.id, nome: produto.nome || "", preco: String(produto.preco ?? ""), categoria: produto.categoria || "", erro: "", salvando: false });
+    setFicha({ id: produto.id, nome: produto.nome || "", preco: String(produto.preco ?? ""), categoria: produto.categoria || "", tipo: tipoDe(produto), ed: opcoesParaEditar(produto), erro: "", salvando: false });
   }
 
   async function salvarFicha() {
@@ -269,6 +284,9 @@ function Produtos() {
         (item.nome || "").trim().toLowerCase() === nomeTratado.toLowerCase()
     );
     if (nomeJaExiste) return setFicha({ ...ficha, erro: "Já existe um produto com esse nome nessa categoria." });
+    const erroOpcoes = erroDasOpcoes(ficha.tipo, ficha.ed);
+    if (erroOpcoes) return setFicha({ ...ficha, erro: erroOpcoes });
+    const montagem = opcoesParaSalvar(ficha.tipo, ficha.ed);
 
     setFicha({ ...ficha, erro: "", salvando: true });
     try {
@@ -276,6 +294,11 @@ function Produtos() {
       const muda = {};
       if (nomeTratado !== produto.nome) muda.nome = nomeTratado;
       if (preco !== Number(produto.preco)) muda.preco = preco;
+      // Opções (o que vem, o que o cliente escolhe, adicionais) e o jeito de pedir.
+      if (ficha.tipo !== tipoDe(produto) || JSON.stringify(montagem) !== JSON.stringify(produto.montagem ?? null)) {
+        muda.tipo = ficha.tipo;
+        muda.montagem = montagem;
+      }
       if (Object.keys(muda).length) {
         const batch = writeBatch(db);
         batch.update(doc(db, ...L(), "produtos", produto.id), { ...muda, atualizadoEm: agora });
@@ -363,13 +386,15 @@ function Produtos() {
     if (!categoriaParaExcluir) return;
 
     const destino =
-      acaoExclusao === "mover" && categoriaDestinoExclusao
+      acaoExclusao === "apagar"
+        ? { tipo: "apagar" }
+        : acaoExclusao === "mover" && categoriaDestinoExclusao
         ? { tipo: "mover", categoriaDestino: categoriaDestinoExclusao }
         : { tipo: "sem-categoria" };
 
     await excluirCategoria(categoriaParaExcluir, destino);
     setCategoriaParaExcluir(null);
-    mostrarMensagemCategoria("Categoria excluída!");
+    mostrarMensagemCategoria(acaoExclusao === "apagar" ? "Categoria e produtos apagados!" : "Categoria excluída!");
   }
 
   async function moverCategoriaBotao(index, direcao) {
@@ -407,7 +432,7 @@ function Produtos() {
 
   async function salvarMontagem() {
     const tipo = montagemAberta.tipo || "simples";
-    const m = tipo === "simples" ? null : lerMontagem(tipo === "prato" ? montagemAberta : { ...montagemAberta, vem: "" });
+    const m = tipo === "simples" ? null : lerMontagem(tipo === "prato" || tipo === "lanche" ? montagemAberta : { ...montagemAberta, vem: "" });
     if ((tipo === "sabor" || tipo === "recheio") && !(m?.escolhas || []).length) {
       setMontagemAberta({ ...montagemAberta, erro: tipo === "sabor" ? "Escreva os sabores. Ex.: Sabor: Coco, Morango" : "Escreva as opções. Ex.: Recheio: Queijo, Frango = 2" });
       return;
@@ -489,7 +514,7 @@ function Produtos() {
                       type="button"
                       key={t.id}
                       className={t.id === tipo ? "tipo-op ativo" : "tipo-op"}
-                      onClick={() => muda({ tipo: t.id, ...(t.id !== "simples" && !montagemAberta.escolhas && !montagemAberta.vem && !montagemAberta.extras ? textoMontagem(MODELOS[t.id]) : {}) })}
+                      onClick={() => muda({ tipo: t.id })}
                     >
                       <strong>{t.emoji} {t.nome}</strong>
                       <small>{t.exemplo}</small>
@@ -507,22 +532,31 @@ function Produtos() {
                   </label>
                 </>
               )}
+              {tipo === "lanche" && (
+                <>
+                  <p>Na hora do pedido o garçom (e o cliente no QR Code) tira o que não quer (ex.: sem cebola) e põe os adicionais. Deixe em branco o que não usar.</p>
+                  <label>
+                    Vem no lanche <small>(separe por vírgula)</small>
+                    <input value={montagemAberta.vem} onChange={(e) => muda({ vem: e.target.value })} placeholder="Pão, Hambúrguer, Queijo, Alface, Tomate, Molho" />
+                  </label>
+                </>
+              )}
               {tipo === "sabor" && <p>Um produto só, e na hora do pedido escolhe o sabor. Se um sabor custar mais, ponha "= preço" depois dele.</p>}
               {tipo === "recheio" && <p>Na hora do pedido escolhe o recheio ou o tamanho. Ponha "= preço" no que custar mais que o preço do produto.</p>}
               {tipo !== "simples" && (
                 <>
                   <label>
-                    {tipo === "sabor" ? "Sabores" : tipo === "recheio" ? "Recheios e tamanhos" : "Escolhas"} <small>(uma por linha: Grupo: opção, opção = preço)</small>
+                    {tipo === "sabor" ? "Sabores" : tipo === "recheio" ? "Recheios e tamanhos" : "Escolhas"} <small>(uma por linha: Grupo: opção, opção = preço · para escolher mais de uma: Grupo (até 2): …)</small>
                     <textarea
                       rows={3}
                       value={montagemAberta.escolhas}
                       onChange={(e) => muda({ escolhas: e.target.value })}
-                      placeholder={tipo === "sabor" ? "Sabor: Coco, Morango, Chocolate" : tipo === "recheio" ? "Recheio: Queijo, Frango = 2, Carne de sol = 4\nTamanho: Pequeno, Grande = 3" : "Feijão: Carioca, Preto, Macassar\nSalada: Verdura, Vinagrete"}
+                      placeholder={tipo === "sabor" ? "Sabor: Coco, Morango, Chocolate" : tipo === "recheio" ? "Recheio: Queijo, Frango = 2, Carne de sol = 4\nTamanho: Pequeno, Grande = 3" : tipo === "lanche" ? "Hambúrguer: Normal, Artesanal = 4\nPatê (até 2): Frango, Atum, Peito de peru" : "Feijão: Carioca, Preto, Macassar\nSalada: Verdura, Vinagrete"}
                     />
                   </label>
                   <label>
                     {tipo === "prato" ? "A mais, com preço" : "Adicionais, com preço"} <small>(uma por linha: nome = preço)</small>
-                    <textarea rows={2} value={montagemAberta.extras} onChange={(e) => muda({ extras: e.target.value })} placeholder={tipo === "prato" ? "Ovo = 2\nBatata frita = 6" : tipo === "sabor" ? "Cobertura = 2" : "Ovo = 2\nQueijo a mais = 3"} />
+                    <textarea rows={2} value={montagemAberta.extras} onChange={(e) => muda({ extras: e.target.value })} placeholder={tipo === "prato" ? "Ovo = 2\nBatata frita = 6" : tipo === "lanche" ? "Bacon = 4\nOvo = 2\nCheddar = 3" : tipo === "sabor" ? "Cobertura = 2" : "Ovo = 2\nQueijo a mais = 3"} />
                   </label>
                   <button type="button" className="montagem-modelo" onClick={() => muda(textoMontagem(MODELOS[tipo]))}>
                     Usar o exemplo de {info.nome.toLowerCase()}
@@ -736,8 +770,7 @@ function Produtos() {
                   <strong>
                     {(produtosPorCategoria[categoriaParaExcluir.nome] || []).length}
                   </strong>{" "}
-                  produto(s). Eles não serão apagados — escolha o que fazer com
-                  eles:
+                  produto(s). Escolha o que fazer com eles:
                 </p>
 
                 <div className="produto-modal-form">
@@ -758,6 +791,20 @@ function Produtos() {
                     />
                     Mover para outra categoria
                   </label>
+
+                  <label className="opcao-radio">
+                    <input
+                      type="radio"
+                      checked={acaoExclusao === "apagar"}
+                      onChange={() => setAcaoExclusao("apagar")}
+                    />
+                    Apagar também os produtos dela (ex.: cardápio de exemplo)
+                  </label>
+                  {acaoExclusao === "apagar" && (
+                    <p className="montagem-erro">
+                      Some do cardápio: {(produtosPorCategoria[categoriaParaExcluir.nome] || []).map((p) => p.nome).join(", ")}. As vendas já feitas continuam no histórico.
+                    </p>
+                  )}
 
                   {acaoExclusao === "mover" && (
                     <select
@@ -947,15 +994,19 @@ function Produtos() {
                   const ok = comOpcoes && temMontagem(produto);
                   return (
                     <button type="button" key={produto.id} className="prod-item" onClick={() => abrirFicha(produto)}>
+                      {fotos[produto.id] && <img className="prod-item-foto" src={fotos[produto.id]} alt="" loading="lazy" />}
                       <span className="prod-item-nome">
                         {produto.nome}
-                        {comOpcoes && (
-                          <small className={ok ? "prod-tag" : "prod-tag falta"}>
-                            {info.emoji} {ok ? info.nome : "cadastrar opções"}
-                          </small>
-                        )}
+                        {(produto.montagem?.vem || []).length > 0 && <small className="prod-item-vem">{produto.montagem.vem.join(", ")}</small>}
+                        {comOpcoes && !ok && <small className="prod-tag falta">{info.emoji} falta pôr as opções</small>}
                       </span>
-                      <strong className="prod-item-preco">R$ {formatarMoeda(produto.preco)}</strong>
+                      <strong className="prod-item-preco">
+                        {precosDoCardapio(produto)
+                          ? precosDoCardapio(produto).map((x) => (
+                              <span key={x.nome} className="prod-item-preco-op"><small>{x.nome}</small> R$ {formatarMoeda(x.preco)}</span>
+                            ))
+                          : `R$ ${formatarMoeda(produto.preco)}`}
+                      </strong>
                     </button>
                   );
                 })}
@@ -969,8 +1020,6 @@ function Produtos() {
       {ficha && (() => {
         const produto = produtos.find((p) => p.id === ficha.id);
         if (!produto) return null;
-        const tipo = tipoDe(produto);
-        const info = tipoInfo(tipo);
         return (
           <div className="modal-overlay prod-ficha-fundo" onClick={() => !ficha.salvando && setFicha(null)}>
             <div className="prod-ficha" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Editar ${produto.nome}`}>
@@ -996,28 +1045,14 @@ function Produtos() {
                   </select>
                 </label>
               </div>
+              {fotosLigado && <FotoProduto produto={produto} foto={fotos[produto.id] || null} />}
+              <EditorOpcoes tipo={ficha.tipo} ed={ficha.ed} onTipo={(t) => setFicha({ ...ficha, tipo: t, erro: "" })} onChange={(ed) => setFicha({ ...ficha, ed, erro: "" })} />
               {financasLigado && (
-                <div className="prod-ficha-ingred">
-                  <strong>Ingredientes, custo e preço certo</strong>
+                <details className="prod-ficha-ingred prod-ficha-custo">
+                  <summary>💰 Ingredientes, custo e preço certo</summary>
                   <FichaDoProduto produto={produto} precoAtual={ficha.preco} />
-                </div>
+                </details>
               )}
-              <button
-                type="button"
-                className="prod-ficha-opcoes"
-                onClick={() => {
-                  setFicha(null);
-                  setMontagemAberta({ id: produto.id, nome: produto.nome, tipo, ...textoMontagem(produto.montagem) });
-                }}
-              >
-                <span>
-                  <strong>{info.emoji} {info.nome}</strong>
-                  <small>
-                    {tipo === "simples" ? "Entra direto, sem escolhas. Toque para mudar o tipo." : temMontagem(produto) ? "Opções cadastradas. Toque para ver ou mudar." : "Falta cadastrar as opções."}
-                  </small>
-                </span>
-                <span aria-hidden="true">›</span>
-              </button>
               {ficha.erro && <p className="prod-ficha-erro">{ficha.erro}</p>}
               <div className="prod-ficha-botoes">
                 <button

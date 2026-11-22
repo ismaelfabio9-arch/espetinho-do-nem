@@ -18,6 +18,7 @@
 //   vendas antigas, a % de hoje em Configurações → Taxas da maquininha).
 // - Custo dos produtos: custos/<produtoId> (só a equipe lê; o cardápio do cliente não vê) × quantidade.
 // - Lançamentos (coleção "despesas", nome mantido): { data, valor, tipo, descricao, categoria? }.
+import { partesDaVenda } from "./conta";
 import { nomeProduto, qtdItem } from "./tipoVenda";
 
 export const GRUPOS = [
@@ -133,9 +134,11 @@ export function calcularFinancas({ vendas, produtos, custos, lancamentos, taxas,
     vendas$ += total + taxaCli;
     taxaEntrega += Number(v.taxaEntrega || 0);
     taxaCartaoCliente += taxaCli;
-    maquininha += ((total + taxaCli) * taxaPctDaVenda(v, taxas)) / 100;
-    const forma = v.formaPagamento || "Não informado";
-    formas[forma] = r2((formas[forma] || 0) + total + taxaCli);
+    // Conta paga em partes (Pix + Dinheiro…): cada parte na sua forma e com a taxa da sua maquininha.
+    partesDaVenda(v).forEach((parte) => {
+      maquininha += (parte.valor * taxaPctDaVenda({ formaPagamento: parte.forma, taxaCartaoPct: parte.taxaCartaoPct }, taxas)) / 100;
+      formas[parte.forma] = r2((formas[parte.forma] || 0) + parte.valor);
+    });
     (v.itens || []).forEach((item) => {
       const q = qtdItem(item);
       const valor = Number(item.preco || 0) * q;

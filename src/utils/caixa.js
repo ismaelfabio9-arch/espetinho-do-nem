@@ -7,6 +7,7 @@
 // Vendas do caixa: as finalizadas entre a abertura e o fechamento (vendasDia + dias encerrados).
 // Só "Dinheiro" mexe na gaveta; Pix e cartão aparecem para conferir com o banco e a maquininha.
 
+import { partesDaVenda } from "./conta";
 const r2 = (v) => Math.round(v * 100) / 100;
 export const FORMAS_CAIXA = ["Dinheiro", "Pix", "Débito", "Crédito"];
 
@@ -48,12 +49,13 @@ export function resumoCaixa(caixa, vendas, movs, taxas) {
   let total = 0;
   let semForma = 0;
   (vendas || []).forEach((v) => {
-    const forma = v.formaPagamento || "Não informado";
-    const valor = Number(v.total || 0) + Number(v.taxaCartao || 0);
-    porForma[forma] = (porForma[forma] || 0) + valor;
-    maq[forma] = (maq[forma] || 0) + (valor * pctMaquininha(v, taxas)) / 100;
-    total += valor;
-    if (!v.formaPagamento || v.formaPagamento === "Não informado") semForma += 1;
+    // Conta paga em partes (Pix + Dinheiro…): cada parte na sua forma (utils/conta.js).
+    partesDaVenda(v).forEach((p) => {
+      porForma[p.forma] = (porForma[p.forma] || 0) + p.valor;
+      maq[p.forma] = (maq[p.forma] || 0) + (p.valor * pctMaquininha({ formaPagamento: p.forma, taxaCartaoPct: p.taxaCartaoPct }, taxas)) / 100;
+      total += p.valor;
+      if (p.forma === "Não informado") semForma += 1;
+    });
   });
   const meus = (movs || []).filter((m) => m.caixaId === caixa?.id);
   const suprimentos = r2(meus.filter((m) => m.tipo === "suprimento").reduce((s, m) => s + Number(m.valor || 0), 0));
