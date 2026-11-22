@@ -279,7 +279,7 @@ export const TIPOS = [
   { id: "lanche", emoji: "🍔", nome: "Lanche montado", exemplo: "Hambúrguer, cachorro-quente, sanduíche", botao: "🍔 O que vem e adicionais", titulo: "Montar o lanche" },
   { id: "simples", emoji: "🥤", nome: "Simples", exemplo: "Bebida, sobremesa, doce, salgado", botao: "⚙️ Opções", titulo: "" },
   { id: "sabor", emoji: "🍦", nome: "Com sabor", exemplo: "Picolé, sorvete, suco", botao: "🍦 Sabores", titulo: "Escolher o sabor" },
-  { id: "recheio", emoji: "🌮", nome: "Com recheio ou tamanho", exemplo: "Tapioca, cuscuz, açaí, pastel", botao: "🌮 Recheios e tamanhos", titulo: "Escolher" },
+  { id: "recheio", emoji: "🌮", nome: "Com escolha (tipo, recheio, tamanho)", exemplo: "Arroz branco ou integral, tapioca, açaí, pastel", botao: "🌮 Escolhas, recheios e tamanhos", titulo: "Escolher" },
 ];
 export const tipoInfo = (id) => TIPOS.find((t) => t.id === id) || TIPOS[1];
 
