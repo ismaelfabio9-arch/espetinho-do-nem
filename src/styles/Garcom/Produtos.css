@@ -522,3 +522,4 @@ body.dark .categoria-tipo { background: #111; color: #f3f4f6; border-color: #2f2
 .prod-ficha .fdp .pc-input input { width: 90px; height: 40px; }
 .prod-ficha .fdp label { flex-direction: row; font-weight: 500; }
 .prod-ficha .fdp .ins-ficha { padding: 10px; }
+.prod-item-nome { flex: 1; text-align: left; align-items: flex-start; }

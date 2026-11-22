@@ -27,6 +27,7 @@ import { slugify, formatarMoeda } from "../../utils/texto";
 import "../../styles/Garcom/Produtos.css";
 import { useRecurso } from "../../recursos";
 import FotoProduto from "../../components/FotoProduto";
+import EditorOpcoes, { erroDasOpcoes, opcoesParaEditar, opcoesParaSalvar } from "../../components/EditorOpcoes";
 import { useFotos } from "../../utils/fotos";
 import { FichaDoProduto } from "../../components/FichaTecnica";
 import { MODELOS, TIPOS, lerMontagem, temMontagem, textoMontagem, tipoDe, tipoInfo, tipoPelaCategoria } from "../../utils/montagem";
@@ -247,7 +248,12 @@ function Produtos() {
     if (tipoEscolhido !== "simples") {
       // Começa vazio: o exemplo aparece só em cinza (e no botão "Usar o exemplo"), para nenhuma opção
       // inventada (recheio, "Ovo = 2"…) ir parar no pedido sem o dono escrever.
-      setMontagemAberta({ id: produtoId, nome: nomeTratado, tipo: tipoEscolhido, novo: true, vem: "", escolhas: "", extras: "" });
+      // Abre a mesma tela de editar, já nas opções (sabor e tamanho já com o espaço da escolha).
+      const comEscolha = tipoEscolhido === "sabor" || tipoEscolhido === "recheio";
+      setFicha({
+        id: produtoId, nome: nomeTratado, preco: String(precoNovoProduto), categoria: categoriaTratada, tipo: tipoEscolhido, erro: "", salvando: false,
+        ed: { vem: [], extras: [], escolhas: comEscolha ? [{ nome: tipoEscolhido === "sabor" ? "Sabor" : "Tamanho", max: 1, opcoes: [{ nome: "", mais: "" }, { nome: "", mais: "" }, { nome: "", mais: "" }] }] : [] },
+      });
     }
     setTipoNovo("");
     setNovoNome("");
@@ -258,7 +264,7 @@ function Produtos() {
   }
 
   function abrirFicha(produto) {
-    setFicha({ id: produto.id, nome: produto.nome || "", preco: String(produto.preco ?? ""), categoria: produto.categoria || "", erro: "", salvando: false });
+    setFicha({ id: produto.id, nome: produto.nome || "", preco: String(produto.preco ?? ""), categoria: produto.categoria || "", tipo: tipoDe(produto), ed: opcoesParaEditar(produto), erro: "", salvando: false });
   }
 
   async function salvarFicha() {
@@ -276,6 +282,9 @@ function Produtos() {
         (item.nome || "").trim().toLowerCase() === nomeTratado.toLowerCase()
     );
     if (nomeJaExiste) return setFicha({ ...ficha, erro: "Já existe um produto com esse nome nessa categoria." });
+    const erroOpcoes = erroDasOpcoes(ficha.tipo, ficha.ed);
+    if (erroOpcoes) return setFicha({ ...ficha, erro: erroOpcoes });
+    const montagem = opcoesParaSalvar(ficha.tipo, ficha.ed);
 
     setFicha({ ...ficha, erro: "", salvando: true });
     try {
@@ -283,6 +292,11 @@ function Produtos() {
       const muda = {};
       if (nomeTratado !== produto.nome) muda.nome = nomeTratado;
       if (preco !== Number(produto.preco)) muda.preco = preco;
+      // Opções (o que vem, o que o cliente escolhe, adicionais) e o jeito de pedir.
+      if (ficha.tipo !== tipoDe(produto) || JSON.stringify(montagem) !== JSON.stringify(produto.montagem ?? null)) {
+        muda.tipo = ficha.tipo;
+        muda.montagem = montagem;
+      }
       if (Object.keys(muda).length) {
         const batch = writeBatch(db);
         batch.update(doc(db, ...L(), "produtos", produto.id), { ...muda, atualizadoEm: agora });
@@ -981,11 +995,7 @@ function Produtos() {
                       {fotos[produto.id] && <img className="prod-item-foto" src={fotos[produto.id]} alt="" loading="lazy" />}
                       <span className="prod-item-nome">
                         {produto.nome}
-                        {comOpcoes && (
-                          <small className={ok ? "prod-tag" : "prod-tag falta"}>
-                            {info.emoji} {ok ? info.nome : "cadastrar opções"}
-                          </small>
-                        )}
+                        {comOpcoes && !ok && <small className="prod-tag falta">{info.emoji} falta pôr as opções</small>}
                       </span>
                       <strong className="prod-item-preco">R$ {formatarMoeda(produto.preco)}</strong>
                     </button>
@@ -1001,8 +1011,6 @@ function Produtos() {
       {ficha && (() => {
         const produto = produtos.find((p) => p.id === ficha.id);
         if (!produto) return null;
-        const tipo = tipoDe(produto);
-        const info = tipoInfo(tipo);
         return (
           <div className="modal-overlay prod-ficha-fundo" onClick={() => !ficha.salvando && setFicha(null)}>
             <div className="prod-ficha" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Editar ${produto.nome}`}>
@@ -1029,28 +1037,13 @@ function Produtos() {
                 </label>
               </div>
               {fotosLigado && <FotoProduto produto={produto} foto={fotos[produto.id] || null} />}
+              <EditorOpcoes tipo={ficha.tipo} ed={ficha.ed} onTipo={(t) => setFicha({ ...ficha, tipo: t, erro: "" })} onChange={(ed) => setFicha({ ...ficha, ed, erro: "" })} />
               {financasLigado && (
-                <div className="prod-ficha-ingred">
-                  <strong>Ingredientes, custo e preço certo</strong>
+                <details className="prod-ficha-ingred prod-ficha-custo">
+                  <summary>💰 Ingredientes, custo e preço certo</summary>
                   <FichaDoProduto produto={produto} precoAtual={ficha.preco} />
-                </div>
+                </details>
               )}
-              <button
-                type="button"
-                className="prod-ficha-opcoes"
-                onClick={() => {
-                  setFicha(null);
-                  setMontagemAberta({ id: produto.id, nome: produto.nome, tipo, ...textoMontagem(produto.montagem) });
-                }}
-              >
-                <span>
-                  <strong>{info.emoji} {info.nome}</strong>
-                  <small>
-                    {tipo === "simples" ? "Entra direto, sem escolhas. Toque para mudar o tipo." : temMontagem(produto) ? "Opções cadastradas. Toque para ver ou mudar." : "Falta cadastrar as opções."}
-                  </small>
-                </span>
-                <span aria-hidden="true">›</span>
-              </button>
               {ficha.erro && <p className="prod-ficha-erro">{ficha.erro}</p>}
               <div className="prod-ficha-botoes">
                 <button
