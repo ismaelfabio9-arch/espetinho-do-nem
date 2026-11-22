@@ -446,7 +446,7 @@ export function PrecoNoProduto({ custo, preco }) {
   if (p === null || typeof custo !== "number") return null;
   const r = precoDoProduto(custo, Number(String(preco ?? "").replace(",", ".")) || 0, p);
   if (r.situacao === "impossivel")
-    return <p className="pnp baixo pnp-aviso">⚠️ As despesas e o lucro que você quer passaram de 100% de cada venda: não tem preço que pague. Confira em Cardápio e estoque → Preço certo (e o "Quanto a loja vende por mês").</p>;
+    return <p className="pnp baixo pnp-aviso">⚠️ As despesas e o que você quer tirar no mês chegaram ao que a loja vende: não tem preço que pague. Confira em Cardápio e estoque → Preço certo (e o "Quanto a loja vende por mês").</p>;
   if (r.situacao !== "bom" && r.situacao !== "baixo") return null;
   const d = r.noSugerido;
   return (

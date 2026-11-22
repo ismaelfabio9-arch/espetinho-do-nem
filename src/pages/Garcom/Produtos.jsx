@@ -30,7 +30,6 @@ import FotoProduto from "../../components/FotoProduto";
 import { useSouDono } from "../../tenant";
 import EditorOpcoes, { erroDasOpcoes, opcoesParaEditar, opcoesParaSalvar } from "../../components/EditorOpcoes";
 import { useFotos } from "../../utils/fotos";
-import { FichaDoProduto } from "../../components/FichaTecnica";
 import { MODELOS, TIPOS, lerMontagem, precosDoCardapio, temMontagem, textoMontagem, tipoDe, tipoInfo, tipoPelaCategoria } from "../../utils/montagem";
 
 
@@ -1048,10 +1047,9 @@ function Produtos() {
               {fotosLigado && <FotoProduto produto={produto} foto={fotos[produto.id] || null} />}
               <EditorOpcoes tipo={ficha.tipo} ed={ficha.ed} onTipo={(t) => setFicha({ ...ficha, tipo: t, erro: "" })} onChange={(ed) => setFicha({ ...ficha, ed, erro: "" })} />
               {financasLigado && (
-                <details className="prod-ficha-ingred prod-ficha-custo">
-                  <summary>💰 Ingredientes, custo e preço certo</summary>
-                  <FichaDoProduto produto={produto} precoAtual={ficha.preco} />
-                </details>
+                <Link className="prod-ficha-custo-link" to={`/cardapio?aba=custos&busca=${encodeURIComponent(produto.nome || "")}`}>
+                  💰 Custo e ingredientes deste produto: aba Custos →
+                </Link>
               )}
               {ficha.erro && <p className="prod-ficha-erro">{ficha.erro}</p>}
               <div className="prod-ficha-botoes">

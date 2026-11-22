@@ -151,3 +151,27 @@
 .pc-grupo:first-child { margin-top: 4px; }
 .pc-grupo h3 { margin: 0; font-size: 16px; }
 .pc-grupo small { color: var(--muted); font-size: 13px; }
+
+/* Custos (Cardápio e estoque → Custos) */
+.cu-resumo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
+.cu-resumo .btn-verde { width: auto; padding: 10px 14px; }
+.cu-busca { width: 100%; box-sizing: border-box; padding: 12px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--card-2); color: var(--text); font-size: 16px; margin-bottom: 10px; }
+.cu-filtros { margin-bottom: 8px; }
+.cu-item { border-bottom: 1px solid var(--border); }
+.cu-item.mexido { background: rgba(250, 204, 21, 0.12); border-left: 4px solid #eab308; }
+.cu-linha { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 8px; background: none; border: 0; color: var(--text); text-align: left; cursor: pointer; font: inherit; }
+.cu-nome { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.cu-nome small { color: var(--muted); }
+.cu-nome .cu-marca { color: #a16207; font-weight: 700; }
+.cu-custo { display: flex; flex-direction: column; align-items: flex-end; flex-shrink: 0; }
+.cu-custo small { color: var(--muted); font-size: 12px; }
+.cu-fim { margin-top: 16px; }
+.cu-fim .btn-verde { width: 100%; }
+.cu-conferido { margin-top: 14px; border: 1px solid var(--border); border-radius: 14px; padding: 12px 14px; background: var(--card-2); }
+.cu-conferido h3 { margin: 0 0 6px; }
+.cu-conferido p { margin: 6px 0; font-size: 14px; }
+.cu-link { font-weight: 700; color: #15803d; }
+.pc-preco { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 4px 0 8px; }
+.pc-preco .pc-input input { width: 90px; }
+.pc-preco .ins-btn, .pc-preco .btn-verde { width: auto; padding: 8px 12px; }
+.pc-preco small { flex-basis: 100%; color: var(--muted); }

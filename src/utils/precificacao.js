@@ -123,7 +123,9 @@ export function percentuaisFinais(salvo = {}) {
     if (salvo[`${k}Modo`] === "valor") return pctDoMes(v, vendasMes) ?? 0;
     return v;
   };
-  const lucroEmValor = salvo.lucroModo === "valor";
+  // O lucro vem do quanto o dono quer tirar para ele no mês (R$ ÷ vendas do mês). O lucro antigo
+  // (% ou R$ por venda, salvo antes) não vale mais.
+  const meta = typeof salvo.meta === "number" && salvo.meta > 0 ? salvo.meta : 0;
   // "Só os ingredientes": maquininha, despesas e impostos não entram (lucro = preço − ingredientes).
   const so = salvo.conta === "ingredientes";
   // O dono diz quanto os ingredientes podem pesar no preço (padrão 30%); o resto (100% − isso) é
@@ -135,7 +137,7 @@ export function percentuaisFinais(salvo = {}) {
     fixas: campo("fixas"),
     variaveis: campo("variaveis"),
     impostos: campo("impostos"),
-    lucro: lucroEmValor ? 0 : typeof salvo.lucro === "number" ? salvo.lucro : 0,
-    lucroValor: lucroEmValor ? Number(salvo.lucro || 0) : 0,
+    lucro: meta ? pctDoMes(meta, vendasMes) ?? 0 : 0,
+    lucroValor: 0,
   };
 }
