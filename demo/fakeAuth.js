@@ -13,3 +13,4 @@ export const signOut = async () => {};
 export const initializeAuth = () => ({});
 export const inMemoryPersistence = {};
 export const browserPopupRedirectResolver = {};
+export async function signInWithEmailAndPassword() { throw new Error("Na demonstração não precisa entrar."); }
