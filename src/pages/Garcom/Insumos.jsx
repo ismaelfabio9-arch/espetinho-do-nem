@@ -40,12 +40,13 @@ function useColecao(nome) {
 }
 
 /** embutido: dentro de Cardápio e estoque → Estoque (sem título próprio; uma fileira de abas só). dia: a tela da quantidade do dia por produto. */
-function Insumos({ embutido = false, dia = null }) {
+function Insumos({ embutido = false, dia = null, semLista = false }) {
   const insumos = useColecao("insumos");
   const movs = useMovs();
   const [params, setParams] = useSearchParams();
-  const inicial = { ingredientes: "estoque", dia: dia ? "dia" : "estoque" }[params.get("sub")] || params.get("sub") || "estoque";
-  const [aba, setAbaEstado] = useState(["estoque", "contagem", "perdas", "historico", "dia"].includes(inicial) ? inicial : "estoque");
+  const primeira = semLista ? "contagem" : "estoque";
+  const inicial = { ingredientes: primeira, dia: dia ? "dia" : primeira }[params.get("sub")] || params.get("sub") || primeira;
+  const [aba, setAbaEstado] = useState([...(semLista ? [] : ["estoque"]), "contagem", "perdas", "historico", "dia"].includes(inicial) ? inicial : primeira);
   const setAba = (id) => {
     setAbaEstado(id);
     if (embutido) {
@@ -54,7 +55,7 @@ function Insumos({ embutido = false, dia = null }) {
       setParams(p, { replace: true });
     }
   };
-  const abas = [...ABAS.map((a) => (a.id === "estoque" && embutido ? { ...a, nome: "Ingredientes" } : a)), ...(dia ? [{ id: "dia", nome: "Quantidade do dia" }] : [])];
+  const abas = [...ABAS.filter((a) => !(semLista && a.id === "estoque")).map((a) => (a.id === "estoque" && embutido ? { ...a, nome: "Ingredientes" } : a)), ...(dia ? [{ id: "dia", nome: "Quantidade do dia" }] : [])];
   const ativos = useMemo(() => (insumos || []).filter((i) => i.ativo !== false).sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR")), [insumos]);
   const porId = useMemo(() => Object.fromEntries((insumos || []).map((i) => [i.id, i])), [insumos]);
   const carregando = insumos === null || movs === null;
@@ -176,7 +177,7 @@ function Estoque({ insumos, prev, perdasMes, verPerdas }) {
   );
 }
 
-function Movimentar({ acao, fechar }) {
+export function Movimentar({ acao, fechar }) {
   const { insumo, tipo } = acao;
   const u = unidadeDe(insumo.unidade);
   const [qtd, setQtd] = useState(tipo === "contagem" ? String(Number(insumo.quantidade || 0)).replace(".", ",") : "");
@@ -309,7 +310,7 @@ function Contagem({ insumos }) {
     }
     setSalvando(false);
   }
-  if (!insumos.length) return <div className="relatorio-documento"><p>Cadastre a matéria-prima na aba Estoque primeiro.</p></div>;
+  if (!insumos.length) return <div className="relatorio-documento"><p>Cadastre os ingredientes na aba Ingredientes primeiro.</p></div>;
   return (
     <div className="relatorio-documento">
       <h2>Contagem do estoque</h2>

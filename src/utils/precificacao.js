@@ -141,3 +141,96 @@ export function percentuaisFinais(salvo = {}) {
     lucroValor: 0,
   };
 }
+
+// ============================================================================================
+// Preço certo (conta completa) — modelo por CONTRIBUIÇÃO, sem margem igual para todos:
+//   por produto:  contribuição por unidade = preço − custo − preço × (maquininha% + impostos% + variáveis%)
+//                 margem real = contribuição ÷ preço   (despesa fixa e retirada do dono NÃO entram aqui)
+//   no mês:       faturamento = Σ preço × quantidade;  margem de contribuição = Σ contribuição × quantidade
+//                 resultado = margem de contribuição − despesas do mês (descontadas uma vez só)
+//                 a meta de retirada é comparada com esse resultado.
+// Quantidade = previsão do dono (por dia × dias que abre no mês). Nada é inventado: o que falta é avisado.
+// ============================================================================================
+
+const modo = (salvo, k) => (salvo?.[`${k}Modo`] === "valor" ? "valor" : "pct");
+const numOuNull = (v) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : null);
+
+/** % que sai junto com cada venda: maquininha + impostos em % + despesas variáveis em %. */
+export function pctPorVenda(salvo = {}) {
+  let t = numOuNull(salvo.maquininha) || 0;
+  if (modo(salvo, "impostos") === "pct") t += numOuNull(salvo.impostos) || 0;
+  if (modo(salvo, "variaveis") === "pct") t += numOuNull(salvo.variaveis) || 0;
+  return t;
+}
+
+/** Contribuição de 1 unidade (R$) e a margem real (%). null quando falta o custo ou o preço. */
+export function contribuicaoDe(custo, preco, pct) {
+  const p = Number(preco || 0);
+  if (typeof custo !== "number" || !(p > 0)) return null;
+  const contrib = r2(p - custo - (p * Number(pct || 0)) / 100);
+  return { contrib, margem: r1((contrib / p) * 100) };
+}
+
+/**
+ * Resultado do mês previsto.
+ * @param produtos [{ id, nome, preco, categoria }] (só os ativos)
+ * @param custos { produtoId: custo }
+ * @param salvo configuracoes/precificacao: maquininha, impostos(+Modo), variaveis(+Modo), fixas(+Modo), meta,
+ *        diasMes, qtdDia { produtoId: quantos por dia }
+ * @param precos { produtoId: preço } para simular um preço antes de salvar
+ */
+export function resultadoDoMes({ produtos = [], custos = {}, salvo = {}, precos = {} }) {
+  const pv = pctPorVenda(salvo);
+  const dias = numOuNull(salvo.diasMes) > 0 ? salvo.diasMes : null;
+  const qtdDia = salvo.qtdDia || {};
+  const linhas = produtos.map((x) => {
+    const preco = typeof precos[x.id] === "number" ? precos[x.id] : Number(x.preco || 0);
+    const custo = typeof custos[x.id] === "number" ? custos[x.id] : null;
+    const porDia = numOuNull(qtdDia[x.id]);
+    const qtdMes = porDia !== null && dias ? r2(porDia * dias) : null;
+    const c = contribuicaoDe(custo, preco, pv);
+    return { id: x.id, nome: x.nome, categoria: x.categoria, preco, custo, porDia, qtdMes, contrib: c?.contrib ?? null, margem: c?.margem ?? null, contribMes: c && qtdMes !== null ? r2(c.contrib * qtdMes) : null };
+  });
+  const entram = linhas.filter((l) => l.qtdMes > 0 && l.contrib !== null);
+  const faturamento = r2(entram.reduce((s, l) => s + l.preco * l.qtdMes, 0));
+  const custoProdutos = r2(entram.reduce((s, l) => s + l.custo * l.qtdMes, 0));
+  const taxas = r2((faturamento * pv) / 100);
+  const mc = r2(faturamento - custoProdutos - taxas);
+  const doMes = (k) => {
+    const v = numOuNull(salvo[k]) || 0;
+    return modo(salvo, k) === "valor" ? v : r2((faturamento * v) / 100);
+  };
+  const despesas = {
+    fixas: doMes("fixas"),
+    variaveis: modo(salvo, "variaveis") === "valor" ? numOuNull(salvo.variaveis) || 0 : 0,
+    impostos: modo(salvo, "impostos") === "valor" ? numOuNull(salvo.impostos) || 0 : 0,
+  };
+  despesas.total = r2(despesas.fixas + despesas.variaveis + despesas.impostos);
+  const resultado = r2(mc - despesas.total);
+  const meta = numOuNull(salvo.meta) || 0;
+  // Margem de contribuição que a loja precisa, na média, para pagar as despesas e a meta (só referência).
+  const margemNecessaria = faturamento > 0 ? r1(((despesas.total + meta) / faturamento) * 100) : null;
+  const faltando = {
+    semQtd: linhas.filter((l) => l.porDia === null).map((l) => l.nome),
+    semCusto: linhas.filter((l) => l.custo === null && (l.porDia === null || l.porDia > 0)).map((l) => l.nome),
+    semPreco: linhas.filter((l) => !(l.preco > 0)).map((l) => l.nome),
+    semDias: !dias,
+  };
+  const completo = !faltando.semDias && faltando.semQtd.length === 0 && linhas.every((l) => !(l.porDia > 0) || (l.custo !== null && l.preco > 0));
+  // Preço recomendado: o que leva a margem do produto até a margem que a loja precisa (sugestão; o dono decide).
+  const recomendado = (l) => {
+    if (margemNecessaria === null || l.custo === null) return null;
+    const den = 1 - (pv + margemNecessaria) / 100;
+    return den > 0 ? precoBonito(l.custo / den) : null;
+  };
+  // "Contribui pouco" só quando a meta ainda não fecha: com a meta batida, margem menor não é problema.
+  const faltaMeta = meta > 0 && mc - despesas.total < meta;
+  linhas.forEach((l) => {
+    l.recomendado = recomendado(l);
+    l.situacao = l.custo === null ? "sem-custo" : !(l.preco > 0) ? "sem-preco" : l.contrib < 0 ? "prejuizo" : faltaMeta && margemNecessaria !== null && l.margem < margemNecessaria ? "pouco" : "ok";
+  });
+  return {
+    pv, dias, linhas, faturamento, custoProdutos, taxas, mc, margemMc: faturamento > 0 ? r1((mc / faturamento) * 100) : null,
+    despesas, resultado, meta, falta: r2(meta - resultado), margemNecessaria, faltando, completo,
+  };
+}

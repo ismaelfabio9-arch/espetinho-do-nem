@@ -21,7 +21,8 @@ export default function Area({ titulo, icone, texto, abas: todas, padrao, param 
   const visiveis = todas.filter(tem);
   // Nenhuma aba no plano (entrou pelo endereço): mostra o aviso da primeira.
   const abas = visiveis.length ? visiveis : todas.slice(0, 1);
-  const atual = abas.find((a) => a.id === params.get(param)) || abas.find((a) => a.id === padrao) || abas[0];
+  const pedida = params.get(param);
+  const atual = abas.find((a) => a.id === pedida || (a.antigos || []).includes(pedida)) || abas.find((a) => a.id === padrao) || abas[0];
   const escolher = (id) => {
     const p = new URLSearchParams(params);
     p.set(param, id);

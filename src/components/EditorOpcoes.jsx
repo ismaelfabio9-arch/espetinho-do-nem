@@ -58,7 +58,7 @@ const EXEMPLO_GRUPO = { sabor: "Sabor", recheio: "Tamanho", lanche: "Hambúrguer
 const DICA_GRUPO = { sabor: "Ex.: Sabor", recheio: "Ex.: Tamanho, Recheio", lanche: "Ex.: Hambúrguer, Carne, Patê", prato: "Ex.: Feijão, Salada" };
 const DICA_OPCAO = { sabor: "Ex.: Morango", recheio: "Ex.: Grande", lanche: "Ex.: Artesanal", prato: "Ex.: Preto" };
 
-export default function EditorOpcoes({ tipo, ed, onTipo, onChange }) {
+export default function EditorOpcoes({ tipo, ed, onTipo, onChange, semVem = false }) {
   const [novoItem, setNovoItem] = useState("");
   const muda = (campos) => onChange({ ...ed, ...campos });
   const grupo = (i, campos) => muda({ escolhas: ed.escolhas.map((g, k) => (k === i ? { ...g, ...campos } : g)) });
@@ -88,7 +88,13 @@ export default function EditorOpcoes({ tipo, ed, onTipo, onChange }) {
         {tipo === "simples" && <p className="eo-dica">Entra direto no pedido com um toque, sem perguntar nada.</p>}
       </div>
 
-      {comVem && (
+      {comVem && semVem && (
+        <div className="eo-bloco">
+          <span className="eo-rotulo">O que vem no {nomeVem}</span>
+          <p className="eo-dica">São os ingredientes do {nomeVem} (logo abaixo): aparecem no cardápio e o cliente toca para tirar (ex.: sem cebola).</p>
+        </div>
+      )}
+      {comVem && !semVem && (
         <div className="eo-bloco">
           <span className="eo-rotulo">O que vem no {nomeVem}</span>
           <p className="eo-dica">Na hora do pedido, o cliente toca para tirar (ex.: sem cebola).</p>

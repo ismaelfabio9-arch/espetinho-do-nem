@@ -106,7 +106,7 @@ function TelasEquipe() {
       <Route path="/produtos" element={<Para to="/cardapio?aba=produtos" />} />
       <Route path="/cardapio-hoje" element={<Para to="/cardapio?aba=hoje" />} />
       <Route path="/estoque" element={<Para to="/cardapio?aba=estoque&sub=dia" />} />
-      <Route path="/materia-prima" element={<Para to="/cardapio?aba=estoque&sub=ingredientes" />} />
+      <Route path="/materia-prima" element={<Para to="/cardapio?aba=ingredientes" />} />
       <Route path="/financas" element={<Para to="/dinheiro" />} />
       <Route path="/mesa/:id" element={<MesaDetalhe />} />
       <Route path="/viagem" element={<SeLigado recurso="viagem"><Viagem /></SeLigado>} />

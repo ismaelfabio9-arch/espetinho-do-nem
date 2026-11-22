@@ -178,3 +178,16 @@
 .cu-comprei { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-weight: 700; margin: 8px 0; }
 .cu-comprei input { width: 90px; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--card-2); color: var(--text); font-size: 16px; text-align: right; }
 .cu-cada { font-size: 16px; color: #15803d; margin: 4px 0 10px; }
+.cu-estoque { color: var(--muted); font-size: 12px; margin-top: 2px; }
+.cu-estoque.baixo { color: #b45309; font-weight: 700; }
+.cu-estoque.zerado { color: var(--red); font-weight: 700; }
+.cu-acoes { padding: 0 8px 12px; }
+.pc-sec { margin: 18px 0 4px; font-size: 16px; }
+.pc-salvar { width: 100%; margin-top: 14px; }
+.pc-faltam ul { margin: 6px 0; padding-left: 18px; }
+.pc-faltam li { margin: 3px 0; }
+.pc-chip.ruim { background: #fee2e2; color: #991b1b; }
+.pc-linha-fixa { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 12px 4px 4px; }
+.pc-prod .pc-preco { padding: 0 4px 12px; }
+.pc-prod .pc-preco .pc-input input { width: 78px; }
+.fin-ok-msg { color: #15803d; font-weight: 700; margin: 8px 0 0; }

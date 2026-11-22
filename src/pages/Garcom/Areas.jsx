@@ -1,6 +1,6 @@
 // As áreas do sistema (o resto fica no Painel, Pedidos, Mesas e Configurações):
 //   💵 Vendas: Caixa · Pedidos de hoje · Dias anteriores · Relatório
-//   🍔 Cardápio e estoque: Produtos · Cardápio de hoje · Estoque · Custos (o preço de cada ingrediente) · Preço certo
+//   🍔 Cardápio e estoque: Produtos (com os ingredientes de cada um) · Cardápio de hoje · Ingredientes (preço e estoque) · Estoque (contagem, perdas, histórico, do dia) · Preço certo
 //   💰 Dinheiro: Lucro e caixa · Despesas e compras (pages/Garcom/Financas.jsx)
 import Area from "../../components/Area";
 import SeLigado from "../../components/SeLigado";
@@ -40,7 +40,8 @@ function EstoqueArea() {
   const souDono = useSouDono();
   const ingredientes = custos && souDono;
   const doDia = useRecurso("estoque");
-  if (ingredientes) return <Insumos embutido dia={doDia ? <Estoque /> : null} />;
+  // A lista de ingredientes (preço, compra, estoque) fica na aba Ingredientes; aqui, contagem, perdas, histórico e o do dia.
+  if (ingredientes) return <Insumos embutido semLista dia={doDia ? <Estoque /> : null} />;
   return (
     <SeLigado recurso="estoque" embutido>
       <Estoque />
@@ -72,14 +73,16 @@ export function CardapioArea() {
       abas={[
         { id: "produtos", nome: "Produtos", tela: () => <Produtos /> },
         { id: "hoje", nome: "Cardápio de hoje", tela: () => <CardapioHoje /> },
-        { id: "estoque", nome: "Estoque", recurso: ["custos", "estoque"], tela: () => <EstoqueArea /> },
         {
-          id: "custos",
-          nome: "Custos",
+          id: "ingredientes",
+          antigos: ["custos"],
+          nome: "Ingredientes",
           recurso: "custos",
           soDono: true,
-          tela: () => <Financas abas={["custos"]} titulo="Custos" texto="Quanto você paga em cada ingrediente." />,
+          tela: () => <Financas abas={["custos"]} titulo="Ingredientes" texto="O preço e o estoque de tudo o que se usa para fazer os produtos." />,
         },
+        { id: "estoque", nome: "Estoque", recurso: ["custos", "estoque"], tela: () => <EstoqueArea /> },
+
         {
           id: "preco",
           nome: "Preço certo",

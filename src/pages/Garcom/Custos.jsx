@@ -1,7 +1,7 @@
-// Custos: quanto custa cada INGREDIENTE (arroz, feijão, frango, farofa…), num lugar só (Cardápio e estoque → Custos,
+// Ingredientes: preço e estoque de cada INGREDIENTE (arroz, feijão, frango, farofa…), num lugar só (Cardápio e estoque → Custos,
 // só o dono). Produto pronto (Coca, água) não entra aqui: aqui é o que se usa para FAZER o PF, o pastel, o hambúrguer.
 // - "Comprei 10 kg por R$ 100,00" → R$ 10,00 o quilo (insumos/<id>.custo). Não mexe no estoque (compra com
-//   estoque é em Estoque → Ingredientes → Chegou compra).
+//   estoque é no botão "+ Compra" da própria linha).
 // - Busca pelo nome, filtros (Todos · Sem preço · Mexidos) e "usado em" (os produtos que levam o ingrediente).
 // - Marca "✏️ alterado" nos 3 últimos ingredientes que tiveram o preço mexido (insumos/<id>.custoEm).
 // - "✓ Terminei": confere tudo e as marcas recomeçam. O custo de cada produto sai dos ingredientes dele
@@ -15,7 +15,9 @@ import { NovoInsumo } from "../../components/FichaTecnica";
 import { custoDaFicha, itensJuntos, unidadeDe } from "../../utils/insumos";
 import { lerValor } from "../../utils/financas";
 import { ehCategoriaDeBebida } from "../../utils/montagem";
-import { percentuaisFinais, precoDoProduto } from "../../utils/precificacao";
+import { contribuicaoDe, pctPorVenda } from "../../utils/precificacao";
+import { Movimentar } from "./Insumos";
+import { mostrarQtd } from "../../utils/insumos";
 
 const fmt = (v) => Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const R = (v) => (v < 0 ? `− R$ ${fmt(-v)}` : `R$ ${fmt(v)}`);
@@ -101,6 +103,8 @@ export default function Custos({ produtos, insumos, fichas }) {
   const [salvo, setSalvo] = useState(null); // configuracoes/precificacao (custosConferidoEm e o Preço certo)
   const [editar, setEditar] = useState(null); // ingrediente com o "Comprei…" aberto
   const [novo, setNovo] = useState(false);
+  const [acao, setAcao] = useState(null); // { insumo, tipo: "compra" | "perda" | "contagem" }
+  const [editarCadastro, setEditarCadastro] = useState(null);
   const [conferido, setConferido] = useState(null);
   const [msg, setMsg] = useState("");
   useEffect(() => onSnapshot(doc(db, ...L(), "configuracoes", "precificacao"), (s) => setSalvo(s.data() || {}), () => setSalvo({})), []);
@@ -141,14 +145,14 @@ export default function Custos({ produtos, insumos, fichas }) {
     const semIngredientes = [];
     const incompletos = [];
     const abaixo = [];
-    const p = percentuaisFinais(salvo);
+    const pv = pctPorVenda(salvo);
     feitos.forEach((x) => {
       const f = fichaDe[x.id];
       if (!f || !itensJuntos(f).length) return semIngredientes.push(x.nome);
       const c = custoDaFicha(f, porId);
       if (c === null) return incompletos.push(x.nome);
-      const r = precoDoProduto(c, x.preco, p);
-      if (r.situacao === "baixo") abaixo.push(`${x.nome} (vende ${R(Number(x.preco || 0))}, mínimo ${R(r.sugerido)})`);
+      const r = contribuicaoDe(c, x.preco, pv);
+      if (r && r.contrib < 0) abaixo.push(`${x.nome} (vende ${R(Number(x.preco || 0))}, custo ${R(c)})`);
     });
     setConferido({
       total: ativos.length,
@@ -157,7 +161,6 @@ export default function Custos({ produtos, insumos, fichas }) {
       semIngredientes,
       incompletos,
       abaixo,
-      impossivel: !p.soIngredientes && precoDoProduto(1, 1, p).situacao === "impossivel",
     });
     try {
       await setDoc(doc(db, ...L(), "configuracoes", "precificacao"), { custosConferidoEm: new Date().toISOString() }, { merge: true });
@@ -169,7 +172,7 @@ export default function Custos({ produtos, insumos, fichas }) {
   return (
     <div className="relatorio-documento cu">
       <p className="fin-explica">
-        Quanto você paga em cada ingrediente (arroz, feijão, frango, farofa…). Diga quanto comprou e quanto pagou: o Preço certo usa esses valores para calcular o custo do PF, do pastel, do hambúrguer. Produto comprado pronto não entra aqui.
+        Tudo o que se usa para fazer os produtos (arroz, feijão, frango, farofa, massa…): o preço de cada um e quanto tem. Toque no ingrediente e diga quanto comprou e quanto pagou. Cada venda desconta o estoque sozinha. Contagem, perdas e histórico ficam em Estoque.
       </p>
       <div className="cu-resumo">
         <span><b>{ativos.length - semPreco.length}</b> de {ativos.length} ingredientes com preço</span>
@@ -213,8 +216,16 @@ export default function Custos({ produtos, insumos, fichas }) {
                   ) : (
                     <b className="pc-chip baixo">Sem preço</b>
                   )}
+                  <small className={`cu-estoque ${Number(i.quantidade || 0) <= 0 ? "zerado" : Number(i.minimo || 0) > 0 && Number(i.quantidade || 0) <= Number(i.minimo) ? "baixo" : ""}`}>tem {mostrarQtd(Number(i.quantidade || 0), u)}</small>
                 </span>
               </button>
+              <div className="ins-acoes cu-acoes">
+                <button type="button" className="ins-btn" onClick={() => setEditar(i)}>Preço</button>
+                <button type="button" className="ins-btn entrada" onClick={() => setAcao({ insumo: i, tipo: "compra" })}>+ Compra</button>
+                <button type="button" className="ins-btn" onClick={() => setAcao({ insumo: i, tipo: "perda" })}>Perda</button>
+                <button type="button" className="ins-btn" onClick={() => setAcao({ insumo: i, tipo: "contagem" })}>Contar</button>
+                <button type="button" className="ins-btn" onClick={() => setEditarCadastro(i)}>Editar</button>
+              </div>
             </li>
           );
         })}
@@ -229,17 +240,15 @@ export default function Custos({ produtos, insumos, fichas }) {
           <p>✓ {conferido.comPreco} de {conferido.total} ingredientes com preço.</p>
           {conferido.semPreco.length > 0 && <p>⚠️ Sem preço: {conferido.semPreco.join(", ")}.</p>}
           {conferido.incompletos.length > 0 && <p>⚠️ Custo incompleto (algum ingrediente sem preço): {conferido.incompletos.join(", ")}.</p>}
-          {conferido.semIngredientes.length > 0 && <p>⚠️ Ainda sem ingredientes (Preço certo → Ingredientes do produto): {conferido.semIngredientes.join(", ")}.</p>}
-          {conferido.impossivel ? (
-            <p>⚠️ No Preço certo as despesas e o que você quer tirar chegaram ao que a loja vende: confira lá antes de olhar os preços.</p>
-          ) : conferido.abaixo.length > 0 ? (
-            <p>Abaixo do preço mínimo ({conferido.abaixo.length}): {conferido.abaixo.join("; ")}.</p>
-          ) : null}
+          {conferido.semIngredientes.length > 0 && <p>⚠️ Ainda sem ingredientes (Produtos → editar): {conferido.semIngredientes.join(", ")}.</p>}
+          {conferido.abaixo.length > 0 && <p>⚠️ Dão prejuízo (o custo e as taxas passam do preço): {conferido.abaixo.join("; ")}.</p>}
           <Link to="/cardapio?aba=preco" className="cu-link">Ver no Preço certo →</Link>
         </div>
       )}
       {editar && <PrecoDoIngrediente key={editar.id} insumo={editar} fechar={() => setEditar(null)} />}
       {novo && <NovoInsumo insumos={ativos} fechar={() => setNovo(false)} />}
+      {editarCadastro && <NovoInsumo insumos={ativos} editar={editarCadastro} fechar={() => setEditarCadastro(null)} />}
+      {acao && <Movimentar acao={acao} fechar={() => setAcao(null)} />}
     </div>
   );
 }
