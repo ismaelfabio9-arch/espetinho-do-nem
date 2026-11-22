@@ -1,7 +1,7 @@
 // Janela "Montar o prato": o que vem no prato (toque para tirar), as escolhas, o que vai a mais
 // e a bebida em um toque. Usada pelo garçom (MesaDetalhe) e pelo cliente no QR Code da mesa.
 import { useState } from "react";
-import { escolhaPadrao, escolhidas, grupoCortado, limparEscolha, maxDoGrupo, nomeMontado, precoMontado, precoOpcao, tipoDe, tipoInfo } from "../utils/montagem";
+import { cobraEscolhas, escolhaPadrao, escolhidas, grupoCortado, limparEscolha, maxDoGrupo, nomeMontado, precoMontado, precoOpcao, tipoDe, tipoInfo } from "../utils/montagem";
 import "./MontarPrato.css";
 
 const moeda = (v) => Number(v || 0).toFixed(2).replace(".", ",");
@@ -110,7 +110,7 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
               {g.opcoes.map((op) => (
                 <button type="button" key={op} className={escolhidas(escolha.escolhas[g.nome]).includes(op) ? "montar-op escolhida" : "montar-op"} onClick={() => setEscolha({ ...escolha, escolhas: { ...escolha.escolhas, [g.nome]: tocarOpcao(g, escolha.escolhas[g.nome], op) } })}>
                   {op}
-                  {precoOpcao(g, op) ? ` · + R$ ${moeda(precoOpcao(g, op))}` : ""}
+                  {cobraEscolhas(produto) && precoOpcao(g, op) ? ` · + R$ ${moeda(precoOpcao(g, op))}` : ""}
                 </button>
               ))}
             </div>
