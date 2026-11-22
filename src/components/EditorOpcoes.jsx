@@ -34,7 +34,7 @@ export function opcoesParaSalvar(tipo, ed) {
         const n = limpa(o.nome);
         if (!n || opcoes.includes(n)) return;
         opcoes.push(n);
-        if (numero(o.mais) > 0) precos[n] = numero(o.mais);
+        if (tipo !== "prato" && numero(o.mais) > 0) precos[n] = numero(o.mais);
       });
       const max = Math.min(Number(g.max) || 1, opcoes.length);
       return { nome: limpa(g.nome), opcoes: opcoes.slice(0, 12), ...(Object.keys(precos).length ? { precos } : {}), ...(max > 1 ? { max } : {}) };
@@ -116,7 +116,7 @@ export default function EditorOpcoes({ tipo, ed, onTipo, onChange, semVem = fals
       {tipo !== "simples" && (
         <div className="eo-bloco">
           <span className="eo-rotulo">{tipo === "sabor" ? "Sabores" : "O cliente escolhe"}</span>
-          <p className="eo-dica">{tipo === "lanche" ? "Ex.: Normal ou Artesanal (+ R$ 4,00), a carne, até 2 patês." : tipo === "recheio" ? "Ex.: o tamanho (Pequeno, Médio + R$ 5,00…) ou o recheio." : tipo === "sabor" ? "Se um sabor custar mais, ponha quanto a mais." : "Ex.: o feijão (Carioca, Preto)."} O preço do produto é o da opção mais barata.</p>
+          <p className="eo-dica">{tipo === "lanche" ? "Ex.: Normal ou Artesanal (+ R$ 4,00), a carne, até 2 patês." : tipo === "recheio" ? "Ex.: o tamanho (Pequeno, Médio + R$ 5,00…) ou o recheio." : tipo === "sabor" ? "Se um sabor custar mais, ponha quanto a mais." : "Ex.: o feijão (Carioca, Preto)."} {tipo === "prato" ? "No prato a escolha não muda o preço: porção a mais de arroz ou feijão vai em Adicionais com preço (ou como acompanhamento)." : "O preço do produto é o da opção mais barata."}</p>
           {ed.escolhas.map((g, i) => (
             <div key={i} className="eo-grupo">
               <div className="eo-linha">
@@ -129,8 +129,12 @@ export default function EditorOpcoes({ tipo, ed, onTipo, onChange, semVem = fals
               {g.opcoes.map((o, j) => (
                 <div key={j} className="eo-linha eo-opcao">
                   <input value={o.nome} onChange={(e) => opcao(i, j, { nome: e.target.value })} placeholder={DICA_OPCAO[tipo] || "Opção"} aria-label={`Opção ${j + 1} de ${g.nome || "escolha"}`} />
-                  <span className="eo-reais">+ R$</span>
-                  <input className="eo-preco" inputMode="decimal" value={o.mais} onChange={(e) => opcao(i, j, { mais: e.target.value })} placeholder="0" aria-label={`Quanto custa a mais: ${o.nome || `opção ${j + 1}`}`} />
+                  {tipo !== "prato" && (
+                    <>
+                      <span className="eo-reais">+ R$</span>
+                      <input className="eo-preco" inputMode="decimal" value={o.mais} onChange={(e) => opcao(i, j, { mais: e.target.value })} placeholder="0" aria-label={`Quanto custa a mais: ${o.nome || `opção ${j + 1}`}`} />
+                    </>
+                  )}
                   <button type="button" className="eo-x" aria-label={`Tirar a opção ${o.nome || j + 1}`} onClick={() => grupo(i, { opcoes: g.opcoes.filter((_, k) => k !== j) })}>✕</button>
                 </div>
               ))}

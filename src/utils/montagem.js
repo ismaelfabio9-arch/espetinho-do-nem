@@ -82,6 +82,7 @@ export const precoDoGrupo = (g, v) => escolhidas(v).reduce((s, op) => s + precoO
  * Médio R$ 10 · Grande R$ 16. Vem da 1ª escolha que muda o preço (até 4 opções); null quando o preço é um só.
  */
 export function precosDoCardapio(produto) {
+  if (!cobraEscolhas(produto)) return null;
   const g = (produto?.montagem?.escolhas || []).find((x) => maxDoGrupo(x) === 1 && (x.opcoes || []).length >= 2 && (x.opcoes || []).length <= 4 && x.opcoes.some((o) => precoOpcao(x, o) > 0));
   if (!g) return null;
   const base = Number(produto.preco || 0);
@@ -94,11 +95,17 @@ export function precoOpcao(grupo, opcao) {
   return Number.isFinite(v) && v > 0 ? v : 0;
 }
 
+/** No prato feito (PF, prato do dia) a escolha (tipo de feijão, salada) não muda o preço: porção a mais é
+ *  acompanhamento ou "A mais". Nos outros tipos (tamanho, Normal/Artesanal) a opção pode ter preço. */
+export function cobraEscolhas(produto) {
+  return tipoDe(produto) !== "prato";
+}
+
 export function precoMontado(produto, escolha) {
   const m = produto?.montagem || {};
   const extras = (m.extras || []).filter((e) => (escolha?.extras || []).includes(e.nome));
   const outros = (escolha?.outros || []).reduce((s, o) => s + (Number(o.preco) || 0), 0);
-  const opcoes = (m.escolhas || []).reduce((s, g) => s + (grupoCortado(g, escolha?.tirar) ? 0 : precoDoGrupo(g, escolha?.escolhas?.[g.nome])), 0);
+  const opcoes = !cobraEscolhas(produto) ? 0 : (m.escolhas || []).reduce((s, g) => s + (grupoCortado(g, escolha?.tirar) ? 0 : precoDoGrupo(g, escolha?.escolhas?.[g.nome])), 0);
   return Math.round((Number(produto.preco || 0) + extras.reduce((s, e) => s + Number(e.preco || 0), 0) + outros + opcoes) * 100) / 100;
 }
 
