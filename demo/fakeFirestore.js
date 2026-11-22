@@ -307,7 +307,10 @@ function isPlainObject(v) {
 
 function deepMerge(target, src) {
   const out = { ...(target || {}) };
-  for (const [k, v] of Object.entries(src)) out[k] = isPlainObject(v) && isPlainObject(out[k]) ? deepMerge(out[k], v) : v;
+  for (const [k, v] of Object.entries(src)) {
+    if (v && typeof v === "object" && v.__apagar === true) delete out[k];
+    else out[k] = isPlainObject(v) && isPlainObject(out[k]) ? deepMerge(out[k], v) : v;
+  }
   return out;
 }
 
@@ -319,6 +322,11 @@ function setPath(obj, path, value) {
     o = o[k];
   });
   o[keys[keys.length - 1]] = value;
+}
+
+/** deleteField(): apaga o campo (no setDoc com merge). */
+export function deleteField() {
+  return { __apagar: true };
 }
 
 /** increment(n): soma n ao valor que já está no documento (baixa de estoque, entrada de compra). */
