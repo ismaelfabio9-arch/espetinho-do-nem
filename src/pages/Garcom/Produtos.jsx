@@ -1047,8 +1047,8 @@ function Produtos() {
               {fotosLigado && <FotoProduto produto={produto} foto={fotos[produto.id] || null} />}
               <EditorOpcoes tipo={ficha.tipo} ed={ficha.ed} onTipo={(t) => setFicha({ ...ficha, tipo: t, erro: "" })} onChange={(ed) => setFicha({ ...ficha, ed, erro: "" })} />
               {financasLigado && (
-                <Link className="prod-ficha-custo-link" to={`/cardapio?aba=custos&busca=${encodeURIComponent(produto.nome || "")}`}>
-                  💰 Custo e ingredientes deste produto: aba Custos →
+                <Link className="prod-ficha-custo-link" to={`/cardapio?aba=preco&ingredientes=${encodeURIComponent(produto.id)}`}>
+                  🧮 Ingredientes e preço certo deste produto →
                 </Link>
               )}
               {ficha.erro && <p className="prod-ficha-erro">{ficha.erro}</p>}

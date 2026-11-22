@@ -1,6 +1,6 @@
 // As áreas do sistema (o resto fica no Painel, Pedidos, Mesas e Configurações):
 //   💵 Vendas: Caixa · Pedidos de hoje · Dias anteriores · Relatório
-//   🍔 Cardápio e estoque: Produtos · Cardápio de hoje · Estoque · Custos (o custo de todos, num lugar só) · Preço certo
+//   🍔 Cardápio e estoque: Produtos · Cardápio de hoje · Estoque · Custos (o preço de cada ingrediente) · Preço certo
 //   💰 Dinheiro: Lucro e caixa · Despesas e compras (pages/Garcom/Financas.jsx)
 import Area from "../../components/Area";
 import SeLigado from "../../components/SeLigado";
@@ -78,7 +78,7 @@ export function CardapioArea() {
           nome: "Custos",
           recurso: "custos",
           soDono: true,
-          tela: () => <Financas abas={["custos"]} titulo="Custos" texto="O custo de cada produto, num lugar só." />,
+          tela: () => <Financas abas={["custos"]} titulo="Custos" texto="Quanto você paga em cada ingrediente." />,
         },
         {
           id: "preco",

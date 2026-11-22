@@ -175,3 +175,6 @@
 .pc-preco .pc-input input { width: 90px; }
 .pc-preco .ins-btn, .pc-preco .btn-verde { width: auto; padding: 8px 12px; }
 .pc-preco small { flex-basis: 100%; color: var(--muted); }
+.cu-comprei { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-weight: 700; margin: 8px 0; }
+.cu-comprei input { width: 90px; padding: 10px; border-radius: 10px; border: 1px solid var(--border); background: var(--card-2); color: var(--text); font-size: 16px; text-align: right; }
+.cu-cada { font-size: 16px; color: #15803d; margin: 4px 0 10px; }

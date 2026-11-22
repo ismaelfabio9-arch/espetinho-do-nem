@@ -1,92 +1,164 @@
-// Custos: o custo de todos os produtos num lugar só (Cardápio e estoque → Custos, só o dono).
-// - Busca pelo nome e filtros (Todos · Sem custo · Mexidos).
-// - Marca "✏️ alterado" nos 3 últimos produtos mexidos: mexeu no 4º, a marca do mais antigo some.
-// - "✓ Terminei": o sistema confere tudo (sem custo, abaixo do preço) e as marcas recomeçam.
-// O custo vem dos ingredientes (fichas/<id>) ou do digitado (custos/<id>); os dois guardam atualizadoEm.
+// Custos: quanto custa cada INGREDIENTE (arroz, feijão, frango, farofa…), num lugar só (Cardápio e estoque → Custos,
+// só o dono). Produto pronto (Coca, água) não entra aqui: aqui é o que se usa para FAZER o PF, o pastel, o hambúrguer.
+// - "Comprei 10 kg por R$ 100,00" → R$ 10,00 o quilo (insumos/<id>.custo). Não mexe no estoque (compra com
+//   estoque é em Estoque → Ingredientes → Chegou compra).
+// - Busca pelo nome, filtros (Todos · Sem preço · Mexidos) e "usado em" (os produtos que levam o ingrediente).
+// - Marca "✏️ alterado" nos 3 últimos ingredientes que tiveram o preço mexido (insumos/<id>.custoEm).
+// - "✓ Terminei": confere tudo e as marcas recomeçam. O custo de cada produto sai dos ingredientes dele
+//   (Preço certo → Ingredientes do produto).
 import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 import { L } from "../../loja";
-import { FichaDoProduto } from "../../components/FichaTecnica";
+import { NovoInsumo } from "../../components/FichaTecnica";
+import { custoDaFicha, itensJuntos, unidadeDe } from "../../utils/insumos";
+import { lerValor } from "../../utils/financas";
+import { ehCategoriaDeBebida } from "../../utils/montagem";
 import { percentuaisFinais, precoDoProduto } from "../../utils/precificacao";
 
 const fmt = (v) => Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const R = (v) => (v < 0 ? `− R$ ${fmt(-v)}` : `R$ ${fmt(v)}`);
+const num = (t) => {
+  const s = String(t ?? "").trim();
+  const n = Number(s.includes(",") ? s.replace(/\./g, "").replace(",", ".") : s);
+  return s !== "" && Number.isFinite(n) ? n : NaN;
+};
+const qtdTxt = (n) => String(Math.round(n * 1000) / 1000).replace(".", ",");
 const semAcento = (t) => String(t || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 const quando = (ms) =>
   new Date(ms).toLocaleString("pt-BR", { timeZone: "America/Recife", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 const MARCADOS = 3;
+const porUn = (u) => (u === "un" ? "a unidade" : u === "L" ? "o litro" : "o quilo");
+const unTxt = (u, n) => (u === "un" ? (n === 1 ? "unidade" : "unidades") : u === "L" ? (n === 1 ? "litro" : "litros") : "kg");
 
-/** Os ids dos últimos produtos mexidos (custo ou ingredientes) depois do último "Terminei", do mais novo ao mais velho. */
-export function ultimosMexidos(produtos, custosDocs, fichas, desde = 0, n = MARCADOS) {
-  const em = {};
-  const marca = (id, iso) => {
-    const t = Date.parse(iso || "");
-    if (Number.isFinite(t) && t > (em[id] || 0)) em[id] = t;
-  };
-  (custosDocs || []).forEach((c) => marca(c.id, c.atualizadoEm));
-  (fichas || []).forEach((f) => marca(f.id, f.atualizadoEm));
-  const ativos = new Set((produtos || []).filter((x) => x.nome && x.ativo !== false).map((x) => x.id));
-  return Object.entries(em)
-    .filter(([id, t]) => ativos.has(id) && t > desde)
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, n)
-    .map(([id, t]) => ({ id, em: t }));
+/** Os ids dos últimos ingredientes com o preço mexido depois do último "Terminei", do mais novo ao mais velho. */
+export function ultimosMexidos(insumos, desde = 0, n = MARCADOS) {
+  return (insumos || [])
+    .filter((i) => i.ativo !== false)
+    .map((i) => ({ id: i.id, em: Date.parse(i.custoEm || "") }))
+    .filter((x) => Number.isFinite(x.em) && x.em > desde)
+    .sort((a, b) => b.em - a.em)
+    .slice(0, n);
 }
 
-export default function Custos({ produtos, custos, daFicha, custosDocs, fichas }) {
+/** "Comprei [10] kg por R$ [100]" → o preço do quilo. Salva só o preço (o estoque não muda). */
+function PrecoDoIngrediente({ insumo, fechar }) {
+  const u = insumo.unidade || "un";
+  const ref = insumo.compraRef;
+  const [qtd, setQtd] = useState(ref?.qtd ? qtdTxt(ref.qtd) : "1");
+  const [valor, setValor] = useState(ref?.valor ? fmt(ref.valor) : typeof insumo.custo === "number" ? fmt(insumo.custo) : "");
+  const [msg, setMsg] = useState("");
+  const q = num(qtd);
+  const v = lerValor(valor);
+  const cada = q > 0 && v > 0 ? v / q : null;
+  async function salvar(e) {
+    e.preventDefault();
+    if (cada === null) return setMsg("Diga quanto comprou e quanto pagou.");
+    try {
+      const agora = new Date().toISOString();
+      await setDoc(
+        doc(db, ...L(), "insumos", insumo.id),
+        { custo: Math.round(cada * 10000) / 10000, compraRef: { qtd: Math.round(q * 1000) / 1000, valor: v }, custoEm: agora, atualizadoEm: agora },
+        { merge: true }
+      );
+      fechar();
+    } catch {
+      setMsg("Não foi possível salvar. Confira a internet.");
+    }
+  }
+  return (
+    <div className="ins-modal" role="dialog" aria-modal="true" aria-label={`Preço de ${insumo.nome}`} onClick={fechar}>
+      <form className="ins-modal-caixa cu-form" onClick={(e) => e.stopPropagation()} onSubmit={salvar}>
+        <h2>{insumo.nome}</h2>
+        <p className="fin-explica">Quanto você comprou e quanto pagou. O sistema calcula o preço de {porUn(u)}.</p>
+        <div className="cu-comprei">
+          <span>Comprei</span>
+          <input aria-label={`Quanto comprou (${unTxt(u, 2)})`} inputMode="decimal" value={qtd} onChange={(e) => { setQtd(e.target.value); setMsg(""); }} />
+          <span>{unTxt(u, q)}</span>
+          <span>por R$</span>
+          <input aria-label="Quanto pagou (R$)" inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => { setValor(e.target.value); setMsg(""); }} />
+        </div>
+        {cada !== null && (
+          <p className="cu-cada">
+            = <b>{R(cada)}</b> {u === "un" ? "cada unidade" : `cada ${unidadeDe(u).nomeLongo}`}
+          </p>
+        )}
+        {msg && <p className="fin-erro">{msg}</p>}
+        <div className="ins-modal-botoes">
+          <button type="button" className="ins-btn" onClick={fechar}>Cancelar</button>
+          <button className="btn-verde" disabled={cada === null}>Salvar</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+export default function Custos({ produtos, insumos, fichas }) {
   const [params] = useSearchParams();
   const [busca, setBusca] = useState(() => params.get("busca") || "");
   const [filtro, setFiltro] = useState("todos");
   const [salvo, setSalvo] = useState(null); // configuracoes/precificacao (custosConferidoEm e o Preço certo)
-  const [montar, setMontar] = useState(null);
-  const [fila, setFila] = useState(null); // { ids, i }: um produto depois do outro
-  const [conferido, setConferido] = useState(null); // resultado do "Terminei"
+  const [editar, setEditar] = useState(null); // ingrediente com o "Comprei…" aberto
+  const [novo, setNovo] = useState(false);
+  const [conferido, setConferido] = useState(null);
   const [msg, setMsg] = useState("");
   useEffect(() => onSnapshot(doc(db, ...L(), "configuracoes", "precificacao"), (s) => setSalvo(s.data() || {}), () => setSalvo({})), []);
 
-  const ativos = useMemo(
-    () =>
-      (produtos || [])
-        .filter((x) => x.nome && x.ativo !== false)
-        .sort((a, b) => String(a.categoria || "").localeCompare(String(b.categoria || ""), "pt-BR") || String(a.nome).localeCompare(String(b.nome), "pt-BR")),
-    [produtos]
-  );
+  const ativos = useMemo(() => (insumos || []).filter((i) => i.ativo !== false).sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR")), [insumos]);
+  const porId = useMemo(() => Object.fromEntries((insumos || []).map((i) => [i.id, i])), [insumos]);
+  const produtosAtivos = useMemo(() => (produtos || []).filter((x) => x.nome && x.ativo !== false), [produtos]);
+  // Em que produtos cada ingrediente vai (pela lista de ingredientes de cada produto).
+  const usadoEm = useMemo(() => {
+    const nomeDe = Object.fromEntries(produtosAtivos.map((x) => [x.id, x.nome]));
+    const m = {};
+    (fichas || []).forEach((f) => {
+      if (!nomeDe[f.id]) return;
+      itensJuntos(f).forEach((it) => {
+        if (!it?.insumoId) return;
+        (m[it.insumoId] = m[it.insumoId] || []).includes(nomeDe[f.id]) || m[it.insumoId].push(nomeDe[f.id]);
+      });
+    });
+    return m;
+  }, [fichas, produtosAtivos]);
   const desde = Date.parse(salvo?.custosConferidoEm || "") || 0;
-  const mexidos = useMemo(() => ultimosMexidos(produtos, custosDocs, fichas, desde), [produtos, custosDocs, fichas, desde]);
+  const mexidos = useMemo(() => ultimosMexidos(insumos, desde), [insumos, desde]);
   const mexidoEm = Object.fromEntries(mexidos.map((m) => [m.id, m.em]));
   if (salvo === null) return <p className="fin-carregando">Carregando…</p>;
 
-  const temCusto = (x) => typeof custos[x.id] === "number";
-  const semCusto = ativos.filter((x) => !temCusto(x));
+  const temPreco = (i) => typeof i.custo === "number" && i.custo > 0;
+  const semPreco = ativos.filter((i) => !temPreco(i));
   const termo = semAcento(busca.trim());
   const mostrar = ativos.filter(
-    (x) =>
-      (!termo || semAcento(x.nome).includes(termo) || semAcento(x.categoria).includes(termo)) &&
-      (filtro === "sem" ? !temCusto(x) : filtro === "mexidos" ? mexidoEm[x.id] : true)
+    (i) => (!termo || semAcento(i.nome).includes(termo)) && (filtro === "sem" ? !temPreco(i) : filtro === "mexidos" ? mexidoEm[i.id] : true)
   );
-  const abrirFila = (lista) => {
-    if (!lista.length) return;
-    setFila({ ids: lista.map((x) => x.id), i: 0 });
-    setMontar(lista[0]);
-  };
-  const irPara = (i) => {
-    setFila({ ...fila, i });
-    setMontar(ativos.find((x) => x.id === fila.ids[i]) || null);
-  };
 
   async function terminei() {
-    // Confere tudo com o que está cadastrado agora (o Preço certo usa o que o dono preencheu; em branco = 0).
-    const p = percentuaisFinais(salvo);
+    // Confere com o que está cadastrado agora: ingredientes sem preço, produtos com o custo incompleto ou sem
+    // ingredientes, e quem está abaixo do preço mínimo no Preço certo.
+    const fichaDe = Object.fromEntries((fichas || []).map((f) => [f.id, f]));
+    const feitos = produtosAtivos.filter((x) => !ehCategoriaDeBebida(x.categoria));
+    const semIngredientes = [];
+    const incompletos = [];
     const abaixo = [];
-    ativos.forEach((x) => {
-      if (!temCusto(x)) return;
-      const r = precoDoProduto(custos[x.id], x.preco, p);
-      if (r.situacao === "baixo") abaixo.push({ id: x.id, nome: x.nome, preco: Number(x.preco || 0), sugerido: r.sugerido });
+    const p = percentuaisFinais(salvo);
+    feitos.forEach((x) => {
+      const f = fichaDe[x.id];
+      if (!f || !itensJuntos(f).length) return semIngredientes.push(x.nome);
+      const c = custoDaFicha(f, porId);
+      if (c === null) return incompletos.push(x.nome);
+      const r = precoDoProduto(c, x.preco, p);
+      if (r.situacao === "baixo") abaixo.push(`${x.nome} (vende ${R(Number(x.preco || 0))}, mínimo ${R(r.sugerido)})`);
     });
-    const custoMaiorQuePreco = ativos.filter((x) => temCusto(x) && Number(x.preco || 0) > 0 && custos[x.id] >= Number(x.preco));
-    setConferido({ total: ativos.length, comCusto: ativos.length - semCusto.length, semCusto: semCusto.map((x) => x.nome), abaixo, custoMaiorQuePreco: custoMaiorQuePreco.map((x) => x.nome), impossivel: p.soIngredientes ? false : precoDoProduto(1, 1, p).situacao === "impossivel" });
+    setConferido({
+      total: ativos.length,
+      comPreco: ativos.length - semPreco.length,
+      semPreco: semPreco.map((i) => i.nome),
+      semIngredientes,
+      incompletos,
+      abaixo,
+      impossivel: !p.soIngredientes && precoDoProduto(1, 1, p).situacao === "impossivel",
+    });
     try {
       await setDoc(doc(db, ...L(), "configuracoes", "precificacao"), { custosConferidoEm: new Date().toISOString() }, { merge: true });
     } catch {
@@ -97,28 +169,17 @@ export default function Custos({ produtos, custos, daFicha, custosDocs, fichas }
   return (
     <div className="relatorio-documento cu">
       <p className="fin-explica">
-        Aqui fica o custo de cada produto: monte com os ingredientes (pratos, lanches) ou digite o custo de 1 unidade (bebida pronta). O Preço certo e o lucro do Dinheiro usam esses valores.
+        Quanto você paga em cada ingrediente (arroz, feijão, frango, farofa…). Diga quanto comprou e quanto pagou: o Preço certo usa esses valores para calcular o custo do PF, do pastel, do hambúrguer. Produto comprado pronto não entra aqui.
       </p>
       <div className="cu-resumo">
-        <span><b>{ativos.length - semCusto.length}</b> de {ativos.length} com custo</span>
-        {semCusto.length > 0 && (
-          <button type="button" className="btn-verde" onClick={() => abrirFila(semCusto)}>
-            🧮 Pôr o custo dos que faltam ({semCusto.length}), um por um
-          </button>
-        )}
+        <span><b>{ativos.length - semPreco.length}</b> de {ativos.length} ingredientes com preço</span>
+        <button type="button" className="btn-verde" onClick={() => setNovo(true)}>+ Novo ingrediente</button>
       </div>
-      <input
-        className="cu-busca"
-        type="search"
-        placeholder="🔎 Procurar produto pelo nome"
-        aria-label="Procurar produto pelo nome"
-        value={busca}
-        onChange={(e) => setBusca(e.target.value)}
-      />
-      <div className="fin-periodos cu-filtros" role="group" aria-label="Filtrar produtos">
+      <input className="cu-busca" type="search" placeholder="🔎 Procurar ingrediente pelo nome" aria-label="Procurar ingrediente pelo nome" value={busca} onChange={(e) => setBusca(e.target.value)} />
+      <div className="fin-periodos cu-filtros" role="group" aria-label="Filtrar ingredientes">
         {[
           { id: "todos", nome: `Todos (${ativos.length})` },
-          { id: "sem", nome: `Sem custo (${semCusto.length})` },
+          { id: "sem", nome: `Sem preço (${semPreco.length})` },
           { id: "mexidos", nome: `✏️ Mexidos (${mexidos.length})` },
         ].map((f) => (
           <button key={f.id} type="button" className={filtro === f.id ? "ativo" : ""} aria-pressed={filtro === f.id} onClick={() => setFiltro(f.id)}>
@@ -126,29 +187,31 @@ export default function Custos({ produtos, custos, daFicha, custosDocs, fichas }
           </button>
         ))}
       </div>
-      {mostrar.length === 0 && <p className="fin-explica">{termo ? "Nenhum produto com esse nome." : "Nenhum produto aqui."}</p>}
+      {ativos.length === 0 && <p className="fin-explica">Nenhum ingrediente ainda. Toque em "+ Novo ingrediente" (ex.: Arroz, Feijão, Frango).</p>}
+      {ativos.length > 0 && mostrar.length === 0 && <p className="fin-explica">{termo ? "Nenhum ingrediente com esse nome." : "Nenhum ingrediente aqui."}</p>}
       <ul className="pc-lista cu-lista">
-        {mostrar.map((x) => {
-          const c = custos[x.id];
-          const ficha = typeof daFicha?.[x.id] === "number";
+        {mostrar.map((i) => {
+          const u = i.unidade || "un";
+          const usos = usadoEm[i.id] || [];
           return (
-            <li key={x.id} className={`cu-item ${mexidoEm[x.id] ? "mexido" : ""}`}>
-              <button type="button" className="cu-linha" onClick={() => { setFila(null); setMontar(x); }} aria-label={`Mudar o custo de ${x.nome}`}>
+            <li key={i.id} className={`cu-item ${mexidoEm[i.id] ? "mexido" : ""}`}>
+              <button type="button" className="cu-linha" onClick={() => setEditar(i)} aria-label={`Preço de ${i.nome}`}>
                 <span className="cu-nome">
-                  <strong>{x.nome}</strong>
-                  <small>
-                    {x.categoria || "Sem categoria"} · vende por {R(x.preco)}
-                  </small>
-                  {mexidoEm[x.id] && <small className="cu-marca">✏️ alterado {quando(mexidoEm[x.id])}</small>}
+                  <strong>{i.nome}</strong>
+                  {i.compraRef?.qtd > 0 && i.compraRef?.valor > 0 && (
+                    <small>Comprei {qtdTxt(i.compraRef.qtd)} {unTxt(u, i.compraRef.qtd)} por {R(i.compraRef.valor)}</small>
+                  )}
+                  <small>{usos.length ? `Vai em: ${usos.slice(0, 4).join(", ")}${usos.length > 4 ? ` e mais ${usos.length - 4}` : ""}` : "Ainda não está em nenhum produto"}</small>
+                  {mexidoEm[i.id] && <small className="cu-marca">✏️ alterado {quando(mexidoEm[i.id])}</small>}
                 </span>
                 <span className="cu-custo">
-                  {typeof c === "number" ? (
+                  {temPreco(i) ? (
                     <>
-                      <b>{R(c)}</b>
-                      <small>{ficha ? "ingredientes" : "digitado"}</small>
+                      <b>{R(i.custo)}</b>
+                      <small>{u === "un" ? "a unidade" : `o ${unidadeDe(u).nomeLongo}`}</small>
                     </>
                   ) : (
-                    <b className="pc-chip baixo">Sem custo</b>
+                    <b className="pc-chip baixo">Sem preço</b>
                   )}
                 </span>
               </button>
@@ -163,49 +226,20 @@ export default function Custos({ produtos, custos, daFicha, custosDocs, fichas }
       {conferido && (
         <div className="cu-conferido" role="status">
           <h3>Conferido</h3>
-          <p>✓ {conferido.comCusto} de {conferido.total} produtos com custo.</p>
-          {conferido.semCusto.length > 0 && <p>⚠️ Sem custo ({conferido.semCusto.length}): {conferido.semCusto.join(", ")}. Sem o custo o lucro desses produtos não entra certo.</p>}
-          {conferido.custoMaiorQuePreco.length > 0 && <p>⚠️ Custo igual ou maior que o preço: {conferido.custoMaiorQuePreco.join(", ")}. Confira o custo ou o preço.</p>}
+          <p>✓ {conferido.comPreco} de {conferido.total} ingredientes com preço.</p>
+          {conferido.semPreco.length > 0 && <p>⚠️ Sem preço: {conferido.semPreco.join(", ")}.</p>}
+          {conferido.incompletos.length > 0 && <p>⚠️ Custo incompleto (algum ingrediente sem preço): {conferido.incompletos.join(", ")}.</p>}
+          {conferido.semIngredientes.length > 0 && <p>⚠️ Ainda sem ingredientes (Preço certo → Ingredientes do produto): {conferido.semIngredientes.join(", ")}.</p>}
           {conferido.impossivel ? (
             <p>⚠️ No Preço certo as despesas e o que você quer tirar chegaram ao que a loja vende: confira lá antes de olhar os preços.</p>
           ) : conferido.abaixo.length > 0 ? (
-            <p>
-              Abaixo do preço sugerido ({conferido.abaixo.length}): {conferido.abaixo.map((a) => `${a.nome} (vende ${R(a.preco)}, sugerido ${R(a.sugerido)})`).join("; ")}.
-            </p>
-          ) : (
-            conferido.comCusto > 0 && <p>✓ Todos os produtos com custo estão no preço sugerido ou acima.</p>
-          )}
+            <p>Abaixo do preço mínimo ({conferido.abaixo.length}): {conferido.abaixo.join("; ")}.</p>
+          ) : null}
           <Link to="/cardapio?aba=preco" className="cu-link">Ver no Preço certo →</Link>
         </div>
       )}
-      {montar && (
-        <div className="ins-modal" role="dialog" aria-modal="true" aria-label={`Custo de ${montar.nome}`} onClick={() => { setMontar(null); setFila(null); }}>
-          <div className="ins-modal-caixa pc-montar" onClick={(e) => e.stopPropagation()}>
-            <div className="pc-montar-topo">
-              <h2>{montar.nome}</h2>
-              <button type="button" className="prod-ficha-x" aria-label="Fechar" onClick={() => { setMontar(null); setFila(null); }}>✕</button>
-            </div>
-            {fila && <p className="pc-fila">Produto {fila.i + 1} de {fila.ids.length}</p>}
-            <p className="fin-explica">Diga o que vai em 1 {montar.nome} e quanto de cada, ou digite o custo de 1 unidade. Salva sozinho.</p>
-            <FichaDoProduto key={montar.id} produto={montar} precoAtual={montar.preco} />
-            {fila ? (
-              <div className="pc-fila-botoes">
-                <button type="button" className="ins-btn" disabled={fila.i === 0} onClick={() => irPara(fila.i - 1)}>← Anterior</button>
-                {fila.i < fila.ids.length - 1 ? (
-                  <button type="button" className="btn-verde" onClick={() => irPara(fila.i + 1)}>Próximo produto →</button>
-                ) : (
-                  <button type="button" className="btn-verde" onClick={() => { setFila(null); setMontar(null); }}>✓ Pronto</button>
-                )}
-              </div>
-            ) : (
-              <div className="pc-fila-botoes">
-                <span />
-                <button type="button" className="btn-verde" onClick={() => setMontar(null)}>✓ Pronto</button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      {editar && <PrecoDoIngrediente key={editar.id} insumo={editar} fechar={() => setEditar(null)} />}
+      {novo && <NovoInsumo insumos={ativos} fechar={() => setNovo(false)} />}
     </div>
   );
 }

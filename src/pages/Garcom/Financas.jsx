@@ -1,13 +1,14 @@
 import { L } from "../../loja";
 import useNomeLoja from "../../hooks/useNomeLoja";
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, serverTimestamp, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 import { useTaxas } from "../../utils/taxas";
 import { GRUPOS, TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
 import { custoDaFicha, perdasNoPeriodo } from "../../utils/insumos";
 import Custos from "./Custos";
+import { FichaDoProduto } from "../../components/FichaTecnica";
 import { ehCategoriaDeBebida, ehCategoriaDePrato, precosDoCardapio } from "../../utils/montagem";
 import { PESO_INGREDIENTES_PADRAO, pctDoMes, pesoIngredientes, precoDoProduto, somaPct } from "../../utils/precificacao";
 import "../../styles/Garcom/RelatorioGerencial.css";
@@ -140,7 +141,7 @@ function Financas({ abas = ["resumo", "lancamentos"], titulo = "Dinheiro", texto
       ) : aba === "lancamentos" ? (
         <Lancamentos f={f} categorias={categorias} />
       ) : aba === "custos" ? (
-        <Custos produtos={produtos} custos={custos} daFicha={daFicha} custosDocs={custosDocs} fichas={fichas} />
+        <Custos produtos={produtos} insumos={insumos} fichas={fichas} />
       ) : aba === "preco" ? (
         <PrecoCerto produtos={produtos} custos={custos} daFicha={daFicha} />
       ) : (
@@ -463,6 +464,10 @@ function PrecoCerto({ produtos, custos, daFicha }) {
   const [msg, setMsg] = useState("");
   const [detalhe, setDetalhe] = useState({}); // { fixas: true } lista aberta
   const [avisoMax, setAvisoMax] = useState({}); // { lucro: "Máximo 63%…" }
+  const [params] = useSearchParams();
+  // Ingredientes de um produto (o custo sai deles); ?ingredientes=<id> abre direto (link do cadastro do produto).
+  const [montar, setMontar] = useState(() => (produtos || []).find((x) => x.id === params.get("ingredientes")) || null);
+  const [fila, setFila] = useState(null); // { ids, i }: um produto depois do outro
   useEffect(
     () =>
       onSnapshot(
@@ -601,6 +606,8 @@ function PrecoCerto({ produtos, custos, daFicha }) {
     .sort((a, b) => String(a.produto.categoria || "").localeCompare(String(b.produto.categoria || ""), "pt-BR") || String(a.produto.nome).localeCompare(String(b.produto.nome), "pt-BR"));
   const abaixo = linhas.filter((l) => l.r.situacao === "baixo").length;
   // Produtos ainda sem ingredientes (mesmo com custo digitado): a fila do "um por um".
+  // Produtos feitos (não bebida pronta) ainda sem ingredientes: a fila do "um por um".
+  const semFicha = linhas.filter((l) => !l.ficha && !ehCategoriaDeBebida(l.produto.categoria));
   const semCusto = linhas.filter((l) => l.r.situacao === "sem-custo").length;
   const mostrar = soAbaixo ? linhas.filter((l) => l.r.situacao === "baixo") : linhas;
   // Em blocos por categoria: pratos (prato feito, do dia) primeiro, acompanhamentos e porções no meio, bebidas no fim.
@@ -717,6 +724,11 @@ function PrecoCerto({ produtos, custos, daFicha }) {
 
       <div className="relatorio-documento">
         <h2>Preço de cada produto</h2>
+        {semFicha.length > 0 && (
+          <button type="button" className="btn-verde pc-todos" onClick={() => { setFila({ ids: semFicha.map((l) => l.produto.id), i: 0 }); setMontar(semFicha[0].produto); }}>
+            🧮 Pôr os ingredientes dos que faltam ({semFicha.length}), um por um
+          </button>
+        )}
         <p className="fin-explica">
           {total >= 100
             ? "As despesas e o que você quer tirar chegaram a 100% de cada venda: confira os valores acima antes de olhar os preços."
@@ -728,7 +740,7 @@ function PrecoCerto({ produtos, custos, daFicha }) {
           {semCusto > 0 ? ` ${semCusto} sem custo cadastrado.` : ""}
         </p>
         {semCusto > 0 && (
-          <p className="fin-aviso">⚠️ Sem o custo não dá para calcular o preço. <Link to="/cardapio?aba=custos">Pôr os custos na aba Custos →</Link></p>
+          <p className="fin-aviso">⚠️ Sem o custo não dá para calcular o preço: ponha os ingredientes do produto (o preço de cada ingrediente fica na aba <Link to="/cardapio?aba=custos">Custos</Link>).</p>
         )}
         <label className="ins-check">
           <input type="checkbox" checked={soAbaixo} onChange={(e) => setSoAbaixo(e.target.checked)} /> Mostrar só os que estão abaixo
@@ -773,13 +785,12 @@ function PrecoCerto({ produtos, custos, daFicha }) {
                   {r.situacao === "impossivel" && <b className="pc-chip baixo">⚠️ Confira as despesas</b>}
                 </span>
               </button>
-              {r.situacao === "sem-custo" ? (
-                <div className="pc-acoes">
-                  <Link className="ni-link" to={`/cardapio?aba=custos&busca=${encodeURIComponent(x.nome)}`}>Pôr o custo →</Link>
-                </div>
-              ) : (
-                <PrecoVenda produto={x} sugerido={r.situacao === "bom" || r.situacao === "baixo" ? r.sugerido : null} />
-              )}
+              <div className="pc-acoes">
+                <button type="button" className="ins-btn entrada" onClick={() => { setFila(null); setMontar(x); }}>
+                  🧮 {ficha ? "Ingredientes do produto" : "Pôr os ingredientes"}
+                </button>
+              </div>
+              {r.situacao !== "sem-custo" && <PrecoVenda produto={x} sugerido={r.situacao === "bom" || r.situacao === "baixo" ? r.sugerido : null} />}
               {aberto === x.id && (r.situacao === "bom" || r.situacao === "baixo") && (
                 <div className="pc-detalhe">
                   <p>
@@ -802,6 +813,36 @@ function PrecoCerto({ produtos, custos, daFicha }) {
           ))}
         </ul>
       </div>
+      {montar && (
+        <div className="ins-modal" role="dialog" aria-modal="true" aria-label={`Ingredientes de ${montar.nome}`} onClick={() => { setMontar(null); setFila(null); }}>
+          <div className="ins-modal-caixa pc-montar" onClick={(e) => e.stopPropagation()}>
+            <div className="pc-montar-topo">
+              <h2>{montar.nome}</h2>
+              <button type="button" className="prod-ficha-x" aria-label="Fechar" onClick={() => { setMontar(null); setFila(null); }}>✕</button>
+            </div>
+            {fila && <p className="pc-fila">Produto {fila.i + 1} de {fila.ids.length}</p>}
+            <p className="fin-explica">Diga o que vai em 1 {montar.nome} e quanto de cada. O custo sai do preço de cada ingrediente (aba Custos).</p>
+            <FichaDoProduto key={montar.id} produto={montar} precoAtual={montar.preco} />
+            <div className="pc-fila-botoes">
+              {fila ? (
+                <>
+                  <button type="button" className="ins-btn" disabled={fila.i === 0} onClick={() => { const i = fila.i - 1; setFila({ ...fila, i }); setMontar((produtos || []).find((x) => x.id === fila.ids[i]) || null); }}>← Anterior</button>
+                  {fila.i < fila.ids.length - 1 ? (
+                    <button type="button" className="btn-verde" onClick={() => { const i = fila.i + 1; setFila({ ...fila, i }); setMontar((produtos || []).find((x) => x.id === fila.ids[i]) || null); }}>Próximo produto →</button>
+                  ) : (
+                    <button type="button" className="btn-verde" onClick={() => { setFila(null); setMontar(null); }}>✓ Pronto</button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <span />
+                  <button type="button" className="btn-verde" onClick={() => setMontar(null)}>✓ Pronto</button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

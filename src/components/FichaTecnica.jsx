@@ -99,7 +99,7 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
         const antes = Number(editar.quantidade || 0);
         await setDoc(
           doc(db, ...L(), "insumos", editar.id),
-          { nome: nome.slice(0, 60), ...(preco > 0 ? { custo: preco } : {}), minimo, ...(trocouUnidade ? { unidade: f.unidade, quantidade } : {}), atualizadoEm: agora },
+          { nome: nome.slice(0, 60), ...(preco > 0 ? { custo: preco } : {}), ...(preco > 0 && preco !== editar.custo ? { custoEm: agora } : {}), minimo, ...(trocouUnidade ? { unidade: f.unidade, quantidade } : {}), atualizadoEm: agora },
           { merge: true }
         );
         if (trocouUnidade && quantidade !== antes)
@@ -107,7 +107,7 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
         fechar();
         return;
       }
-      const dados = { nome: nome.slice(0, 60), unidade: f.unidade, quantidade, minimo, ...(preco > 0 ? { custo: preco } : {}), ativo: true, criadoEm: serverTimestamp(), atualizadoEm: agora };
+      const dados = { nome: nome.slice(0, 60), unidade: f.unidade, quantidade, minimo, ...(preco > 0 ? { custo: preco, custoEm: agora } : {}), ativo: true, criadoEm: serverTimestamp(), atualizadoEm: agora };
       const ref = await addDoc(collection(db, ...L(), "insumos"), dados);
       if (quantidade > 0)
         await addDoc(collection(db, ...L(), "insumosMov"), { insumoId: ref.id, nome, tipo: "contagem", qtd: quantidade, antes: 0, depois: quantidade, motivo: "Cadastro", em: agora, por: quem(), criadoEm: serverTimestamp() });
@@ -465,12 +465,11 @@ export function PrecoNoProduto({ custo, preco }) {
   );
 }
 
-/** Ficha técnica + custo (ou custo digitado) + preço certo, dentro do cadastro do produto. */
+/** Ingredientes do produto (o custo sai deles: o preço de cada um fica em Cardápio e estoque → Custos) + preço certo. */
 export function FichaDoProduto({ produto, precoAtual }) {
   const [insumos, setInsumos] = useState(null);
   const [ficha, setFicha] = useState(undefined);
   const [custoManual, setCustoManual] = useState(undefined);
-  const [texto, setTexto] = useState(null);
   const [custoFicha, setCustoFicha] = useState({ custo: null, temItens: false });
   useEffect(() => onSnapshot(collection(db, ...L(), "insumos"), (s) => setInsumos(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => setInsumos([])), []);
   useEffect(() => onSnapshot(doc(db, ...L(), "fichas", produto.id), (s) => setFicha(s.exists() ? s.data() : null), () => setFicha(null)), [produto.id]);
@@ -480,24 +479,9 @@ export function FichaDoProduto({ produto, precoAtual }) {
   const ativos = insumos.filter((i) => i.ativo !== false).sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"));
   const porId = Object.fromEntries(insumos.map((i) => [i.id, i]));
   const custo = custoFicha.temItens ? custoFicha.custo : custoManual;
-  async function gravarManual() {
-    if (texto === null) return;
-    const vazio = texto.trim() === "";
-    await setDoc(doc(db, ...L(), "custos", produto.id), { custo: vazio ? null : lerValor(texto), nome: produto.nome, atualizadoEm: new Date().toISOString() }, { merge: true });
-    setTexto(null);
-  }
   return (
     <div className="fdp">
       <EditarFicha produto={produto} ficha={ficha} insumos={ativos} porId={porId} onCusto={aoCusto} precoAtual={precoAtual} />
-      {!custoFicha.temItens && (
-        <label className="fdp-manual">
-          <span>Não usa ingredientes (ex.: bebida pronta)? Digite o custo de 1 unidade:</span>
-          <span className="pc-input">
-            R$
-            <input inputMode="decimal" placeholder="0,00" aria-label={`Custo de ${produto.nome}`} value={texto ?? (typeof custoManual === "number" ? fmt(custoManual) : "")} onChange={(e) => setTexto(e.target.value)} onBlur={gravarManual} onKeyDown={(e) => e.key === "Enter" && e.currentTarget.blur()} />
-          </span>
-        </label>
-      )}
       <PrecoNoProduto custo={custo} preco={precoAtual ?? produto.preco} />
     </div>
   );
