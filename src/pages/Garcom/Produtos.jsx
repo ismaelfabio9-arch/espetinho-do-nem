@@ -240,7 +240,9 @@ function Produtos() {
 
     // Sabor, recheio ou prato: já abre as opções com o modelo do tipo para o dono ajustar.
     if (tipoEscolhido !== "simples") {
-      setMontagemAberta({ id: produtoId, nome: nomeTratado, tipo: tipoEscolhido, novo: true, ...textoMontagem(MODELOS[tipoEscolhido]) });
+      // Começa vazio: o exemplo aparece só em cinza (e no botão "Usar o exemplo"), para nenhuma opção
+      // inventada (recheio, "Ovo = 2"…) ir parar no pedido sem o dono escrever.
+      setMontagemAberta({ id: produtoId, nome: nomeTratado, tipo: tipoEscolhido, novo: true, vem: "", escolhas: "", extras: "" });
     }
     setTipoNovo("");
     setNovoNome("");
@@ -489,7 +491,7 @@ function Produtos() {
                       type="button"
                       key={t.id}
                       className={t.id === tipo ? "tipo-op ativo" : "tipo-op"}
-                      onClick={() => muda({ tipo: t.id, ...(t.id !== "simples" && !montagemAberta.escolhas && !montagemAberta.vem && !montagemAberta.extras ? textoMontagem(MODELOS[t.id]) : {}) })}
+                      onClick={() => muda({ tipo: t.id })}
                     >
                       <strong>{t.emoji} {t.nome}</strong>
                       <small>{t.exemplo}</small>

@@ -189,7 +189,8 @@ export const ehCategoriaDePrato = (categoria) => /prato|\bpf\b|executivo|marmita
  * Devolve os produtos que precisam ser gravados.
  */
 export function pratosSemMontagem(lista) {
-  return lista.filter((p) => p.montagem === undefined && p.ativo !== false && ehCategoriaDePrato(p.categoria));
+  // Só produto antigo (de antes do cadastro por tipo, sem "tipo"): o novo fica como o dono deixou.
+  return lista.filter((p) => p.montagem === undefined && !p.tipo && p.ativo !== false && ehCategoriaDePrato(p.categoria));
 }
 
 /** Emoji da categoria na faixa do pedido rápido. */

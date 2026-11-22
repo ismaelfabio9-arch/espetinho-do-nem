@@ -68,7 +68,7 @@ export function CardapioArea() {
       abas={[
         { id: "produtos", nome: "Produtos", tela: () => <Produtos /> },
         { id: "hoje", nome: "Cardápio de hoje", tela: () => <CardapioHoje /> },
-        { id: "estoque", nome: "Estoque", tela: () => <EstoqueArea /> },
+        { id: "estoque", nome: "Estoque", recurso: ["custos", "estoque"], tela: () => <EstoqueArea /> },
         {
           id: "preco",
           nome: "Preço certo",

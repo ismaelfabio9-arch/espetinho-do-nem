@@ -109,6 +109,24 @@ export function useRecurso(nome) {
   return ligado;
 }
 
+/** Várias funções de uma vez: { nome: ligado }. A lista de nomes não muda durante a tela. */
+export function useRecursos(nomes) {
+  const chave = nomes.join("|");
+  const ler = () => Object.fromEntries(chave.split("|").filter(Boolean).map((n) => [n, temRecurso(n)]));
+  const [ligados, setLigados] = useState(ler);
+  useEffect(() => {
+    const fn = () => setLigados(Object.fromEntries(chave.split("|").filter(Boolean).map((n) => [n, temRecurso(n)])));
+    fn();
+    ouvintes.add(fn);
+    const sairTenant = subscribeTenant(fn);
+    return () => {
+      ouvintes.delete(fn);
+      sairTenant();
+    };
+  }, [chave]);
+  return ligados;
+}
+
 /** planoQueLibera(nome) que se atualiza quando o plano da loja carrega ou muda. */
 export function usePlanoQueLibera(nome) {
   const [plano, setPlano] = useState(() => planoQueLibera(nome));

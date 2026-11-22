@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import QRCode from "qrcode";
 import { cardapioOnlineUrl } from "../loja";
-import { planoQueLibera, useRecurso } from "../recursos";
+import { useRecurso } from "../recursos";
 import { moeda, salvarEntrega, useEntrega } from "../utils/entrega";
 
 export default function CardapioOnlineConfig() {
@@ -21,19 +21,8 @@ export default function CardapioOnlineConfig() {
     if (url && ligadoNoPlano) QRCode.toDataURL(url, { margin: 1, width: 360 }).then(setQr, () => setQr(""));
   }, [url, ligadoNoPlano]);
   if (!url) return null;
-  if (!ligadoNoPlano) {
-    const plano = planoQueLibera("pedido-online");
-    return (
-      <div className="config-card">
-        <div className="config-icon">🛵</div>
-        <div>
-          <h2>Cardápio online</h2>
-          <p>O cliente pede de casa, para entrega ou retirada, e o pedido cai aqui no sistema.</p>
-          <strong>{plano ? `Disponível no plano ${plano}` : "Fale com a IFTech para ligar"}</strong>
-        </div>
-      </div>
-    );
-  }
+  // Fora do plano da loja: nem aparece.
+  if (!ligadoNoPlano) return null;
   async function salvar() {
     try {
       await salvarEntrega(form);

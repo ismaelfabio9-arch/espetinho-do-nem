@@ -19,7 +19,7 @@ import { db } from "../../firebase";
 import "../../styles/Garcom/Config.css";
 import InstallModal from "../../components/InstallApp";
 import { isInstalled } from "../../utils/installPrompt";
-import { usePlanoQueLibera, useRecurso } from "../../recursos";
+import { useRecurso } from "../../recursos";
 import { useCaixaAberto } from "../../components/AvisoCaixa";
 import "../../styles/Garcom/AvisoCaixa.css";
 import WhatsLojaConfig from "../../components/WhatsLojaConfig";
@@ -31,7 +31,6 @@ const nomeProduto = (item) => item.nomeBase || String(item.nome || "").split(" �
 
 function Config() {
   const financasLigado = useRecurso("financas");
-  const financasPlano = usePlanoQueLibera("financas");
   const caixaAberto = useCaixaAberto(financasLigado);
   const nomeLoja = useNomeLoja();
   const [instalarAberto, setInstalarAberto] = useState(false);
@@ -208,7 +207,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
         <div>
           <Link to="/vendas">💵 Vendas</Link>
           <Link to="/cardapio">🍔 Cardápio e estoque</Link>
-          {(financasLigado || financasPlano) && <Link to="/dinheiro">💰 Dinheiro</Link>}
+          {financasLigado && <Link to="/dinheiro">💰 Dinheiro</Link>}
         </div>
       </div>
 
