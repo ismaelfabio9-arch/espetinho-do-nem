@@ -11,6 +11,7 @@ import { ordenarGruposPorCategoria } from "../../utils/categorias";
 import MontarPrato from "../../components/MontarPrato";
 import PratoNoPedido from "../../components/PratoNoPedido";
 import PedidoRapido from "../../components/PedidoRapido";
+import { useFotos } from "../../utils/fotos";
 import { abreEscolha, emojiCategoria, sugestoesBebida } from "../../utils/montagem";
 import { useRecurso } from "../../recursos";
 import { repassaAlguma, useTaxas } from "../../utils/taxas";
@@ -35,6 +36,8 @@ export default function CardapioOnline() {
   const entrega = useEntrega();
   const ligadoNoPlano = useRecurso("pedido-online");
   const montarLigado = useRecurso("montar-prato");
+  // Fotos dos produtos (planos Completo e Premium).
+  const fotos = useFotos(useRecurso("fotos"));
   const estoqueLigado = useRecurso("estoque");
   const taxas = useTaxas();
   const [categoriasDocs, setCategoriasDocs] = useState([]);
@@ -325,6 +328,7 @@ export default function CardapioOnline() {
       ) : (
         <>
           <PedidoRapido
+            fotos={fotos}
             categorias={produtos}
             contagem={(item) => porProduto[item.id] || 0}
             onTocar={(item) => (aberta ? adicionar(item) : null)}
@@ -366,6 +370,7 @@ export default function CardapioOnline() {
         <MontarPrato
           key={editando || "novo"}
           produto={montando}
+          foto={fotos[montando.id] || null}
           bebidas={editando ? [] : sugestoesBebida(produtos)}
           inicial={editando ? carrinho[editando]?.montagem : null}
           textoBotao={editando ? "Salvar alteração" : "Adicionar"}

@@ -1,13 +1,26 @@
 // Janela "Montar o prato": o que vem no prato (toque para tirar), as escolhas, o que vai a mais
 // e a bebida em um toque. Usada pelo garçom (MesaDetalhe) e pelo cliente no QR Code da mesa.
 import { useState } from "react";
-import { escolhaPadrao, grupoCortado, limparEscolha, nomeMontado, precoMontado, precoOpcao, tipoDe, tipoInfo } from "../utils/montagem";
+import { escolhaPadrao, escolhidas, grupoCortado, limparEscolha, maxDoGrupo, nomeMontado, precoMontado, precoOpcao, tipoDe, tipoInfo } from "../utils/montagem";
 import "./MontarPrato.css";
 
 const moeda = (v) => Number(v || 0).toFixed(2).replace(".", ",");
 
 // inicial: a escolha de um prato que já está no pedido (para editar); textoBotao troca o "Adicionar".
-export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicionar, onFechar, permitirOutros = false, inicial = null, textoBotao = "Adicionar" }) {
+/**
+ * Toque numa opção. Grupo de 1: troca. Grupo de "até N": marca/desmarca (fica pelo menos 1; cheio, troca a
+ * mais antiga). Guarda texto com 1 escolhida e lista com mais.
+ */
+function tocarOpcao(g, atual, op) {
+  const max = maxDoGrupo(g);
+  if (max === 1) return op;
+  let lista = escolhidas(atual);
+  if (lista.includes(op)) lista = lista.length > 1 ? lista.filter((x) => x !== op) : lista;
+  else lista = [...lista, op].slice(-max);
+  return lista.length === 1 ? lista[0] : lista;
+}
+
+export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicionar, onFechar, permitirOutros = false, inicial = null, textoBotao = "Adicionar", foto = null }) {
   const [escolha, setEscolha] = useState(() => {
     const base = escolhaPadrao(produto);
     return inicial ? { ...base, ...inicial, escolhas: { ...base.escolhas, ...(inicial.escolhas || {}) }, tirar: inicial.tirar || [], extras: inicial.extras || [], outros: inicial.outros || [] } : base;
@@ -64,6 +77,7 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
   return (
     <div className="montar-fundo" onClick={onFechar}>
       <div className="montar-folha" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`${tipoInfo(tipo).titulo || "Escolher"}: ${produto.nome}`}>
+        {foto && <img className="montar-foto" src={foto} alt={produto.nome} />}
         <div className="montar-topo">
           <h2>{produto.nome}</h2>
           <strong>R$ {moeda(precoPrato)}</strong>
@@ -72,7 +86,7 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
 
         {(m.vem || []).length > 0 && (
           <>
-            <div className="montar-grupo">{tipo === "prato" ? "VEM NO PRATO" : "VEM"} · toque para tirar</div>
+            <div className="montar-grupo">{tipo === "prato" ? "VEM NO PRATO" : tipo === "lanche" ? "VEM NO LANCHE" : "VEM"} · toque para tirar</div>
             <div className="montar-opcoes">
               {m.vem.map((v) => {
                 const tirou = escolha.tirar.includes(v);
@@ -88,10 +102,13 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
 
         {(m.escolhas || []).filter((g) => !grupoCortado(g, escolha.tirar)).map((g) => (
           <div key={g.nome}>
-            <div className="montar-grupo">{g.nome.toUpperCase()}</div>
+            <div className="montar-grupo">
+              {g.nome.toUpperCase()}
+              {maxDoGrupo(g) > 1 && ` · escolha até ${maxDoGrupo(g)}`}
+            </div>
             <div className="montar-opcoes">
               {g.opcoes.map((op) => (
-                <button type="button" key={op} className={escolha.escolhas[g.nome] === op ? "montar-op escolhida" : "montar-op"} onClick={() => setEscolha({ ...escolha, escolhas: { ...escolha.escolhas, [g.nome]: op } })}>
+                <button type="button" key={op} className={escolhidas(escolha.escolhas[g.nome]).includes(op) ? "montar-op escolhida" : "montar-op"} onClick={() => setEscolha({ ...escolha, escolhas: { ...escolha.escolhas, [g.nome]: tocarOpcao(g, escolha.escolhas[g.nome], op) } })}>
                   {op}
                   {precoOpcao(g, op) ? ` · + R$ ${moeda(precoOpcao(g, op))}` : ""}
                 </button>
@@ -131,7 +148,7 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
         )}
 
         <div className="montar-grupo">OBSERVAÇÃO</div>
-        <input className="montar-obs" placeholder={tipo === "prato" ? "Ex.: pouco sal, trocar arroz por macaxeira" : "Ex.: sem açúcar, bem passado"} value={escolha.obs || ""} maxLength={60} onChange={(e) => setEscolha({ ...escolha, obs: e.target.value })} />
+        <input className="montar-obs" placeholder={tipo === "prato" ? "Ex.: pouco sal, trocar arroz por macaxeira" : tipo === "lanche" ? "Ex.: carne bem passada, molho à parte" : "Ex.: sem açúcar, bem passado"} value={escolha.obs || ""} maxLength={60} onChange={(e) => setEscolha({ ...escolha, obs: e.target.value })} />
 
         {bebidas.length > 0 && (
           <>

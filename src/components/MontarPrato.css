@@ -34,3 +34,6 @@ body:not(.dark) .montar-outro-linha input, body:not(.dark) .montar-obs { backgro
 .prato-no-pedido-op strong { font-size: 15px; }
 .prato-no-pedido-op span { font-size: 13px; color: #9ca3af; overflow-wrap: anywhere; }
 .montar-bebidas-grupo + .montar-bebidas-grupo { margin-top: 10px; } .montar-bebidas-cat { font-size: 12px; font-weight: 700; color: #9ca3af; margin: 2px 0 6px; } .montar-bebidas { grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); }
+
+/* Foto do produto no topo da janela (planos Completo e Premium). */
+.montar-foto { display: block; width: 100%; max-height: 220px; object-fit: cover; border-radius: 14px; margin-bottom: 10px; background: #222; }

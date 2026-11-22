@@ -23,6 +23,7 @@ import MontarPrato from "../../components/MontarPrato";
 import PratoNoPedido from "../../components/PratoNoPedido";
 import { sugestoesBebida, abreEscolha } from "../../utils/montagem";
 import PedidoRapido from "../../components/PedidoRapido";
+import { useFotos } from "../../utils/fotos";
 import { useRecurso } from "../../recursos";
 import { repassaAlguma, useTaxas } from "../../utils/taxas";
 import QuerMais, { sugestoesComplemento } from "../../components/QuerMais";
@@ -54,6 +55,8 @@ function CardapioMesa() {
   const garcomLigado = useRecurso("chamar-garcom");
   const contaLigada = useRecurso("pedir-conta");
   const montarLigado = useRecurso("montar-prato");
+  // Fotos dos produtos (planos Completo e Premium).
+  const fotos = useFotos(useRecurso("fotos"));
   const whatsLoja = useWhatsLoja();
   // "Vai querer mais alguma coisa?": oferecido uma vez em cada pedido, antes de enviar.
   const [querMais, setQuerMais] = useState(null); // sugestões guardadas ao abrir (o que o cliente toca não some)
@@ -711,6 +714,7 @@ function CardapioMesa() {
         {produtosDisponiveis.length > 0 && (
           <div className="rapido-escuro">
             <PedidoRapido
+              fotos={fotos}
               categorias={produtosDisponiveis}
               emoji={emojiCategoria}
               montar={montarLigado}
@@ -784,6 +788,7 @@ function CardapioMesa() {
           <MontarPrato
             key={editando || "novo"}
             produto={montando}
+            foto={fotos[montando.id] || null}
             bebidas={editando ? [] : sugestoesBebida(produtos)}
             inicial={editando ? carrinho[editando]?.montagem : null}
             textoBotao={editando ? "Salvar alteração" : "Adicionar"}

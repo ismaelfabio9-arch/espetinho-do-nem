@@ -26,6 +26,8 @@ import { ordenarItensCategoria } from "../../utils/produtosOrdem";
 import { slugify, formatarMoeda } from "../../utils/texto";
 import "../../styles/Garcom/Produtos.css";
 import { useRecurso } from "../../recursos";
+import FotoProduto from "../../components/FotoProduto";
+import { useFotos } from "../../utils/fotos";
 import { FichaDoProduto } from "../../components/FichaTecnica";
 import { MODELOS, TIPOS, lerMontagem, temMontagem, textoMontagem, tipoDe, tipoInfo, tipoPelaCategoria } from "../../utils/montagem";
 
@@ -44,6 +46,9 @@ const normalizar = (t) =>
 function Produtos() {
   // Planos Completo e Premium: ingredientes (ficha técnica), custo e preço certo dentro do produto.
   const financasLigado = useRecurso("custos");
+  // Fotos dos produtos: planos Completo e Premium.
+  const fotosLigado = useRecurso("fotos");
+  const fotos = useFotos(fotosLigado);
   const [produtos, setProdutos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   // Editar produto: toca na linha e abre a ficha (nome, preço, categoria, opções e excluir).
@@ -409,7 +414,7 @@ function Produtos() {
 
   async function salvarMontagem() {
     const tipo = montagemAberta.tipo || "simples";
-    const m = tipo === "simples" ? null : lerMontagem(tipo === "prato" ? montagemAberta : { ...montagemAberta, vem: "" });
+    const m = tipo === "simples" ? null : lerMontagem(tipo === "prato" || tipo === "lanche" ? montagemAberta : { ...montagemAberta, vem: "" });
     if ((tipo === "sabor" || tipo === "recheio") && !(m?.escolhas || []).length) {
       setMontagemAberta({ ...montagemAberta, erro: tipo === "sabor" ? "Escreva os sabores. Ex.: Sabor: Coco, Morango" : "Escreva as opções. Ex.: Recheio: Queijo, Frango = 2" });
       return;
@@ -509,22 +514,31 @@ function Produtos() {
                   </label>
                 </>
               )}
+              {tipo === "lanche" && (
+                <>
+                  <p>Na hora do pedido o garçom (e o cliente no QR Code) tira o que não quer (ex.: sem cebola) e põe os adicionais. Deixe em branco o que não usar.</p>
+                  <label>
+                    Vem no lanche <small>(separe por vírgula)</small>
+                    <input value={montagemAberta.vem} onChange={(e) => muda({ vem: e.target.value })} placeholder="Pão, Hambúrguer, Queijo, Alface, Tomate, Molho" />
+                  </label>
+                </>
+              )}
               {tipo === "sabor" && <p>Um produto só, e na hora do pedido escolhe o sabor. Se um sabor custar mais, ponha "= preço" depois dele.</p>}
               {tipo === "recheio" && <p>Na hora do pedido escolhe o recheio ou o tamanho. Ponha "= preço" no que custar mais que o preço do produto.</p>}
               {tipo !== "simples" && (
                 <>
                   <label>
-                    {tipo === "sabor" ? "Sabores" : tipo === "recheio" ? "Recheios e tamanhos" : "Escolhas"} <small>(uma por linha: Grupo: opção, opção = preço)</small>
+                    {tipo === "sabor" ? "Sabores" : tipo === "recheio" ? "Recheios e tamanhos" : "Escolhas"} <small>(uma por linha: Grupo: opção, opção = preço · para escolher mais de uma: Grupo (até 2): …)</small>
                     <textarea
                       rows={3}
                       value={montagemAberta.escolhas}
                       onChange={(e) => muda({ escolhas: e.target.value })}
-                      placeholder={tipo === "sabor" ? "Sabor: Coco, Morango, Chocolate" : tipo === "recheio" ? "Recheio: Queijo, Frango = 2, Carne de sol = 4\nTamanho: Pequeno, Grande = 3" : "Feijão: Carioca, Preto, Macassar\nSalada: Verdura, Vinagrete"}
+                      placeholder={tipo === "sabor" ? "Sabor: Coco, Morango, Chocolate" : tipo === "recheio" ? "Recheio: Queijo, Frango = 2, Carne de sol = 4\nTamanho: Pequeno, Grande = 3" : tipo === "lanche" ? "Hambúrguer: Normal, Artesanal = 4\nPatê (até 2): Frango, Atum, Peito de peru" : "Feijão: Carioca, Preto, Macassar\nSalada: Verdura, Vinagrete"}
                     />
                   </label>
                   <label>
                     {tipo === "prato" ? "A mais, com preço" : "Adicionais, com preço"} <small>(uma por linha: nome = preço)</small>
-                    <textarea rows={2} value={montagemAberta.extras} onChange={(e) => muda({ extras: e.target.value })} placeholder={tipo === "prato" ? "Ovo = 2\nBatata frita = 6" : tipo === "sabor" ? "Cobertura = 2" : "Ovo = 2\nQueijo a mais = 3"} />
+                    <textarea rows={2} value={montagemAberta.extras} onChange={(e) => muda({ extras: e.target.value })} placeholder={tipo === "prato" ? "Ovo = 2\nBatata frita = 6" : tipo === "lanche" ? "Bacon = 4\nOvo = 2\nCheddar = 3" : tipo === "sabor" ? "Cobertura = 2" : "Ovo = 2\nQueijo a mais = 3"} />
                   </label>
                   <button type="button" className="montagem-modelo" onClick={() => muda(textoMontagem(MODELOS[tipo]))}>
                     Usar o exemplo de {info.nome.toLowerCase()}
@@ -949,6 +963,7 @@ function Produtos() {
                   const ok = comOpcoes && temMontagem(produto);
                   return (
                     <button type="button" key={produto.id} className="prod-item" onClick={() => abrirFicha(produto)}>
+                      {fotos[produto.id] && <img className="prod-item-foto" src={fotos[produto.id]} alt="" loading="lazy" />}
                       <span className="prod-item-nome">
                         {produto.nome}
                         {comOpcoes && (
@@ -998,6 +1013,7 @@ function Produtos() {
                   </select>
                 </label>
               </div>
+              {fotosLigado && <FotoProduto produto={produto} foto={fotos[produto.id] || null} />}
               {financasLigado && (
                 <div className="prod-ficha-ingred">
                   <strong>Ingredientes, custo e preço certo</strong>

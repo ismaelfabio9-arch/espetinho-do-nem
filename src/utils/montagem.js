@@ -49,8 +49,9 @@ export function nomeMontado(produto, escolha) {
   const m = produto?.montagem || {};
   const partes = [];
   (m.escolhas || []).forEach((g) => {
-    const op = escolha?.escolhas?.[g.nome];
-    if (!op || grupoCortado(g, escolha?.tirar)) return;
+    const ops = escolhidas(escolha?.escolhas?.[g.nome]);
+    if (!ops.length || grupoCortado(g, escolha?.tirar)) return;
+    const op = ops.join(" e ");
     partes.push(baixa(op).includes(baixa(g.nome)) ? baixa(op) : `${baixa(g.nome)} ${baixa(op)}`);
   });
   (m.vem || []).forEach((v) => {
@@ -66,6 +67,16 @@ export function nomeMontado(produto, escolha) {
   return partes.length ? `${produto.nome} — ${partes.join(", ")}` : produto.nome;
 }
 
+/**
+ * O que foi escolhido num grupo, sempre em lista. Grupo de 1 opção guarda texto ("Preto"); grupo de
+ * "até N" (ex.: "Patê (até 2)") guarda a lista (["Frango", "Atum"]).
+ */
+export const escolhidas = (v) => (Array.isArray(v) ? v.map(String) : typeof v === "string" && v ? [v] : []);
+/** Quantas opções o grupo deixa escolher (1, ou o "até N" do cadastro). */
+export const maxDoGrupo = (g) => Math.max(1, Math.min(6, Number(g?.max) || 1));
+/** Soma do que as opções escolhidas acrescentam no preço. */
+export const precoDoGrupo = (g, v) => escolhidas(v).reduce((s, op) => s + precoOpcao(g, op), 0);
+
 /** Quanto a opção escolhida acrescenta (ex.: recheio de carne de sol +3, tamanho 500 ml +6). */
 export function precoOpcao(grupo, opcao) {
   const v = Number(grupo?.precos?.[opcao]);
@@ -76,7 +87,7 @@ export function precoMontado(produto, escolha) {
   const m = produto?.montagem || {};
   const extras = (m.extras || []).filter((e) => (escolha?.extras || []).includes(e.nome));
   const outros = (escolha?.outros || []).reduce((s, o) => s + (Number(o.preco) || 0), 0);
-  const opcoes = (m.escolhas || []).reduce((s, g) => s + (grupoCortado(g, escolha?.tirar) ? 0 : precoOpcao(g, escolha?.escolhas?.[g.nome])), 0);
+  const opcoes = (m.escolhas || []).reduce((s, g) => s + (grupoCortado(g, escolha?.tirar) ? 0 : precoDoGrupo(g, escolha?.escolhas?.[g.nome])), 0);
   return Math.round((Number(produto.preco || 0) + extras.reduce((s, e) => s + Number(e.preco || 0), 0) + outros + opcoes) * 100) / 100;
 }
 
@@ -115,7 +126,11 @@ export function lerMontagem({ vem, escolhas, extras }) {
       .split("\n")
       .map((linha) => {
         const i = linha.indexOf(":");
-        const nome = i < 0 ? linha : linha.slice(0, i);
+        // "Patê (até 2): Frango, Atum…" → o cliente escolhe até 2.
+        const bruto = i < 0 ? linha : linha.slice(0, i);
+        const ate = bruto.match(/\(\s*at[eé]\s*(\d)\s*\)/i);
+        const max = ate ? Math.max(1, Math.min(6, Number(ate[1]))) : 1;
+        const nome = bruto.replace(/\(\s*at[eé]\s*\d\s*\)/i, "");
         const opcoes = [];
         const precos = {};
         opcoesDaLinha(i < 0 ? "" : linha.slice(i + 1)).slice(0, 12).forEach((op) => {
@@ -126,7 +141,7 @@ export function lerMontagem({ vem, escolhas, extras }) {
           const valor = valorDe(v);
           if (valor > 0) precos[nomeOp] = valor;
         });
-        return { nome: nome.trim(), opcoes, ...(Object.keys(precos).length ? { precos } : {}) };
+        return { nome: nome.trim(), opcoes, ...(Object.keys(precos).length ? { precos } : {}), ...(max > 1 ? { max: Math.min(max, opcoes.length || max) } : {}) };
       })
       .filter((g) => g.nome && g.opcoes.length)
       .slice(0, 6),
@@ -146,7 +161,7 @@ export function textoMontagem(m) {
   return {
     vem: (m?.vem || []).join(", "),
     escolhas: (m?.escolhas || [])
-      .map((g) => `${g.nome}: ${(g.opcoes || []).map((o) => (precoOpcao(g, o) ? `${o} = ${real(precoOpcao(g, o))}` : o)).join(", ")}`)
+      .map((g) => `${g.nome}${maxDoGrupo(g) > 1 ? ` (até ${maxDoGrupo(g)})` : ""}: ${(g.opcoes || []).map((o) => (precoOpcao(g, o) ? `${o} = ${real(precoOpcao(g, o))}` : o)).join(", ")}`)
       .join("\n"),
     extras: (m?.extras || []).map((e) => `${e.nome} = ${real(e.preco)}`).join("\n"),
   };
@@ -212,6 +227,7 @@ export function emojiCategoria(categoria) {
 // recheio = tapioca, cuscuz, açaí, pastel: recheio ou tamanho, cada opção com o seu preço
 export const TIPOS = [
   { id: "prato", emoji: "🍛", nome: "Prato de almoço", exemplo: "Prato do dia, PF, marmita", botao: "🍽️ Montagem do prato", titulo: "Montar o prato" },
+  { id: "lanche", emoji: "🍔", nome: "Lanche montado", exemplo: "Hambúrguer, cachorro-quente, sanduíche", botao: "🍔 O que vem e adicionais", titulo: "Montar o lanche" },
   { id: "simples", emoji: "🥤", nome: "Simples", exemplo: "Bebida, sobremesa, doce, salgado", botao: "⚙️ Opções", titulo: "" },
   { id: "sabor", emoji: "🍦", nome: "Com sabor", exemplo: "Picolé, sorvete, suco", botao: "🍦 Sabores", titulo: "Escolher o sabor" },
   { id: "recheio", emoji: "🌮", nome: "Com recheio ou tamanho", exemplo: "Tapioca, cuscuz, açaí, pastel", botao: "🌮 Recheios e tamanhos", titulo: "Escolher" },
@@ -228,14 +244,17 @@ export function tipoDe(produto) {
 export function tipoPelaCategoria(categoria) {
   const c = String(categoria || "");
   if (ehCategoriaDePrato(c)) return "prato";
+  if (/hamb|burg|lanche|sandu|baguet|cachorro|hot.?dog|misto|\bx-/i.test(c)) return "lanche";
   if (/picol|sorvet|geladinho|din.?din|suco|vitamina|milk.?shake/i.test(c)) return "sabor";
-  if (/tapioca|cuscuz|crepe|recheado|pastel|a[cç]a[ií]|panqueca|sandu|beiju/i.test(c)) return "recheio";
+  if (/tapioca|cuscuz|crepe|recheado|pastel|a[cç]a[ií]|panqueca|beiju|batat|fritas|por[cç][aã]o|por[cç][oõ]es/i.test(c)) return "recheio";
   return "simples";
 }
 
 /** Modelo pronto de cada tipo (o dono troca os nomes e os preços). */
 export const MODELOS = {
   prato: MONTAGEM_ALMOCO,
+  // Hambúrguer: o que vem (o cliente tira: "sem cebola") e os adicionais. Só aparece se o dono tocar em "Usar o exemplo".
+  lanche: { vem: ["Pão", "Hambúrguer", "Queijo", "Alface", "Tomate", "Molho da casa"], escolhas: [], extras: [{ nome: "Bacon", preco: 4 }, { nome: "Ovo", preco: 2 }, { nome: "Cheddar", preco: 3 }] },
   simples: null,
   sabor: { vem: [], escolhas: [{ nome: "Sabor", opcoes: ["Coco", "Morango", "Chocolate", "Limão"] }], extras: [] },
   recheio: {

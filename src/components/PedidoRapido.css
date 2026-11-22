@@ -35,3 +35,8 @@ body.dark .rapido-item .rapido-montar { color: #9ca3af !important; }
 .cardapio-cliente-card .rapido-escuro .rapido-montar { color: #9ca3af !important; }
 .cardapio-cliente-card .rapido-escuro .rapido-qtd { color: #fff !important; }
 .cardapio-cliente-card .rapido-escuro .rapido-busca::placeholder { color: #9ca3af; }
+
+/* Foto do produto (planos Completo e Premium): em cima do card, quadrada. */
+.rapido-item.com-foto { padding-top: 0; overflow: hidden; }
+.rapido-foto { display: block; width: calc(100% + 24px); margin: 0 -12px 2px; aspect-ratio: 4 / 3; object-fit: cover; background: #222; }
+.rapido-item.com-foto .rapido-qtd { top: 8px; box-shadow: 0 0 0 2px rgba(0,0,0,.35); }
