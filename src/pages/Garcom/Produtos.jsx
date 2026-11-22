@@ -370,13 +370,15 @@ function Produtos() {
     if (!categoriaParaExcluir) return;
 
     const destino =
-      acaoExclusao === "mover" && categoriaDestinoExclusao
+      acaoExclusao === "apagar"
+        ? { tipo: "apagar" }
+        : acaoExclusao === "mover" && categoriaDestinoExclusao
         ? { tipo: "mover", categoriaDestino: categoriaDestinoExclusao }
         : { tipo: "sem-categoria" };
 
     await excluirCategoria(categoriaParaExcluir, destino);
     setCategoriaParaExcluir(null);
-    mostrarMensagemCategoria("Categoria excluída!");
+    mostrarMensagemCategoria(acaoExclusao === "apagar" ? "Categoria e produtos apagados!" : "Categoria excluída!");
   }
 
   async function moverCategoriaBotao(index, direcao) {
@@ -752,8 +754,7 @@ function Produtos() {
                   <strong>
                     {(produtosPorCategoria[categoriaParaExcluir.nome] || []).length}
                   </strong>{" "}
-                  produto(s). Eles não serão apagados — escolha o que fazer com
-                  eles:
+                  produto(s). Escolha o que fazer com eles:
                 </p>
 
                 <div className="produto-modal-form">
@@ -774,6 +775,20 @@ function Produtos() {
                     />
                     Mover para outra categoria
                   </label>
+
+                  <label className="opcao-radio">
+                    <input
+                      type="radio"
+                      checked={acaoExclusao === "apagar"}
+                      onChange={() => setAcaoExclusao("apagar")}
+                    />
+                    Apagar também os produtos dela (ex.: cardápio de exemplo)
+                  </label>
+                  {acaoExclusao === "apagar" && (
+                    <p className="montagem-erro">
+                      Some do cardápio: {(produtosPorCategoria[categoriaParaExcluir.nome] || []).map((p) => p.nome).join(", ")}. As vendas já feitas continuam no histórico.
+                    </p>
+                  )}
 
                   {acaoExclusao === "mover" && (
                     <select

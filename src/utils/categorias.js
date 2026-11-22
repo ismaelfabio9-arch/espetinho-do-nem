@@ -172,6 +172,20 @@ export async function excluirCategoria(categoria, destino) {
     query(collection(db, ...L(), "produtos"), where("categoria", "==", categoria.nome))
   );
 
+  // Apagar junto (ex.: cardápio de exemplo posto por engano): o produto e o que é só dele
+  // (estoque do dia, ingredientes, custo e foto). Vendas já feitas não mudam.
+  if (destino?.tipo === "apagar") {
+    const refs = [];
+    produtosSnap.docs.forEach((p) => ["produtos", "estoque", "fichas", "custos", "fotos"].forEach((c) => refs.push(doc(db, ...L(), c, p.id))));
+    refs.push(doc(db, ...L(), "categorias", categoria.id));
+    for (let i = 0; i < refs.length; i += 400) {
+      const b = writeBatch(db);
+      refs.slice(i, i + 400).forEach((r) => b.delete(r));
+      await b.commit();
+    }
+    return;
+  }
+
   const batch = writeBatch(db);
 
   if (produtosSnap.size > 0) {
