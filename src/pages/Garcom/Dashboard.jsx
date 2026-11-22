@@ -33,6 +33,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../../firebase";
 import { baixarInsumos } from "../../utils/insumos";
+import { AVISO_PARCIAL, temPagamentoParcial } from "../../utils/contaMesa";
 import AvisoCaixa from "../../components/AvisoCaixa";
 
 function Dashboard() {
@@ -258,6 +259,10 @@ function Dashboard() {
     if (!pagamentoAberto) return;
 
     const numeroMesa = Number(pagamentoAberto.mesa);
+    if (await temPagamentoParcial(numeroMesa)) {
+      window.alert(AVISO_PARCIAL(numeroMesa));
+      return;
+    }
 
     try {
       const pedidosRef = collection(db, ...L(), "pedidos");

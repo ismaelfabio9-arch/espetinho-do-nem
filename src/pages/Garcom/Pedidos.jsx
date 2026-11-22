@@ -19,6 +19,7 @@ import "../../styles/Garcom/Pedidos.css";
 import { useConfigImpressora } from "../../hooks/useConfigImpressora";
 import { gerarComandaHTML, imprimir } from "../../utils/print";
 import { baixarInsumos } from "../../utils/insumos";
+import { AVISO_PARCIAL, temPagamentoParcial } from "../../utils/contaMesa";
 import useNomeLoja from "../../hooks/useNomeLoja";
 import { linkWhats, mostrarFone, numeroWhats } from "../../utils/contato";
 import "../../components/QuerMais.css";
@@ -163,7 +164,11 @@ function Pedidos() {
     await imprimir(html, configImpressora.larguraPapel);
   }
 
-  function finalizar(pedido) {
+  async function finalizar(pedido) {
+    if (pedido.tipo === "mesa" && (await temPagamentoParcial(pedido.mesa))) {
+      window.alert(AVISO_PARCIAL(pedido.mesa));
+      return;
+    }
     if (pedido.tipo === "entrega" && pedido.pagamento) return removerPedido(pedido);
     setPagarPedido(pedido);
   }
