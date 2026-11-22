@@ -462,6 +462,7 @@ function PrecoCerto({ produtos, custos, daFicha }) {
   const [montar, setMontar] = useState(null); // produto com a janela de ingredientes aberta
   const [fila, setFila] = useState(null); // { ids, i }: montando um prato depois do outro
   const [digitar, setDigitar] = useState({});
+  const [avisoMax, setAvisoMax] = useState({}); // { lucro: "Máximo 63%…" }
   useEffect(
     () =>
       onSnapshot(
@@ -524,7 +525,24 @@ function PrecoCerto({ produtos, custos, daFicha }) {
   };
   const total = somaPct(p);
   const fmtPct = (n) => `${String(Math.round(n * 10) / 10).replace(".", ",")}%`;
-  const precisaVendas = ["fixas", "variaveis", "impostos"].some((k) => modoCampo(k) === "valor" && numDe(valorCampo(k)) !== null) && !vendasMes;
+  // O total nunca passa de 100%: um campo em % aceita no máximo o que sobra das outras partes.
+  const parteDe = (k) => (k === "lucro" ? (lucroEmValor ? 0 : p.lucro) : p[k] || 0);
+  const maximoDe = (k) => Math.max(0, Math.floor((100 - (total - parteDe(k))) * 10) / 10);
+  function mudarCampo(k, txt) {
+    const emPct = k === "maquininha" || modoCampo(k) !== "valor";
+    const n = emPct ? numDe(txt) : null;
+    const max = maximoDe(k);
+    if (n !== null && n > max) {
+      setForm({ ...form, [k]: String(max).replace(".", ",") });
+      setAvisoMax({ ...avisoMax, [k]: `Máximo ${fmtPct(max)}: as outras partes já somam ${fmtPct(100 - max)} de cada venda.` });
+      return;
+    }
+    setForm({ ...form, [k]: txt });
+    if (avisoMax[k]) setAvisoMax({ ...avisoMax, [k]: "" });
+  }
+  // Gastos do mês em R$: quanto somam e se passam do que a loja vende (aí não dá para virar %).
+  const gastosMesR = ["fixas", "variaveis", "impostos"].reduce((s2, k) => s2 + (modoCampo(k) === "valor" ? numDe(valorCampo(k)) || 0 : 0), 0);
+    const precisaVendas = ["fixas", "variaveis", "impostos"].some((k) => modoCampo(k) === "valor" && numDe(valorCampo(k)) !== null) && !vendasMes;
 
   async function mudarConta(conta) {
     setForm({ ...form, conta });
@@ -574,7 +592,8 @@ function PrecoCerto({ produtos, custos, daFicha }) {
     if (v === null) return "";
     if (c.porVenda) return `= R$ ${fmt(v)} em cada venda`;
     const pc = pctDoMes(v, vendasMes);
-    return pc === null ? "informe quanto vende por mês" : `= ${fmtPct(pc)} das vendas`;
+    if (pc === null) return "informe quanto vende por mês";
+    return pc >= 100 ? `é mais do que a loja vende no mês (${R(vendasMes)})` : `= ${fmtPct(pc)} das vendas`;
   };
   const linhas = (produtos || [])
     .filter((x) => x.nome && x.ativo !== false)
@@ -649,11 +668,12 @@ function PrecoCerto({ produtos, custos, daFicha }) {
                   aria-label={`${c.nome} (${modoCampo(c.k) === "valor" ? (c.porVenda ? "R$ por venda" : "R$ por mês") : "%"})`}
                   value={usaItens(c.k) ? fmt(totalItens(c.k)) : form[c.k]}
                   readOnly={usaItens(c.k)}
-                  onChange={(e) => setForm({ ...form, [c.k]: e.target.value })}
+                  onChange={(e) => mudarCampo(c.k, e.target.value)}
                 />
                 <em>{modoCampo(c.k) === "valor" ? (c.porVenda ? "por venda" : "por mês") : "%"}</em>
               </span>
               {explicaValor(c) && <small className="pc-equiv">{explicaValor(c)}</small>}
+              {avisoMax[c.k] && <small className="pc-equiv pc-max">{avisoMax[c.k]}</small>}
               {LISTAS[c.k] && (
                 <ItensDespesa
                   nome={c.nome}
@@ -685,7 +705,9 @@ function PrecoCerto({ produtos, custos, daFicha }) {
           {soIngredientes
             ? `Preço bom = os ingredientes serem no máximo ${fmtPct(100 - p.lucro)} do preço. O que sobra (${fmtPct(p.lucro)}) paga a loja e o seu lucro.`
             : total >= 100
-            ? `A soma passou de 100% (${fmtPct(total)}): não tem preço que pague. Confira as despesas e o quanto a loja vende por mês.`
+            ? gastosMesR > 0 && vendasMes && gastosMesR >= vendasMes
+              ? `Os gastos do mês (${R(gastosMesR)}) são iguais ou maiores do que a loja vende por mês (${R(vendasMes)}): não sobra nada para o custo dos produtos. Confira os gastos ou o quanto a loja vende.`
+              : `As partes chegaram a 100% de cada venda: não sobra nada para pagar o custo do produto. Diminua algum valor acima.`
             : lucroEmValor
             ? `De cada R$ 100,00 vendidos: R$ ${fmt(total)} vão para taxas, despesas e impostos. O resto paga o custo do produto e o seu lucro de R$ ${fmt(p.lucroValor)} em cada venda.`
             : `De cada R$ 100,00 vendidos: R$ ${fmt(total - p.lucro)} vão para taxas, despesas e impostos, R$ ${fmt(p.lucro)} são o seu lucro e R$ ${fmt(100 - total)} pagam o custo do produto.`}
@@ -705,7 +727,7 @@ function PrecoCerto({ produtos, custos, daFicha }) {
         )}
         <p className="fin-explica">
           {total >= 100
-            ? "As despesas e o lucro passaram de 100% de cada venda: confira os valores acima antes de olhar os preços."
+            ? "As despesas e o lucro chegaram a 100% de cada venda: confira os valores acima antes de olhar os preços."
             : abaixo > 0
             ? `${abaixo} ${abaixo === 1 ? "produto está" : "produtos estão"} abaixo do preço ideal.`
             : linhas.some((l) => l.r.situacao === "bom")
