@@ -34,12 +34,15 @@ import {
 import { db } from "../../firebase";
 import { baixarInsumos } from "../../utils/insumos";
 import { AVISO_PARCIAL, temPagamentoParcial } from "../../utils/contaMesa";
+import { useSouDono } from "../../tenant";
 import AvisoCaixa from "../../components/AvisoCaixa";
 
 function Dashboard() {
   // Funções que a IFTech pode desligar só nesta loja (Central da Loja).
   const viagemLigado = useRecurso("viagem");
-  const financasLigado = useRecurso("financas");
+  // Dinheiro só para o dono.
+  const souDono = useSouDono();
+  const financasLigado = useRecurso("financas") && souDono;
   const nomeLoja = useNomeLoja();
   const [faturamentoDia, setFaturamentoDia] = useState(0);
   const [mesas, setMesas] = useState([]);

@@ -27,6 +27,7 @@ import { slugify, formatarMoeda } from "../../utils/texto";
 import "../../styles/Garcom/Produtos.css";
 import { useRecurso } from "../../recursos";
 import FotoProduto from "../../components/FotoProduto";
+import { useSouDono } from "../../tenant";
 import EditorOpcoes, { erroDasOpcoes, opcoesParaEditar, opcoesParaSalvar } from "../../components/EditorOpcoes";
 import { useFotos } from "../../utils/fotos";
 import { FichaDoProduto } from "../../components/FichaTecnica";
@@ -46,7 +47,8 @@ const normalizar = (t) =>
 
 function Produtos() {
   // Planos Completo e Premium: ingredientes (ficha técnica), custo e preço certo dentro do produto.
-  const financasLigado = useRecurso("custos");
+  const souDono = useSouDono();
+  const financasLigado = useRecurso("custos") && souDono;
   // Fotos dos produtos: planos Completo e Premium.
   const fotosLigado = useRecurso("fotos");
   const fotos = useFotos(fotosLigado);

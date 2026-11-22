@@ -3,6 +3,7 @@
 import { Link, useSearchParams } from "react-router-dom";
 import SeLigado from "./SeLigado";
 import { useRecursos } from "../recursos";
+import { useSouDono } from "../tenant";
 import "../styles/Garcom/Area.css";
 
 /**
@@ -14,7 +15,9 @@ export default function Area({ titulo, icone, texto, abas: todas, padrao, param 
   const [params, setParams] = useSearchParams();
   const nomes = [...new Set(todas.flatMap((a) => (a.recurso ? [].concat(a.recurso) : [])))];
   const ligados = useRecursos(nomes);
-  const tem = (a) => !a.recurso || [].concat(a.recurso).some((r) => ligados[r]);
+  const souDono = useSouDono();
+  // Aba só do dono (Preço certo, Dinheiro): a equipe nem vê.
+  const tem = (a) => (!a.soDono || souDono) && (!a.recurso || [].concat(a.recurso).some((r) => ligados[r]));
   const visiveis = todas.filter(tem);
   // Nenhuma aba no plano (entrou pelo endereço): mostra o aviso da primeira.
   const abas = visiveis.length ? visiveis : todas.slice(0, 1);
@@ -34,7 +37,12 @@ export default function Area({ titulo, icone, texto, abas: todas, padrao, param 
       ))}
     </div>
   );
-  const tela = atual.recurso && !tem(atual) ? (
+  const tela = atual.soDono && !souDono ? (
+    <div className="container" style={{ padding: 24 }}>
+      <h1 style={{ marginTop: 8 }}>Só para o dono da loja</h1>
+      <p>Esta parte (dinheiro, custos e preços) fica só com o dono da loja.</p>
+    </div>
+  ) : atual.recurso && !tem(atual) ? (
     <SeLigado recurso={[].concat(atual.recurso)[0]} embutido>
       {atual.tela()}
     </SeLigado>

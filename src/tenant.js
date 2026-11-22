@@ -3,6 +3,7 @@
 // Cada loja é um documento mesasLojas/<id> (criado pelo site da IFTech na contratação) com o
 // nome, a lista de e-mails da equipe e se está no ar. Só o servidor da IFTech altera esse
 // documento; os dados da loja ficam em mesasLojas/<id>/<coleção>.
+import { useEffect, useState } from "react";
 import { GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithCredential, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
 import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
 import { auth, db } from "./firebase";
@@ -19,6 +20,23 @@ export const getTenant = () => state;
 export function subscribeTenant(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
+}
+
+/** Quem entrou é o dono da loja? (só o dono vê Dinheiro, Preço certo e as configurações da loja). Loja única: sim. */
+export function souDonoAgora() {
+  if (!MULTI) return true;
+  const eu = String(state.user?.email || auth.currentUser?.email || "").toLowerCase();
+  const dono = String(state.loja?.ownerEmail || "").toLowerCase();
+  return !!eu && eu === dono;
+}
+export function useSouDono() {
+  const [dono, setDono] = useState(souDonoAgora);
+  useEffect(() => {
+    const fn = () => setDono(souDonoAgora());
+    fn();
+    return subscribeTenant(fn);
+  }, []);
+  return dono;
 }
 function savedId() {
   try {
