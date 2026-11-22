@@ -25,3 +25,7 @@
 .eo-novo { border: 1.5px dashed #16a34a; color: #15803d; background: transparent; border-radius: 12px; padding: 10px; font-weight: 700; cursor: pointer; }
 .eo-tirar { border: 0; background: none; color: #dc2626; font-size: 13px; font-weight: 700; cursor: pointer; }
 .prod-ficha-custo summary { cursor: pointer; font-weight: 700; color: var(--text); padding: 8px 0; }
+.eo-cabeca { display: flex; justify-content: flex-end; gap: 10px; font-size: 12px; font-weight: 700; color: var(--muted, #6b7280); padding: 0 44px 0 0; }
+.eo-cabeca span:first-child { margin-right: auto; }
+.eo-qtd { width: 54px !important; }
+.eo-aviso { margin: 6px 0 0; padding: 8px 10px; border-radius: 10px; background: #fef3c7; color: #92400e; font-size: 13px; font-weight: 600; }
