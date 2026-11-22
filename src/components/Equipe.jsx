@@ -1,4 +1,5 @@
 // Sistema de Mesas da IFTech: o dono cadastra o e-mail Google de cada garçom.
+import { ehAcessoPorLink } from "../tenant";
 import { useEffect, useState } from "react";
 import { getTenant, mesasApi, sair, subscribeTenant } from "../tenant";
 
@@ -12,6 +13,8 @@ export default function Equipe() {
   if (!loja) return null;
   const eu = (t.user?.email || "").toLowerCase();
   const dono = String(loja.ownerEmail || "").toLowerCase();
+  // Acesso por link da IFTech (cliente sem acesso ao e-mail): mostra o nome do celular, não o e-mail interno.
+  const nomeDoLink = (m) => Object.values(loja.acessosPorLink || {}).find((x) => x?.email === m)?.nome || "";
   const souDono = eu === dono;
 
   async function mudar(corpo) {
@@ -37,7 +40,7 @@ export default function Equipe() {
         {(loja.memberEmails || []).map((m) => (
           <li key={m} style={{ display: "flex", justifyContent: "space-between", gap: 8, padding: "6px 0", borderTop: "1px solid rgba(0,0,0,.08)", fontSize: 14 }}>
             <span style={{ wordBreak: "break-all" }}>
-              {m} {m === dono ? "(dono)" : ""}
+              {ehAcessoPorLink(m) ? `📱 Entrada por link${nomeDoLink(m) ? ` (${nomeDoLink(m)})` : ""}` : m} {m === dono ? "(dono)" : ""}
             </span>
             {souDono && m !== dono && (
               <button disabled={busy} onClick={() => mudar({ remove: m })} style={{ border: "none", background: "none", color: "#b91c1c" }}>
@@ -69,7 +72,7 @@ export default function Equipe() {
       )}
       {msg && <p style={{ fontSize: 13, marginTop: 8 }}>{msg}</p>}
       <p style={{ fontSize: 13, marginTop: 12, opacity: 0.8 }}>
-        Conectado como {eu}.{" "}
+        Conectado como {ehAcessoPorLink(eu) ? `entrada por link${nomeDoLink(eu) ? ` (${nomeDoLink(eu)})` : ""}` : eu}.{" "}
         <button onClick={() => sair()} style={{ border: "none", background: "none", color: "#e11d48", padding: 0, textDecoration: "underline" }}>
           Sair
         </button>

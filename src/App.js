@@ -1,3 +1,4 @@
+import EntrarPorLink from "./components/EntrarPorLink";
 import CardapioOnline from "./pages/Cliente/CardapioOnline";
 import { BrowserRouter, Routes, Route, useParams } from "react-router-dom";
 import { MULTI } from "./loja";
@@ -41,6 +42,7 @@ function App() {
       <Routes>
         {MULTI && <Route path="/c/:loja/mesa-cliente/:mesa" element={<MesaDaLoja />} />}
         {MULTI && <Route path="/c/:loja/cardapio" element={<CardapioDaLoja />} />}
+        {MULTI && <Route path="/entrar" element={<EntrarPorLink />} />}
         {!MULTI && <Route path="/mesa-cliente/:mesa" element={<ErroTela><CardapioMesa /></ErroTela>} />}
         <Route path="/*" element={MULTI ? <LojaGate><TelasEquipe /></LojaGate> : <TelasEquipe />} />
       </Routes>

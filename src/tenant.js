@@ -3,7 +3,7 @@
 // Cada loja é um documento mesasLojas/<id> (criado pelo site da IFTech na contratação) com o
 // nome, a lista de e-mails da equipe e se está no ar. Só o servidor da IFTech altera esse
 // documento; os dados da loja ficam em mesasLojas/<id>/<coleção>.
-import { GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithCredential, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
+import { GoogleAuthProvider, getRedirectResult, onAuthStateChanged, signInWithCredential, signInWithEmailAndPassword, signInWithPopup, signInWithRedirect, signOut } from "firebase/auth";
 import { collection, doc, onSnapshot, query, where } from "firebase/firestore";
 import { auth, db } from "./firebase";
 import { MULTI, setLoja } from "./loja";
@@ -85,6 +85,21 @@ if (process.env.REACT_APP_EMULATOR === "1") {
   window.__entrarTeste = (email) => signInWithCredential(auth, GoogleAuthProvider.credential(JSON.stringify({ sub: email, email, email_verified: true })));
 }
 
+/** Acesso criado pelo link de entrada da IFTech (cliente sem acesso ao e-mail). Mesmo padrão das regras do banco. */
+export const ehAcessoPorLink = (email) => /^c[a-z0-9]{20}@acesso\.iftechpe\.com\.br$/.test(String(email || "").toLowerCase());
+
+/** Entra com o link de entrada (/mesas/entrar#<código>): o servidor cria o acesso deste celular. */
+export async function entrarComLink(token) {
+  const r = await mesasApi("entrar", { token }, false);
+  await signInWithEmailAndPassword(auth, r.email, r.senha);
+  try {
+    localStorage.setItem(SAVED_KEY, r.lojaId);
+  } catch {
+    /* sem armazenamento: escolhe a loja na próxima tela */
+  }
+  return r;
+}
+
 /** Liga o login (só no modo várias lojas, e só nas telas da equipe). */
 let started = false;
 export function iniciarLogin() {
@@ -96,7 +111,8 @@ export function iniciarLogin() {
     listUnsub?.();
     if (!user) return set({ status: "signed-out", user: null, lojas: [] });
     const email = (user.email || "").toLowerCase();
-    if (!email || !user.emailVerified) return set({ status: "no-store", user, lojas: [] });
+    // Google (e-mail verificado) ou o acesso por link da IFTech (e-mail interno, sem caixa de e-mail).
+    if (!email || !(user.emailVerified || ehAcessoPorLink(email))) return set({ status: "no-store", user, lojas: [] });
     set({ user });
     listUnsub = onSnapshot(
       query(collection(db, "mesasLojas"), where("memberEmails", "array-contains", email)),
