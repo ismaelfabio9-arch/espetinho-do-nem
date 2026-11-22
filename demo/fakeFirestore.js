@@ -6,7 +6,7 @@
 
 // v2: pratos com "montar o prato" (pedido rápido do almoço); quem já abriu recebe o exemplo novo.
 // v3: cadastro por tipo (picolés com sabor, tapioca com recheio).
-export const STORAGE_KEY = "iftech_demo_mesas_v4";
+export const STORAGE_KEY = "iftech_demo_mesas_v5";
 
 class Timestamp {
   constructor(ms) {

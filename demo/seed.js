@@ -26,7 +26,20 @@ const CARDAPIO = [
   ["Sobremesas", [["Pudim", 8, 20], ["Mousse de maracujá", 7, 20], ["Cocada", 5, 30]]],
   ["Picolés", [["Picolé de fruta", 4, 60], ["Picolé ao leite", 5, 60], ["Picolé recheado", 7, 40]]],
   ["Tapiocas", [["Tapioca", 6, 40]]],
+  ["Pastéis", [["Pastel", 13, 60]]],
 ];
+
+// Pastel montado pelo cliente: o tamanho diz quantos recheios (6 ou 10), Misto sorteia; acompanhamentos e molhos à vontade.
+const MONTAGEM_PASTEL = {
+  vem: [],
+  escolhas: [
+    { nome: "Tamanho", opcoes: ["6 sabores", "10 sabores"], precos: { "10 sabores": 3 } },
+    { nome: "Recheios", opcoes: ["Carne moída", "Queijo coalho", "Queijo mussarela", "Cheddar", "Catupiry", "Frango", "Presunto", "Calabresa", "Camarão", "Bacon"], maxDe: "Tamanho", maxPor: { "6 sabores": 6, "10 sabores": 10 } },
+    { nome: "Acompanhamentos", opcoes: ["Milho", "Ervilha", "Azeitona", "Tomate", "Cebola", "Ovo de codorna"], livre: true },
+    { nome: "Molhos", opcoes: ["Creme de alho", "Maionese especial", "Ketchup", "Barbecue"], livre: true },
+  ],
+  extras: [{ nome: "Queijo a mais", preco: 2 }],
+};
 
 const MESAS = 15;
 
@@ -48,7 +61,7 @@ export function seedDemo() {
     cols.categorias[slug(categoria)] = { nome: categoria, ordem: ordemCat, ativo: true, tipo: tipoPelaCategoria(categoria), criadoEm: new Timestamp(now), atualizadoEm: iso(now) };
     itens.forEach(([nome, preco, qtd], ordem) => {
       const id = slug(`${categoria}-${nome}`);
-      cols.produtos[id] = { categoria, nome, preco, ativo: true, ordem, criadoEm: new Timestamp(now), tipo: tipoPelaCategoria(categoria), ...(ehCategoriaDePrato(categoria) ? { montagem: MONTAGEM_ALMOCO } : OPCOES[nome] ? { montagem: OPCOES[nome] } : {}) };
+      cols.produtos[id] = { categoria, nome, preco, ativo: true, ordem, criadoEm: new Timestamp(now), tipo: tipoPelaCategoria(categoria), ...(nome === "Pastel" ? { montagem: MONTAGEM_PASTEL } : ehCategoriaDePrato(categoria) ? { montagem: MONTAGEM_ALMOCO } : OPCOES[nome] ? { montagem: OPCOES[nome] } : {}) };
       cols.estoque[id] = { nome, categoria, quantidade: qtd, atualizadoEm: iso(now) };
       itensPorNome[nome] = { produtoId: id, nome, preco };
     });
