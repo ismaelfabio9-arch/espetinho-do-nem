@@ -7,7 +7,7 @@ import { L } from "../loja";
 import { custoDaFicha, daFicha, daParaQuantos, itensJuntos, mostrarQtd, paraFicha, unidadeDe } from "../utils/insumos";
 import { tipoDe } from "../utils/montagem";
 import { lerValor } from "../utils/financas";
-import { contribuicaoDe, pctPorVenda, pesoIngredientes, precoBonito } from "../utils/precificacao";
+import { contaDoProduto, pesoIngredientes, precoBonito } from "../utils/precificacao";
 import "../styles/Garcom/Financas.css";
 import "../styles/Garcom/Insumos.css";
 
@@ -471,19 +471,22 @@ export function PrecoNoProduto({ custo, preco }) {
       </div>
     );
   }
-  const pv = pctPorVenda(salvo);
-  const c = contribuicaoDe(custo, p, pv);
+  const c = contaDoProduto(custo, p, salvo);
   if (!c) return null;
-  const taxas = Math.round(((p * pv) / 100) * 100) / 100;
   return (
-    <div className={`pnp ${c.contrib > 0 ? "bom" : "baixo"}`}>
+    <div className={`pnp ${c.lucro > 0 ? "bom" : "baixo"}`}>
       <div className="pnp-conta">
         <span>Preço de hoje</span><b>{R(p)}</b>
-        <span>− Ingredientes (comida)</span><b>{R(custo)}</b>
-        {taxas > 0 && (<><span>− Maquininha, impostos e variáveis</span><b>{R(taxas)}</b></>)}
-        <span className="pnp-total">= Lucro por unidade</span><b className="pnp-total">{R(c.contrib)}</b>
+        <span>− Ingredientes (com a embalagem)</span><b>{R(custo)}</b>
+        {c.taxas > 0 && (<><span>− Maquininha e impostos</span><b>{R(c.taxas)}</b></>)}
+        {c.parteContas > 0 && (<><span>− Parte das contas da loja</span><b>{R(c.parteContas)}</b></>)}
+        <span className="pnp-total">= Lucro para você</span><b className="pnp-total">{R(c.lucro)}</b>
       </div>
-      <p>Margem real de {String(c.margem).replace(".", ",")}%. Se esse lucro paga as despesas e a sua meta, o Preço certo mostra no resultado do mês.</p>
+      <p>
+        {c.faltaVendas
+          ? "Falta a parte das contas: diga quanto a loja vende por mês em Preço certo."
+          : `${String(c.margem).replace(".", ",")}% do preço é lucro.${c.minimo ? ` Abaixo de ${R(c.minimo)} dá prejuízo.` : ""}`}
+      </p>
     </div>
   );
 }

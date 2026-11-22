@@ -191,3 +191,7 @@
 .pc-prod .pc-preco { padding: 0 4px 12px; }
 .pc-prod .pc-preco .pc-input input { width: 78px; }
 .fin-ok-msg { color: #15803d; font-weight: 700; margin: 8px 0 0; }
+.pc-conta-prod { display: grid; grid-template-columns: 1fr auto; gap: 3px 12px; margin: 4px 4px 8px; padding: 10px 12px; border-radius: 12px; background: var(--card-2); font-size: 14px; }
+.pc-conta-prod span { color: var(--muted); }
+.pc-conta-prod b { text-align: right; font-variant-numeric: tabular-nums; }
+.pc-conta-prod .pc-total { color: var(--text); font-weight: 800; border-top: 1px solid var(--border); padding-top: 4px; }
