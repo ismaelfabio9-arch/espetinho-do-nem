@@ -10,7 +10,7 @@ import { mesasApi } from "../../tenant";
 import { ordenarGruposPorCategoria } from "../../utils/categorias";
 import MontarPrato from "../../components/MontarPrato";
 import PratoNoPedido from "../../components/PratoNoPedido";
-import PedidoRapido from "../../components/PedidoRapido";
+import { BarraSacola, CardapioCliente, ClienteTopo, Folha, ItensSacola } from "../../components/cliente/Cliente";
 import { useFotos } from "../../utils/fotos";
 import { abreEscolha, emojiCategoria, sugestoesBebida } from "../../utils/montagem";
 import { useRecurso } from "../../recursos";
@@ -33,6 +33,7 @@ function lerGuardado() {
 
 export default function CardapioOnline() {
   const nomeLoja = useNomeLoja();
+  const [sacolaAberta, setSacolaAberta] = useState(false);
   const entrega = useEntrega();
   const ligadoNoPlano = useRecurso("pedido-online");
   const montarLigado = useRecurso("montar-prato");
@@ -190,28 +191,28 @@ export default function CardapioOnline() {
     setEtapa("dados");
   }
 
-  if (!entrega.carregado) return <div className="online"><p className="online-vazio">Carregando o cardápio…</p></div>;
+  if (!entrega.carregado) return <div className="online cl-pagina"><p className="online-vazio">Carregando o cardápio…</p></div>;
   const aberta = ligadoNoPlano && entrega.ligado;
 
   return (
-    <div className="online">
-      <header className="online-topo">
-        <span className="online-eyebrow">🛵 Cardápio online</span>
-        <h1>{nomeLoja || "Cardápio"}</h1>
-        {aberta ? (
-          <p>
-            {temRetirada ? "Entrega ou retirada no balcão" : "Entrega"} · taxa de entrega R$ {moeda(entrega.taxa)} · pagamento na entrega
-          </p>
-        ) : (
-          <p className="online-fechado">A loja não está recebendo pedidos pelo site agora. Você pode ver o cardápio.</p>
-        )}
-        {whatsLoja && (
-          <a className="whats-btn claro online-whats" href={linkWhats(whatsLoja, `Olá! Vim pelo cardápio online da ${nomeLoja || "loja"}.`)} target="_blank" rel="noopener noreferrer">
-            💬 Falar com a loja no WhatsApp
-          </a>
-        )}
-        {aberta && repassaAlguma(taxas) && <p className="online-aviso">💳 No cartão, tem o acréscimo da taxa da maquininha. Pix e dinheiro sem acréscimo.</p>}
-      </header>
+    <div className="online cl-pagina">
+      {etapa === "cardapio" ? (
+        <ClienteTopo
+          nome={nomeLoja}
+          linha={aberta ? `${temRetirada ? "Entrega ou retirada no balcão" : "Entrega"} · pagamento na ${temRetirada ? "entrega ou retirada" : "entrega"}` : "A loja não está recebendo pedidos pelo site agora. Você pode ver o cardápio."}
+          selos={[
+            aberta ? { texto: "🟢 Aberto para pedidos", tom: "verde" } : { texto: "⏸️ Pedidos pausados", tom: "laranja" },
+            aberta ? { texto: `🛵 Entrega R$ ${moeda(entrega.taxa)}` } : null,
+            aberta && temRetirada ? { texto: "🏪 Retirada grátis" } : null,
+          ]}
+          aviso={aberta && repassaAlguma(taxas) ? "💳 No cartão tem o acréscimo da taxa da maquininha. Pix e dinheiro sem acréscimo." : null}
+          acoes={[whatsLoja && { icone: "💬", texto: "WhatsApp", sub: "falar com a loja", href: linkWhats(whatsLoja, `Olá! Vim pelo cardápio online da ${nomeLoja || "loja"}.`) }]}
+        />
+      ) : (
+        <header className="online-topo cl-miolo" style={{ paddingTop: 16 }}>
+          <span className="online-eyebrow">🛵 {nomeLoja || "Cardápio online"}</span>
+        </header>
+      )}
 
       {etapa === "feito" && feito ? (
         <section className="online-feito">
@@ -327,7 +328,7 @@ export default function CardapioOnline() {
         </section>
       ) : (
         <>
-          <PedidoRapido
+          <CardapioCliente
             fotos={fotos}
             categorias={produtos}
             contagem={(item) => porProduto[item.id] || 0}
@@ -336,12 +337,32 @@ export default function CardapioOnline() {
             indisponivel={esgotado}
             montar={montarLigado}
           />
-          {aberta && qtdItens > 0 && (
-            <div className="online-barra">
-              <button type="button" className="online-btn" onClick={verPedido}>
-                Ver pedido · {qtdItens} {qtdItens === 1 ? "item" : "itens"} · R$ {moeda(subtotal)}
-              </button>
-            </div>
+          {aberta && <BarraSacola qtd={qtdItens} total={subtotal} onClick={() => setSacolaAberta(true)} />}
+          {sacolaAberta && (
+            <Folha
+              titulo="🛍️ Sua sacola"
+              onFechar={() => setSacolaAberta(false)}
+              rodape={
+                <>
+                  <div className="cl-total">
+                    <span>{qtdItens} {qtdItens === 1 ? "item" : "itens"} (sem a entrega)</span>
+                    <strong>R$ {moeda(subtotal)}</strong>
+                  </div>
+                  <button type="button" className="cl-btn" disabled={!linhas.length} onClick={() => { setSacolaAberta(false); verPedido(); }}>
+                    Continuar: entrega e pagamento
+                  </button>
+                  <button type="button" className="cl-btn claro" onClick={() => setSacolaAberta(false)}>Continuar escolhendo</button>
+                </>
+              }
+            >
+              <ItensSacola
+                linhas={linhas}
+                onMais={(c) => ajustar(c, 1)}
+                onMenos={(c) => ajustar(c, -1)}
+                onEditar={(l) => { setSacolaAberta(false); editarLinha(l); }}
+                podeEditar={(l) => !!produtoPorId(l.produtoId)}
+              />
+            </Folha>
           )}
         </>
       )}
