@@ -52,10 +52,6 @@ export function marcarComoImpresso(chave) {
   }
 }
 
-function larguraEmPx(larguraPapel) {
-  return larguraPapel === "80mm" ? 302 : 219; // ~58mm e ~80mm a 96dpi
-}
-
 function cabecalho(config) {
   return `
     <div class="linha-central negrito grande">${escapeHtml(
@@ -179,12 +175,12 @@ export function imprimir(conteudoHTML, larguraPapel = "58mm") {
         "@page { margin: 0; size: " + largura + "px auto; }" +
         "* { box-sizing: border-box; }" +
         "html, body { margin: 0; background: #fff; }" +
-        // Fonte grossa: vale para a cópia em texto (se a imagem falhar) e para medir a imagem.
+        // Fonte em negrito: vale para a cópia em texto (se a imagem falhar) e para medir a imagem.
         "body { width: " + largura + "px; margin: 0 auto; padding: 10px 8px 24px; font-family: Arial, Helvetica, sans-serif;" +
-        " font-size: 14px; line-height: 1.3; font-weight: 900; -webkit-text-stroke: 0.35px #000; color: #000;" +
+        " font-size: 14px; line-height: 1.3; font-weight: 700; color: #000;" +
         " -webkit-print-color-adjust: exact; print-color-adjust: exact; }" +
         ".linha-central { text-align: center; }" +
-        ".negrito { font-weight: 900; }" +
+        ".negrito { font-weight: 700; }" +
         ".grande { font-size: 18px; }" +
         ".pequeno { font-size: 12px; }" +
         ".separador { border-top: 2px dashed #000; margin: 8px 0; }" +
@@ -218,7 +214,7 @@ export function imprimir(conteudoHTML, larguraPapel = "58mm") {
       var canvas = document.createElement("canvas");
       var ctx = canvas.getContext("2d");
       function fonte(px) {
-        return "900 " + px * escala + "px Arial, Helvetica, sans-serif";
+        return "bold " + px * escala + "px Arial, Helvetica, sans-serif";
       }
       function quebrar(texto, px, max) {
         ctx.font = fonte(px);
@@ -309,16 +305,13 @@ export function imprimir(conteudoHTML, larguraPapel = "58mm") {
         var xTexto = cmd.alinhar === "center" ? (largura / 2) * escala : cmd.alinhar === "right" ? (largura - margem) * escala : margem * escala;
         var yTexto = (cmd.y + (cmd.px * 1.3 - cmd.px) / 2) * escala;
         ctx.fillText(cmd.texto, xTexto, yTexto);
-        // Engrossa um pouco o traço (como o contorno do texto) para a cabeça térmica.
-        ctx.lineWidth = (cmd.px <= 12 ? 0.35 : 0.6) * escala;
-        ctx.strokeText(cmd.texto, xTexto, yTexto);
       }
 
       // Preto e branco puro: sem nenhum tom de cinza.
       var imagem = ctx.getImageData(0, 0, canvas.width, canvas.height);
       var d = imagem.data;
       for (var p = 0; p < d.length; p += 4) {
-        var cor = d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114 < 170 ? 0 : 255;
+        var cor = d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114 < 128 ? 0 : 255;
         d[p] = d[p + 1] = d[p + 2] = cor;
         d[p + 3] = 255;
       }

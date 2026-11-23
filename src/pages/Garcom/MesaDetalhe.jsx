@@ -26,6 +26,7 @@ import {
   jaImprimiu,
   marcarComoImpresso,
 } from "../../utils/print";
+import { numeroDoPedido } from "../../utils/numeroPedido";
 import "../../styles/Garcom/MesaDetalhe.css";
 import PedidoRapido from "../../components/PedidoRapido";
 import MontarPrato from "../../components/MontarPrato";
@@ -624,7 +625,7 @@ if (pedidosDaMesa.length === 0) {
 
   async function imprimirComandaAgora(itensParaImprimir, totalParaImprimir, observacoes) {
     const html = gerarComandaHTML({
-      numeroPedido: pedidoMesaId || Date.now(),
+      numeroPedido: await numeroDoPedido(pedidoMesaId),
       mesa: id,
       cliente: nomeCliente,
       itens: itensParaImprimir,
