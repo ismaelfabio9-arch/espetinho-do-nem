@@ -457,7 +457,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
                 </div>
                 <div className="ficha-varia-qtds">
                   {grupoVaria.opcoes.map((op) => (
-                    <label key={op}>
+                    <div key={op} className="ficha-varia-celula">
                       <span>{op}</span>
                       <span className="ficha-varia-campo">
                         <input
@@ -468,7 +468,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
                         />
                         {u.sub}
                       </span>
-                    </label>
+                    </div>
                   ))}
                 </div>
               </div>
