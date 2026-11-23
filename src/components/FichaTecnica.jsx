@@ -341,7 +341,10 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
     setMsg("");
   };
   // Só escolhas que mudam o preço ou que são de tamanho/porção (no feijão Carioca ou Preto a quantidade é a mesma).
-  const gruposVaria = grupos.filter((g) => g.temPreco || /tamanh|por[cç][aã]o|peso|grama|quilo|kg|ml|litro/i.test(g.nome) || g.nome === ficha?.variaPor?.grupo);
+  const pareceTamanho = (g) =>
+    /tamanh|por[cç][aã]o|peso|grama|quilo|kg|ml|litro/i.test(g.nome) ||
+    g.opcoes.some((o) => /pequen|m[eé]di[oa]|grande|fam[ií]lia|\b[PMG]\b|\d+\s*(ml|l|g|kg|cm)\b/i.test(o));
+  const gruposVaria = grupos.filter((g) => g.temPreco || pareceTamanho(g) || g.nome === ficha?.variaPor?.grupo);
   const grupoVaria = gruposVaria.find((g) => g.nome === varia.grupo) || gruposVaria.find((g) => /tamanh/i.test(g.nome)) || gruposVaria[0] || null;
   const variaPor = (() => {
     if (!grupoVaria) return null;
