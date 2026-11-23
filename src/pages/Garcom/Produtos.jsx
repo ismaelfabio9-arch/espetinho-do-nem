@@ -62,7 +62,8 @@ function gruposDaFicha(ficha) {
       const ops = (g.opcoes || []).filter((o) => String(o.nome || "").trim());
       if (ops.length < 2 || Number(g.max) > 1 || g.livre || g.maxDe) return null;
       const preco = Object.fromEntries(ops.map((o) => [o.nome.trim(), i === ic ? n(o.mais) || base : base + n(o.mais)]));
-      return { nome: String(g.nome || "").trim() || "Escolha", opcoes: ops.map((o) => o.nome.trim()), preco };
+      const temPreco = ops.some((o) => n(o.mais) > 0);
+      return { nome: String(g.nome || "").trim() || "Escolha", opcoes: ops.map((o) => o.nome.trim()), preco, temPreco };
     })
     .filter(Boolean);
 }
