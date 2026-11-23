@@ -155,82 +155,201 @@ export function gerarComprovanteHTML({ mesa, cliente, itens, total, formaPagamen
  * para impressora térmica. Retorna uma Promise que resolve quando o
  * diálogo de impressão foi acionado (não garante que a impressão
  * física foi concluída — isso depende do driver do dispositivo).
+ *
+ * O cupom vai como IMAGEM só em preto e branco puro, no tamanho de pontos da
+ * impressora térmica (203 dpi: 576 pontos no papel de 80 mm, 384 no de 58 mm).
+ * Texto do navegador tem bordas em cinza (suavização); o driver da térmica
+ * transforma esse cinza em pontinhos espalhados e a letra sai fraca/falhada.
+ * Sem cinza nenhum, cada ponto é queimado por inteiro. Se algo falhar, imprime
+ * o texto normal (o HTML com fonte grossa) como antes.
  */
 export function imprimir(conteudoHTML, larguraPapel = "58mm") {
-  return new Promise((resolve) => {
-    const largura = larguraEmPx(larguraPapel);
-    const janela = window.open("", "_blank", "width=380,height=600");
+  return new Promise(function (resolve) {
+    var largura = larguraPapel === "80mm" ? 302 : 219; // ~80mm e ~58mm a 96dpi
+    var pontos = larguraPapel === "80mm" ? 576 : 384; // pontos da cabeça térmica (203 dpi)
+    var janela = window.open("", "_blank", "width=380,height=600");
 
     if (!janela) {
       resolve(false);
       return;
     }
 
-    janela.document.write(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8" />
-          <title>Impressão</title>
-          <style>
-            @page { margin: 0; size: ${largura}px auto; }
-            * { box-sizing: border-box; }
-            body {
-              width: ${largura}px;
-              margin: 0 auto;
-              padding: 10px 8px 24px;
-              /* Impressora térmica pelo navegador: fonte fina (Courier) sai clara ou falhada.
-                 Arial no negrito máximo, com contorno, e preto puro sem clarear. */
-              font-family: Arial, Helvetica, sans-serif;
-              font-size: 14px;
-              line-height: 1.3;
-              font-weight: 900;
-              -webkit-text-stroke: 0.35px #000;
-              -webkit-font-smoothing: none;
-              -webkit-print-color-adjust: exact;
-              print-color-adjust: exact;
-              color: #000;
-              background: #fff;
-            }
-            .linha-central { text-align: center; }
-            .negrito { font-weight: 900; }
-            .grande { font-size: 18px; }
-            .pequeno { font-size: 12px; }
-            .separador {
-              border-top: 2px dashed #000;
-              margin: 8px 0;
-            }
-            .linha-item {
-              display: flex;
-              justify-content: space-between;
-              gap: 8px;
-              padding: 2px 0;
-            }
-          </style>
-        </head>
-        <body>
-          ${conteudoHTML}
-        </body>
-      </html>
-    `);
-
+    janela.document.write(
+      '<!DOCTYPE html><html><head><meta charset="utf-8" /><title>Impressão</title><style>' +
+        "@page { margin: 0; size: " + largura + "px auto; }" +
+        "* { box-sizing: border-box; }" +
+        "html, body { margin: 0; background: #fff; }" +
+        // Fonte grossa: vale para a cópia em texto (se a imagem falhar) e para medir a imagem.
+        "body { width: " + largura + "px; margin: 0 auto; padding: 10px 8px 24px; font-family: Arial, Helvetica, sans-serif;" +
+        " font-size: 14px; line-height: 1.3; font-weight: 900; -webkit-text-stroke: 0.35px #000; color: #000;" +
+        " -webkit-print-color-adjust: exact; print-color-adjust: exact; }" +
+        ".linha-central { text-align: center; }" +
+        ".negrito { font-weight: 900; }" +
+        ".grande { font-size: 18px; }" +
+        ".pequeno { font-size: 12px; }" +
+        ".separador { border-top: 2px dashed #000; margin: 8px 0; }" +
+        ".linha-item { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }" +
+        ".cupom-imagem { display: block; width: " + largura + "px; margin: 0 auto; image-rendering: pixelated; }" +
+        "</style></head><body>" + conteudoHTML + "</body></html>"
+    );
     janela.document.close();
 
-    janela.onload = () => {
-      janela.focus();
-      janela.print();
-      resolve(true);
-    };
-
-    // fallback caso onload não dispare em alguns navegadores mobile
-    setTimeout(() => {
+    var disparado = false;
+    function disparar() {
+      if (disparado) return;
+      disparado = true;
       try {
         janela.focus();
         janela.print();
         resolve(true);
-      } catch {
+      } catch (e) {
         resolve(false);
       }
-    }, 400);
+    }
+
+    function desenharCupom() {
+      var doc = janela.document;
+      var corpo = doc.body;
+      var escala = pontos / largura;
+      var margem = 8; // px (igual ao padding lateral do body)
+      var util = largura - margem * 2;
+
+      // Mede no canvas com a mesma fonte do texto e quebra as linhas compridas.
+      var canvas = document.createElement("canvas");
+      var ctx = canvas.getContext("2d");
+      function fonte(px) {
+        return "900 " + px * escala + "px Arial, Helvetica, sans-serif";
+      }
+      function quebrar(texto, px, max) {
+        ctx.font = fonte(px);
+        var palavras = texto.split(" ");
+        var linhas = [];
+        var atual = "";
+        for (var i = 0; i < palavras.length; i++) {
+          var teste = atual ? atual + " " + palavras[i] : palavras[i];
+          if (atual && ctx.measureText(teste).width > max * escala) {
+            linhas.push(atual);
+            atual = palavras[i];
+          } else {
+            atual = teste;
+          }
+        }
+        if (atual) linhas.push(atual);
+        return linhas.length ? linhas : [""];
+      }
+      function limpo(el) {
+        return String(el.textContent || "").replace(/\s+/g, " ").trim();
+      }
+      function tamanho(el) {
+        var lista = el.classList;
+        return lista.contains("grande") ? 18 : lista.contains("pequeno") ? 12 : 14;
+      }
+
+      // Monta a lista do que desenhar (y em px de tela).
+      var comandos = [];
+      var y = 10;
+      var blocos = corpo.children;
+      for (var b = 0; b < blocos.length; b++) {
+        var el = blocos[b];
+        var mt = parseFloat(el.style.marginTop) || 0;
+        y += mt;
+        if (el.classList.contains("separador")) {
+          y += 8;
+          comandos.push({ tipo: "tracejado", y: y });
+          y += 2 + 8;
+          continue;
+        }
+        var px = tamanho(el);
+        var alturaLinha = Math.round(px * 1.3);
+        if (el.classList.contains("linha-item")) {
+          var partes = el.children;
+          var direita = partes.length > 1 ? limpo(partes[partes.length - 1]) : "";
+          var esquerda = partes.length > 1 ? limpo(partes[0]) : limpo(el);
+          ctx.font = fonte(px);
+          var larguraDireita = direita ? ctx.measureText(direita).width / escala + 8 : 0;
+          var linhasEsq = quebrar(esquerda, px, util - larguraDireita);
+          y += 2;
+          for (var l = 0; l < linhasEsq.length; l++) {
+            comandos.push({ tipo: "texto", texto: linhasEsq[l], px: px, y: y, alinhar: "left" });
+            if (l === 0 && direita) comandos.push({ tipo: "texto", texto: direita, px: px, y: y, alinhar: "right" });
+            y += alturaLinha;
+          }
+          y += 2;
+          continue;
+        }
+        var texto = limpo(el);
+        if (!texto) continue;
+        var centro = el.classList.contains("linha-central");
+        var linhas = quebrar(texto, px, util);
+        for (var k = 0; k < linhas.length; k++) {
+          comandos.push({ tipo: "texto", texto: linhas[k], px: px, y: y, alinhar: centro ? "center" : "left" });
+          y += alturaLinha;
+        }
+      }
+      y += 24;
+
+      canvas.width = pontos;
+      canvas.height = Math.ceil(y * escala);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillStyle = "#000";
+      ctx.strokeStyle = "#000";
+      ctx.textBaseline = "top";
+      for (var c = 0; c < comandos.length; c++) {
+        var cmd = comandos[c];
+        if (cmd.tipo === "tracejado") {
+          var traco = 6 * escala;
+          for (var x = margem * escala; x < (largura - margem) * escala; x += traco * 1.6) {
+            ctx.fillRect(Math.round(x), Math.round(cmd.y * escala), Math.round(traco), Math.max(2, Math.round(2 * escala)));
+          }
+          continue;
+        }
+        ctx.font = fonte(cmd.px);
+        ctx.textAlign = cmd.alinhar;
+        var xTexto = cmd.alinhar === "center" ? (largura / 2) * escala : cmd.alinhar === "right" ? (largura - margem) * escala : margem * escala;
+        var yTexto = (cmd.y + (cmd.px * 1.3 - cmd.px) / 2) * escala;
+        ctx.fillText(cmd.texto, xTexto, yTexto);
+        // Engrossa um pouco o traço (como o contorno do texto) para a cabeça térmica.
+        ctx.lineWidth = (cmd.px <= 12 ? 0.35 : 0.6) * escala;
+        ctx.strokeText(cmd.texto, xTexto, yTexto);
+      }
+
+      // Preto e branco puro: sem nenhum tom de cinza.
+      var imagem = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      var d = imagem.data;
+      for (var p = 0; p < d.length; p += 4) {
+        var cor = d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114 < 170 ? 0 : 255;
+        d[p] = d[p + 1] = d[p + 2] = cor;
+        d[p + 3] = 255;
+      }
+      ctx.putImageData(imagem, 0, 0);
+
+      var img = doc.createElement("img");
+      img.className = "cupom-imagem";
+      img.alt = "";
+      img.onload = disparar;
+      img.onerror = disparar;
+      img.src = canvas.toDataURL("image/png");
+      corpo.style.padding = "0";
+      corpo.innerHTML = "";
+      corpo.appendChild(img);
+    }
+
+    var preparado = false;
+    function preparar() {
+      if (preparado) return;
+      preparado = true;
+      try {
+        desenharCupom();
+        // Se a imagem não avisar que carregou, imprime assim mesmo.
+        setTimeout(disparar, 800);
+      } catch (e) {
+        disparar(); // imprime o texto normal
+      }
+    }
+
+    janela.onload = preparar;
+    // fallback caso onload não dispare em alguns navegadores mobile
+    setTimeout(preparar, 400);
   });
 }
