@@ -7,6 +7,7 @@
 // - "✓ Terminei": confere tudo e as marcas recomeçam. O custo de cada produto sai dos ingredientes dele
 //   (Preço certo → Ingredientes do produto).
 import { useEffect, useMemo, useState } from "react";
+import RegistrarPerda from "../../components/RegistrarPerda";
 import { Link, useSearchParams } from "react-router-dom";
 import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "../../firebase";
@@ -103,7 +104,8 @@ export default function Custos({ produtos, insumos, fichas }) {
   const [salvo, setSalvo] = useState(null); // configuracoes/precificacao (custosConferidoEm e o Preço certo)
   const [editar, setEditar] = useState(null); // ingrediente com o "Comprei…" aberto
   const [novo, setNovo] = useState(false);
-  const [acao, setAcao] = useState(null); // { insumo, tipo: "compra" | "perda" | "contagem" }
+  const [acao, setAcao] = useState(null); // { insumo, tipo: "compra" | "contagem" }
+  const [perdaDe, setPerdaDe] = useState(null);
   const [editarCadastro, setEditarCadastro] = useState(null);
   const [conferido, setConferido] = useState(null);
   const [msg, setMsg] = useState("");
@@ -178,6 +180,7 @@ export default function Custos({ produtos, insumos, fichas }) {
       <div className="cu-resumo">
         <span><b>{ativos.length - semPreco.length}</b> de {ativos.length} ingredientes com preço</span>
         <button type="button" className="btn-verde" onClick={() => setNovo(true)}>+ Novo ingrediente</button>
+        <button type="button" className="pd-novo" style={{ margin: "8px 0 0" }} onClick={() => setPerdaDe(true)}>🍽️ Saída de alimento (queimou, estragou, doação…)</button>
       </div>
       <input className="cu-busca" type="search" placeholder="🔎 Procurar ingrediente pelo nome" aria-label="Procurar ingrediente pelo nome" value={busca} onChange={(e) => setBusca(e.target.value)} />
       <div className="fin-periodos cu-filtros" role="group" aria-label="Filtrar ingredientes">
@@ -224,7 +227,7 @@ export default function Custos({ produtos, insumos, fichas }) {
               <div className="ins-acoes cu-acoes">
                 <button type="button" className="ins-btn" onClick={() => setEditar(i)}>Preço</button>
                 <button type="button" className="ins-btn entrada" onClick={() => setAcao({ insumo: i, tipo: "compra" })}>+ Compra</button>
-                <button type="button" className="ins-btn" onClick={() => setAcao({ insumo: i, tipo: "perda" })}>Perda</button>
+                <button type="button" className="ins-btn" onClick={() => setPerdaDe(i)}>Perda</button>
                 <button type="button" className="ins-btn" onClick={() => setAcao({ insumo: i, tipo: "contagem" })}>Contar</button>
                 <button type="button" className="ins-btn" onClick={() => setEditarCadastro(i)}>Editar</button>
               </div>
@@ -251,6 +254,7 @@ export default function Custos({ produtos, insumos, fichas }) {
       {novo && <NovoInsumo insumos={ativos} fechar={() => setNovo(false)} />}
       {editarCadastro && <NovoInsumo insumos={ativos} editar={editarCadastro} fechar={() => setEditarCadastro(null)} />}
       {acao && <Movimentar acao={acao} fechar={() => setAcao(null)} />}
+      {perdaDe && <RegistrarPerda inicial={perdaDe === true ? {} : { insumo: perdaDe }} fechar={() => setPerdaDe(null)} />}
     </div>
   );
 }

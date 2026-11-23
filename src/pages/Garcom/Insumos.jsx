@@ -5,6 +5,8 @@ import { addDoc, collection, limit, onSnapshot, orderBy, query, serverTimestamp 
 import { auth, db } from "../../firebase";
 import { ajustarInsumo, custoPronto, entradaInsumo, novoCustoCompra, inventario, mostrarQtd, perdasNoPeriodo, previsao, rendimentoDe, unidadeDe } from "../../utils/insumos";
 import { NovoInsumo } from "../../components/FichaTecnica";
+import RegistrarPerda from "../../components/RegistrarPerda";
+import { resumoSaidas } from "../../utils/perdas";
 import { isoDia, periodo } from "../../utils/financas";
 import { lerValor } from "../../utils/financas";
 import "../../styles/Garcom/RelatorioGerencial.css";
@@ -21,7 +23,7 @@ const num = (v) => {
 const ABAS = [
   { id: "estoque", nome: "Estoque" },
   { id: "contagem", nome: "Contagem" },
-  { id: "perdas", nome: "Perdas" },
+  { id: "perdas", nome: "Perdas e saídas" },
   { id: "historico", nome: "Histórico" },
 ];
 const quem = () => auth.currentUser?.email || "";
@@ -111,7 +113,8 @@ function Insumos({ embutido = false, dia = null, semLista = false }) {
 }
 
 function Estoque({ insumos, prev, perdasMes, verPerdas }) {
-  const [acao, setAcao] = useState(null); // { insumo, tipo: "compra" | "perda" | "contagem" }
+  const [acao, setAcao] = useState(null); // { insumo, tipo: "compra" | "contagem" }
+  const [perdaDe, setPerdaDe] = useState(null); // ingrediente (ou true: escolher na janela)
   const [form, setForm] = useState(null); // { insumo? } novo ou editar
   return (
     <>
@@ -120,6 +123,7 @@ function Estoque({ insumos, prev, perdasMes, verPerdas }) {
           <h2>Ingredientes</h2>
           <button type="button" className="btn-verde" onClick={() => setForm({})}>+ Novo ingrediente</button>
         </div>
+        <button type="button" className="pd-novo" onClick={() => setPerdaDe(true)}>🍽️ Registrar saída de alimento (queimou, estragou, doação…)</button>
         {perdasMes.total > 0 && (
           <button type="button" className="ins-perdas-resumo" onClick={verPerdas}>
             <span>Perdas este mês</span>
@@ -159,7 +163,7 @@ function Estoque({ insumos, prev, perdasMes, verPerdas }) {
                   <span className={`ins-qtd ${estado}`}>{mostrarQtd(q, i.unidade)}</span>
                   <div className="ins-acoes">
                     <button type="button" className="ins-btn entrada" onClick={() => setAcao({ insumo: i, tipo: "compra" })}>+ Compra</button>
-                    <button type="button" className="ins-btn" onClick={() => setAcao({ insumo: i, tipo: "perda" })}>Perda</button>
+                    <button type="button" className="ins-btn" onClick={() => setPerdaDe(i)}>Perda</button>
                     <button type="button" className="ins-btn" onClick={() => setAcao({ insumo: i, tipo: "contagem" })}>Contar</button>
                     <button type="button" className="ins-btn" onClick={() => setForm({ insumo: i })}>Editar</button>
                   </div>
@@ -173,6 +177,7 @@ function Estoque({ insumos, prev, perdasMes, verPerdas }) {
 
 
       {acao && <Movimentar acao={acao} fechar={() => setAcao(null)} />}
+      {perdaDe && <RegistrarPerda inicial={perdaDe === true ? {} : { insumo: perdaDe }} fechar={() => setPerdaDe(null)} />}
       {form && <NovoInsumo insumos={insumos} editar={form.insumo} fechar={() => setForm(null)} />}
     </>
   );
@@ -357,40 +362,73 @@ function Contagem({ insumos }) {
 
 function Perdas({ movs, porId }) {
   const [per, setPer] = useState("mes");
+  const [novo, setNovo] = useState(false);
+  const [aberto, setAberto] = useState(null);
   const f = periodo(per);
   const r = perdasNoPeriodo(movs, f.de, f.ate);
+  const s = resumoSaidas(movs, f.de, f.ate);
+  const maior = Math.max(1, ...s.porMotivo.map((m) => m.valor));
+  const total = Math.round((s.total + r.faltas) * 100) / 100;
   return (
     <div className="relatorio-documento">
-      <h2>Perdas · − {R(r.total)}</h2>
+      <button type="button" className="pd-novo" onClick={() => setNovo(true)}>🍽️ Registrar saída de alimento</button>
+      <h2>Perdas e saídas · − {R(total)}</h2>
       <div className="fin-periodos">
-        {[{ id: "7dias", nome: "7 dias" }, { id: "mes", nome: "Este mês" }, { id: "mesPassado", nome: "Mês passado" }, { id: "ano", nome: "Este ano" }].map((p) => (
+        {[{ id: "hoje", nome: "Hoje" }, { id: "7dias", nome: "7 dias" }, { id: "mes", nome: "Este mês" }, { id: "mesPassado", nome: "Mês passado" }, { id: "ano", nome: "Este ano" }].map((p) => (
           <button key={p.id} className={per === p.id ? "ativo" : ""} onClick={() => setPer(p.id)}>{p.nome}</button>
         ))}
       </div>
       <div className="fin-conta">
-        <div className="fin-linha"><div><span>Estragou, venceu, caiu</span><small>Lançado como perda</small></div><strong className="fin-neg">− {R(r.perdas)}</strong></div>
+        <div className="fin-linha"><div><span>Perdas</span><small>Queimou, estragou, caiu, saiu errado, jogou fora</small></div><strong className="fin-neg">− {R(s.perdas)}</strong></div>
+        <div className="fin-linha"><div><span>Saídas sem venda</span><small>Doação, refeição da equipe, cortesia, consumo do dono</small></div><strong className="fin-neg">− {R(s.saidas)}</strong></div>
         <div className="fin-linha"><div><span>Faltou na contagem</span><small>Sumiu sem explicação</small></div><strong className="fin-neg">− {R(r.faltas)}</strong></div>
-        <div className="fin-linha fin-total"><div><span>Total perdido</span><small>Entra no lucro em Finanças</small></div><strong className="fin-neg">− {R(r.total)}</strong></div>
+        <div className="fin-linha fin-total"><div><span>Total</span><small>Entra no lucro em Finanças</small></div><strong className="fin-neg">− {R(total)}</strong></div>
       </div>
-      {r.lista.length === 0 ? (
+      {s.porMotivo.length > 0 && (
+        <>
+          <h3 style={{ margin: "18px 0 6px" }}>Por motivo</h3>
+          {s.porMotivo.map((m) => (
+            <div key={m.id} className="pd-motivo-linha">
+              <span className="pd-nome">{m.emoji} {m.nome}<small>{m.vezes} {m.vezes === 1 ? "vez" : "vezes"}</small></span>
+              <span className="pd-barra"><i style={{ width: `${Math.max(4, (m.valor / maior) * 100)}%` }} /></span>
+              <strong>− {R(m.valor)}</strong>
+            </div>
+          ))}
+        </>
+      )}
+      <h3 style={{ margin: "18px 0 6px" }}>Lançamentos</h3>
+      {s.lista.length === 0 && r.faltas === 0 ? (
         <p>Nenhuma perda no período. 👏</p>
       ) : (
         <ul className="fin-despesas">
-          {r.lista.map((m) => (
+          {s.lista.map((l) => (
+            <li key={l.id} onClick={() => setAberto(aberto === l.id ? null : l.id)} style={{ cursor: "pointer" }}>
+              <div>
+                <strong>{l.produtoNome ? `${l.qtdProduto}× ${l.produtoNome}${l.opcao ? ` (${l.opcao})` : ""}` : l.itens.map((i) => `${i.nome} ${mostrarQtd(i.qtd, porId[i.insumoId]?.unidade)}`).join(", ")}</strong>
+                <small>
+                  {new Date(l.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {l.motivo}
+                  {l.semPreco ? " · algum ingrediente sem preço" : ""}
+                </small>
+                {aberto === l.id && l.produtoNome && l.itens.length > 0 && (
+                  <small style={{ display: "block", marginTop: 4 }}>Saiu: {l.itens.map((i) => `${i.nome} ${mostrarQtd(i.qtd, porId[i.insumoId]?.unidade)}`).join(", ")}</small>
+                )}
+              </div>
+              <span className="fin-valor fin-neg">{l.valor > 0 ? `− ${R(l.valor)}` : "—"}</span>
+            </li>
+          ))}
+          {r.lista.filter((m) => m.tipo === "contagem").map((m) => (
             <li key={m.id}>
               <div>
                 <strong>{m.nome}</strong>
-                <small>
-                  {new Date(m.em).toLocaleDateString("pt-BR")} · {m.tipo === "perda" ? "Perda" : "Faltou na contagem"} · {mostrarQtd(Math.abs(Number(m.qtd || 0)), porId[m.insumoId]?.unidade)}
-                  {m.motivo && m.motivo !== "Inventário" ? ` · ${m.motivo}` : ""}
-                </small>
+                <small>{new Date(m.em).toLocaleDateString("pt-BR")} · Faltou na contagem · {mostrarQtd(Math.abs(Number(m.qtd || 0)), porId[m.insumoId]?.unidade)}</small>
               </div>
               <span className="fin-valor fin-neg">− {R(-m.valorAjuste)}</span>
             </li>
           ))}
         </ul>
       )}
-      <p className="relatorio-nota">Só conta o que tem preço (registre as compras para o sistema saber quanto custa cada insumo). Hoje: {isoDia().split("-").reverse().join("/")}.</p>
+      <p className="relatorio-nota">O valor é o custo dos ingredientes (pela ficha do produto). Ingrediente sem preço não entra na conta. Hoje: {isoDia().split("-").reverse().join("/")}.</p>
+      {novo && <RegistrarPerda fechar={() => setNovo(false)} />}
     </div>
   );
 }

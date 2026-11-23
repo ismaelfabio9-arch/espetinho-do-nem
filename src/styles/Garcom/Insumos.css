@@ -196,3 +196,42 @@
 .ficha-op-ruim { color: #dc2626; }
 .ficha-op-conta { display: grid; gap: 2px; padding: 6px 0; border-top: 1px solid var(--border); }
 .ficha-op-conta:first-of-type { border-top: 0; }
+
+/* Saída de alimento (perdas, doação, equipe…) */
+.pd-caixa { max-width: 560px; }
+.pd-rotulo { margin: 14px 0 8px; font-weight: 800; font-size: 14px; }
+.pd-motivos { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pd-motivos button, .pd-modo button, .pd-opcoes button, .pd-lista button, .pd-qtd button {
+  font: inherit; color: inherit; background: transparent; border: 1.5px solid var(--border, rgba(127, 127, 127, 0.3)); border-radius: 12px; cursor: pointer;
+}
+.pd-motivos button { padding: 10px; text-align: left; font-size: 14px; font-weight: 600; display: flex; gap: 6px; align-items: center; }
+.pd-motivos button.on, .pd-modo button.on, .pd-opcoes button.on { border-color: #16a34a; background: rgba(22, 163, 74, 0.14); }
+.pd-modo { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.pd-modo button { padding: 10px; font-weight: 700; }
+.pd-busca, .pd-campo input { width: 100%; box-sizing: border-box; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--border, rgba(127, 127, 127, 0.3)); background: transparent; color: inherit; font: inherit; }
+.pd-lista { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 6px; }
+.pd-lista button { width: 100%; padding: 10px 12px; display: flex; justify-content: space-between; gap: 10px; text-align: left; }
+.pd-lista small, .pd-campo small { opacity: 0.7; }
+.pd-vazio { opacity: 0.7; padding: 6px; }
+.pd-escolhido { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: rgba(22, 163, 74, 0.12); }
+.pd-qtd { display: flex; align-items: center; gap: 12px; }
+.pd-qtd button { width: 42px; height: 42px; border-radius: 50%; font-size: 20px; }
+.pd-qtd b { font-size: 22px; min-width: 24px; text-align: center; }
+.pd-opcoes { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+.pd-opcoes button { padding: 7px 12px; border-radius: 99px; }
+.pd-campo { display: grid; gap: 4px; margin-top: 10px; font-size: 14px; font-weight: 600; }
+.pd-conta { margin-top: 12px; padding: 12px; border-radius: 14px; background: rgba(127, 127, 127, 0.1); font-size: 14px; }
+.pd-conta:empty { display: none; }
+.pd-conta p { margin: 0 0 6px; font-weight: 700; }
+.pd-conta ul { list-style: none; margin: 0; padding: 0; }
+.pd-conta li { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0; }
+.pd-total { display: flex; justify-content: space-between; border-top: 1px dashed rgba(127, 127, 127, 0.4); margin-top: 6px !important; padding-top: 8px; font-size: 16px; }
+.pd-total b { color: #dc2626; }
+.pd-novo { width: 100%; margin: 4px 0 14px; padding: 14px; border-radius: 14px; border: 0; background: #dc2626; color: #fff; font: inherit; font-weight: 800; font-size: 15px; cursor: pointer; }
+.pd-motivo-linha { display: flex; align-items: center; gap: 10px; padding: 8px 0; }
+.pd-motivo-linha .pd-barra { flex: 1; height: 8px; border-radius: 99px; background: rgba(127, 127, 127, 0.15); overflow: hidden; }
+.pd-motivo-linha .pd-barra i { display: block; height: 100%; background: #dc2626; border-radius: 99px; }
+.pd-motivo-linha .pd-nome { width: 46%; font-size: 14px; }
+.pd-motivo-linha .pd-nome small { display: block; opacity: 0.7; }
+.pd-motivo-linha strong { min-width: 84px; text-align: right; }
+@media (max-width: 380px) { .pd-motivos { grid-template-columns: 1fr; } }
