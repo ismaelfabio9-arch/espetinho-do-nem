@@ -120,6 +120,16 @@ export function precosDoCardapio(produto) {
   return g.opcoes.map((o) => ({ nome: o, preco: Math.round((base + precoOpcao(g, o)) * 100) / 100 }));
 }
 
+/**
+ * Escolha que define o produto (o tamanho do peixe, 300 ml ou 500 ml do açaí): fica em cima na hora de pedir,
+ * antes do "vem no prato". As outras (tipo de feijão, recheios, molhos) ficam depois.
+ */
+export function ehEscolhaDeTamanho(g) {
+  if (!g || g.livre || g.maxDe || maxDoGrupo(g) !== 1) return false;
+  const ops = g.opcoes || [];
+  return ops.some((o) => precoOpcao(g, o) > 0) || /tamanh|por[cç][aã]o|peso/i.test(g.nome || "") || ops.some((o) => /pequen|m[eé]di[oa]|grande|fam[ií]lia|^\s*[PMG]\s*$|\d+\s*(ml|l|g|kg|cm)\b/i.test(o));
+}
+
 /** Quanto a opção escolhida acrescenta (ex.: recheio de carne de sol +3, tamanho 500 ml +6). */
 export function precoOpcao(grupo, opcao) {
   const v = Number(grupo?.precos?.[opcao]);
