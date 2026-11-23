@@ -377,11 +377,12 @@ function QuandoSai({ linha, montagem, todos, passaveis, onChange }) {
     if (t === "extra") return onChange({ ...linha, se: { extra: extras[0] }, passa: undefined });
     const g = grupos.find((x) => `g:${x.nome}` === t);
     // Começa marcando as opções que não são "Sem …".
-    onChange({ ...linha, se: { grupo: g.nome, opcoes: g.opcoes.filter((o) => !/^sem\b/i.test(o)) } });
+    const opcoes = g.opcoes.filter((o) => !/^sem\b/i.test(o));
+    onChange({ ...linha, se: { grupo: g.nome, opcoes, padrao: opcoes.includes(g.opcoes[0]) } });
   };
   const alternarOpcao = (o) => {
     const l = se.opcoes.includes(o) ? se.opcoes.filter((x) => x !== o) : [...se.opcoes, o];
-    if (l.length) onChange({ ...linha, se: { ...se, opcoes: l } });
+    if (l.length) onChange({ ...linha, se: { ...se, opcoes: l, padrao: !!grupo && l.includes(grupo.opcoes[0]) } });
   };
   return (
     <div className="qs">
