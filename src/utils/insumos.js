@@ -8,6 +8,10 @@
 //   variaPor (opcional): o ingrediente que muda com uma escolha do produto (ex.: o peixe pelo tamanho):
 //   { grupo: "Tamanho", opcoes: ["Pequeno", "Médio", "Grande"], itens: [{ insumoId, qtd: { Pequeno: 0.2, … } }] }.
 //   Cada opção usa os itens de sempre + a quantidade dela; sem opção escolhida, vale a 1ª.
+//   Cada linha (de sempre ou do variaPor) pode ter:
+//     se: quando a linha sai — { grupo, opcoes } (escolheu uma dessas: Feijão preto/mulato),
+//         { vem } (não tirou: Picles) ou { extra } (pediu a mais: Ovo). Sem "se": sai sempre.
+//     passa: insumoId que recebe a quantidade quando a linha não sai (sem feijão → os gramas vão para o arroz).
 // - insumosMov/<id>: histórico { insumoId, nome, tipo: "venda" | "compra" | "perda" | "contagem",
 //   qtd (com sinal), antes?, depois?, valor?, motivo?, em, por? }
 // Só a equipe lê essas coleções (o cardápio do cliente não vê custo nem receita).
@@ -65,8 +69,46 @@ export function itensDaOpcao(ficha, opcao) {
   const v = ficha?.variaPor;
   if (!v || !(v.itens || []).length) return base;
   const op = opcaoDaVaria(ficha, opcao);
-  const extra = (v.itens || []).map((it) => ({ insumoId: it.insumoId, qtd: Number(it.qtd?.[op] || 0) })).filter((x) => x.insumoId && x.qtd > 0);
+  const extra = (v.itens || []).map((it) => ({ insumoId: it.insumoId, qtd: Number(it.qtd?.[op] || 0), ...(it.se ? { se: it.se } : {}), ...(it.passa ? { passa: it.passa } : {}) })).filter((x) => x.insumoId && x.qtd > 0);
   return [...base, ...extra];
+}
+
+/**
+ * A linha da ficha sai neste prato? m = a montagem do item vendido ({ escolhas, tirar, extras }).
+ * Sem montagem (custo do prato, saída de um prato pronto): o prato de sempre, sem os "a mais".
+ */
+export function linhaSai(linha, m) {
+  const se = linha?.se;
+  if (!se) return true;
+  if (se.extra) return !!m && (m.extras || []).includes(se.extra);
+  if (!m) return true;
+  if (se.vem) return !(m.tirar || []).includes(se.vem);
+  if (se.grupo) {
+    const v = m.escolhas?.[se.grupo];
+    const l = Array.isArray(v) ? v : v ? [v] : [];
+    // Grupo sem resposta: sai, a não ser que o grupo foi tirado do prato (tirou a "Salada").
+    if (!l.length) return !(m.tirar || []).includes(se.grupo);
+    return l.some((o) => (se.opcoes || []).includes(o));
+  }
+  return true;
+}
+
+/**
+ * O que sai de verdade numa montagem: a linha que não sai não conta; se tiver "passa", a quantidade dela
+ * vai para o outro ingrediente (sem feijão → mais arroz). Junta o mesmo ingrediente numa linha só.
+ */
+export function itensMontados(lista, m) {
+  const soma = new Map();
+  const por = (id, q) => {
+    if (!id || !(q > 0)) return;
+    soma.set(id, r3((soma.get(id) || 0) + q));
+  };
+  (lista || []).forEach((l) => {
+    const q = Number(l.qtd || 0);
+    if (linhaSai(l, m)) por(l.insumoId, q);
+    else if (l.passa) por(l.passa, q);
+  });
+  return [...soma.entries()].map(([insumoId, qtd]) => ({ insumoId, qtd }));
 }
 
 /** Custo de cada opção da escolha que muda a quantidade: [{ opcao, custo }] (null sem essa escolha). */
@@ -78,7 +120,7 @@ export function custosPorOpcao(ficha, insumosPorId) {
 
 /** Custo de 1 unidade do produto pela ficha (null se faltar preço de algum insumo). Com tamanho: o da opção (sem opção, a 1ª). */
 export function custoDaFicha(ficha, insumosPorId, opcao) {
-  const itens = itensDaOpcao(ficha, opcao);
+  const itens = itensMontados(itensDaOpcao(ficha, opcao), null);
   if (!itens.length) return null;
   let total = 0;
   for (const it of itens) {
@@ -105,7 +147,7 @@ export function itensJuntos(ficha) {
 export function itensDaVenda(ficha, item) {
   const grupo = ficha?.variaPor?.grupo;
   const esc = grupo ? item?.montagem?.escolhas?.[grupo] : null;
-  return itensDaOpcao(ficha, Array.isArray(esc) ? esc[0] : esc);
+  return itensMontados(itensDaOpcao(ficha, Array.isArray(esc) ? esc[0] : esc), item?.montagem || null);
 }
 
 /** Soma o que cada insumo gasta nos itens vendidos: { insumoId: qtd }. */
@@ -254,7 +296,7 @@ export async function inventario(contagens, por) {
 
 /** Quantas unidades do produto dá para fazer com o estoque de hoje (null sem ficha). */
 export function daParaQuantos(ficha, insumosPorId) {
-  const itens = itensDaOpcao(ficha).filter((it) => Number(it.qtd) > 0);
+  const itens = itensMontados(itensDaOpcao(ficha), null).filter((it) => Number(it.qtd) > 0);
   if (!itens.length) return null;
   let min = Infinity;
   let limitante = null;

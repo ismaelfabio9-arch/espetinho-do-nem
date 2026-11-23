@@ -235,3 +235,18 @@
 .pd-motivo-linha .pd-nome small { display: block; opacity: 0.7; }
 .pd-motivo-linha strong { min-width: 84px; text-align: right; }
 @media (max-width: 380px) { .pd-motivos { grid-template-columns: 1fr; } }
+
+/* Ficha: quando o ingrediente sai (escolha, tirou, a mais) e para onde vão os gramas */
+.qs { margin-top: 6px; }
+.qs-btn { border: 1px dashed rgba(127, 127, 127, 0.45); background: transparent; color: inherit; border-radius: 99px; padding: 4px 10px; font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; opacity: 0.85; text-align: left; }
+.qs-btn.on { border-style: solid; border-color: #16a34a; background: rgba(22, 163, 74, 0.12); opacity: 1; }
+.qs-painel { margin-top: 8px; padding: 10px 12px; border-radius: 12px; background: rgba(127, 127, 127, 0.1); display: grid; gap: 10px; font-size: 13.5px; }
+.qs-painel label { display: grid; gap: 4px; font-weight: 700; }
+.qs-painel select { padding: 9px 10px; border-radius: 10px; border: 1px solid rgba(127, 127, 127, 0.35); background: var(--card, #fff); color: inherit; font: inherit; font-weight: 500; }
+.qs-painel small { font-weight: 500; opacity: 0.75; }
+.qs-ops { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.qs-ops small { width: 100%; }
+.qs-ops button { border: 1.5px solid rgba(127, 127, 127, 0.35); background: transparent; color: inherit; border-radius: 99px; padding: 6px 11px; font: inherit; font-size: 13px; cursor: pointer; }
+.qs-ops button.on { border-color: #16a34a; background: #16a34a; color: #fff; }
+.qs-ok { justify-self: end; border: 0; background: #16a34a; color: #fff; border-radius: 10px; padding: 8px 18px; font-weight: 800; cursor: pointer; }
+.qs-dica { margin: 6px 0 10px; }

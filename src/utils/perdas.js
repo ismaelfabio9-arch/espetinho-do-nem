@@ -6,7 +6,7 @@
 import { collection, doc, getDoc, increment, serverTimestamp, updateDoc, writeBatch } from "firebase/firestore";
 import { db } from "../firebase";
 import { L } from "../loja";
-import { itensDaOpcao, rendimentoDe } from "./insumos";
+import { itensDaOpcao, itensMontados, rendimentoDe } from "./insumos";
 
 export const MOTIVOS = [
   { id: "queimou", nome: "Queimou", emoji: "🔥", grupo: "perda" },
@@ -34,7 +34,7 @@ export function contaDaPerda({ ficha, opcao, qtdProduto, insumo, qtdInsumo }, in
     if (q > 0) linhas.push({ insumo, cru: q, valor: typeof insumo.custo === "number" ? r2(q * insumo.custo) : null });
   } else {
     const n = Number(qtdProduto || 0);
-    itensDaOpcao(ficha, opcao).forEach((it) => {
+    itensMontados(itensDaOpcao(ficha, opcao), null).forEach((it) => {
       const ins = insumosPorId[it.insumoId];
       if (!ins || !(Number(it.qtd) > 0) || !(n > 0)) return;
       const cru = r3((Number(it.qtd) * n) / rendimentoDe(ins));

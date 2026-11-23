@@ -288,7 +288,7 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
 }
 
 /** Linhas de ingredientes (quanto de cada, quanto custa e para quantos o estoque dá) + os botões para pôr mais. */
-function LinhasFicha({ linhas, muda, todos, lista, novo, extra = null, vazio, preco = 0 }) {
+function LinhasFicha({ linhas, muda, todos, lista, novo, extra = null, vazio, preco = 0, montagem = null, passaveis = () => [] }) {
   const fora = lista.filter((i) => !linhas.some((l) => l.insumoId === i.id));
   const passo = (un) => (un === "un" ? 1 : 10);
   return (
@@ -312,6 +312,7 @@ function LinhasFicha({ linhas, muda, todos, lista, novo, extra = null, vazio, pr
                     : "Sem estoque registrado"}
                 </small>
               )}
+              <QuandoSai linha={l} montagem={montagem} todos={todos} passaveis={passaveis(l)} onChange={(nova) => muda(linhas.map((x, k) => (k === n ? nova : x)))} />
             </div>
             <div className="ficha-qtd">
               <button type="button" aria-label={`Menos ${ins?.nome || ""}`} onClick={() => ajustar(-passo(ins?.unidade))}>−</button>
@@ -344,7 +345,112 @@ const pctPreco = (v, preco) => {
   const x = (v / preco) * 100;
   return x > 0 && x < 1 ? "menos de 1%" : `${Math.round(x)}%`;
 };
-const paraLinhas = (itens, porId) => (itens || []).map((it) => ({ insumoId: it.insumoId, qtd: String(paraFicha(it.qtd, porId[it.insumoId]?.unidade)).replace(".", ",") }));
+const comRegra = (l) => ({ ...(l.se ? { se: l.se } : {}), ...(l.passa ? { passa: l.passa } : {}) });
+const paraLinhas = (itens, porId) => (itens || []).map((it) => ({ insumoId: it.insumoId, qtd: String(paraFicha(it.qtd, porId[it.insumoId]?.unidade)).replace(".", ","), ...comRegra(it) }));
+
+/**
+ * "Quando sai" de um ingrediente da ficha: sempre, só com uma escolha (Feijão preto/mulato), se o cliente não
+ * tirar (Picles) ou só se pedir a mais (Ovo). E, quando não sai, para qual ingrediente vão os gramas
+ * (sem feijão → mais arroz). Assim o estoque baixa o que saiu de verdade.
+ */
+function QuandoSai({ linha, montagem, todos, passaveis, onChange }) {
+  const [aberto, setAberto] = useState(false);
+  const m = montagem || {};
+  const grupos = (m.escolhas || []).filter((g) => (g.opcoes || []).length);
+  const vem = m.vem || [];
+  const extras = (m.extras || []).map((e) => e.nome);
+  if (!grupos.length && !vem.length && !extras.length) return null;
+  const se = linha.se || null;
+  const tipo = !se ? "" : se.grupo ? `g:${se.grupo}` : se.vem ? "vem" : "extra";
+  const grupo = se?.grupo ? grupos.find((g) => g.nome === se.grupo) : null;
+  const nomeDe = (id) => todos[id]?.nome || "outro ingrediente";
+  const texto = !se
+    ? "Sai sempre"
+    : se.grupo
+    ? `Sai se escolher ${se.opcoes.join(" ou ")}`
+    : se.vem
+    ? `Sai se não tirar ${se.vem}`
+    : `Sai só se pedir a mais: ${se.extra}`;
+  const mudarTipo = (t) => {
+    if (!t) return onChange({ ...linha, se: undefined, passa: undefined });
+    if (t === "vem") return onChange({ ...linha, se: { vem: vem[0] } });
+    if (t === "extra") return onChange({ ...linha, se: { extra: extras[0] }, passa: undefined });
+    const g = grupos.find((x) => `g:${x.nome}` === t);
+    // Começa marcando as opções que não são "Sem …".
+    onChange({ ...linha, se: { grupo: g.nome, opcoes: g.opcoes.filter((o) => !/^sem\b/i.test(o)) } });
+  };
+  const alternarOpcao = (o) => {
+    const l = se.opcoes.includes(o) ? se.opcoes.filter((x) => x !== o) : [...se.opcoes, o];
+    if (l.length) onChange({ ...linha, se: { ...se, opcoes: l } });
+  };
+  return (
+    <div className="qs">
+      <button type="button" className={`qs-btn${se ? " on" : ""}`} onClick={() => setAberto((a) => !a)} aria-expanded={aberto}>
+        ⚙️ {texto}
+        {se && linha.passa ? ` · senão vai para ${nomeDe(linha.passa)}` : ""}
+      </button>
+      {aberto && (
+        <div className="qs-painel">
+          <label>
+            Quando este ingrediente sai?
+            <select value={tipo} onChange={(e) => mudarTipo(e.target.value)}>
+              <option value="">Sempre</option>
+              {grupos.map((g) => (
+                <option key={g.nome} value={`g:${g.nome}`}>Depende do que escolher em: {g.nome}</option>
+              ))}
+              {vem.length > 0 && <option value="vem">Se o cliente não tirar do prato</option>}
+              {extras.length > 0 && <option value="extra">Só quando pedir a mais</option>}
+            </select>
+          </label>
+          {grupo && (
+            <div className="qs-ops">
+              <small>Sai quando escolher:</small>
+              {grupo.opcoes.map((o) => (
+                <button type="button" key={o} className={se.opcoes.includes(o) ? "on" : ""} aria-pressed={se.opcoes.includes(o)} onClick={() => alternarOpcao(o)}>
+                  {se.opcoes.includes(o) ? "✓ " : ""}
+                  {o}
+                </button>
+              ))}
+            </div>
+          )}
+          {se?.vem !== undefined && (
+            <label>
+              Item do prato
+              <select value={se.vem} onChange={(e) => onChange({ ...linha, se: { vem: e.target.value } })}>
+                {vem.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          {se?.extra !== undefined && (
+            <label>
+              O "a mais"
+              <select value={se.extra} onChange={(e) => onChange({ ...linha, se: { extra: e.target.value } })}>
+                {extras.map((v) => (
+                  <option key={v} value={v}>{v}</option>
+                ))}
+              </select>
+            </label>
+          )}
+          {se && !se.extra && (
+            <label>
+              Quando não sai, a quantidade vai para:
+              <select value={linha.passa || ""} onChange={(e) => onChange({ ...linha, passa: e.target.value || undefined })}>
+                <option value="">Não vai para nenhum (só não sai)</option>
+                {passaveis.filter((i) => i.id !== linha.insumoId).map((i) => (
+                  <option key={i.id} value={i.id}>{i.nome}</option>
+                ))}
+              </select>
+              <small>Ex.: sem feijão → os gramas do feijão vão para o arroz.</small>
+            </label>
+          )}
+          <button type="button" className="qs-ok" onClick={() => setAberto(false)}>OK</button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNomes, grupos = [] }) {
   const [criados, setCriados] = useState({}); // ingredientes criados aqui (até o banco devolver)
@@ -358,13 +464,14 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
     setMudou(true);
     setMsg("");
   };
-  const itens = linhas.filter((l) => l.insumoId && num(l.qtd) > 0).map((l) => ({ insumoId: l.insumoId, qtd: daFicha(l.qtd, todos[l.insumoId]?.unidade) }));
+  const itens = linhas.filter((l) => l.insumoId && num(l.qtd) > 0).map((l) => ({ insumoId: l.insumoId, qtd: daFicha(l.qtd, todos[l.insumoId]?.unidade), ...comRegra(l) }));
   // Ingrediente que muda com uma escolha (ex.: o peixe pelo tamanho): quantidade em cada opção.
   const [varia, setVaria] = useState(() => ({
     grupo: ficha?.variaPor?.grupo || "",
     linhas: (ficha?.variaPor?.itens || []).map((it) => ({
       insumoId: it.insumoId,
       qtd: Object.fromEntries(Object.entries(it.qtd || {}).map(([op, q]) => [op, String(paraFicha(q, porId[it.insumoId]?.unidade)).replace(".", ",")])),
+      ...comRegra(it),
     })),
   }));
   const mudaVaria = (v) => {
@@ -382,7 +489,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
     if (!grupoVaria) return null;
     const vItens = varia.linhas
       .filter((l) => l.insumoId)
-      .map((l) => ({ insumoId: l.insumoId, qtd: Object.fromEntries(grupoVaria.opcoes.map((op) => [op, daFicha(l.qtd?.[op] || "0", todos[l.insumoId]?.unidade)])) }))
+      .map((l) => ({ insumoId: l.insumoId, qtd: Object.fromEntries(grupoVaria.opcoes.map((op) => [op, daFicha(l.qtd?.[op] || "0", todos[l.insumoId]?.unidade)])), ...comRegra(l) }))
       .filter((it) => Object.values(it.qtd).some((q) => q > 0));
     return vItens.length ? { grupo: grupoVaria.nome, opcoes: grupoVaria.opcoes, itens: vItens } : null;
   })();
@@ -466,10 +573,15 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
     );
   })();
 
+  // Para onde a quantidade pode ir quando o ingrediente não sai: os outros da ficha, na mesma unidade (g → g).
+  const naFicha = [...new Set([...linhas, ...varia.linhas].map((l) => l.insumoId).filter(Boolean))].map((id) => todos[id]).filter(Boolean);
+  const passaveis = (l) => naFicha.filter((i) => i.unidade === todos[l.insumoId]?.unidade);
+
   return (
     <div className="ins-ficha">
       <p className="ficha-titulo">O que vai em 1 <b>{produto.nome}</b>?</p>
-      <LinhasFicha linhas={linhas} muda={muda} todos={todos} lista={lista} novo={() => setNovo({})} extra={doPrato} preco={preco} vazio="Toque nos ingredientes abaixo para pôr na ficha." />
+      <LinhasFicha linhas={linhas} muda={muda} todos={todos} lista={lista} novo={() => setNovo({})} extra={doPrato} preco={preco} montagem={produto.montagem} passaveis={passaveis} vazio="Toque nos ingredientes abaixo para pôr na ficha." />
+      {produto.montagem && <p className="ficha-dica qs-dica">⚙️ Toque em "Sai sempre" para dizer quando o ingrediente sai: ex. o feijão só sai se escolher feijão, e sem feijão os gramas vão para o arroz. O ovo só sai se pedir a mais.</p>}
 
       {grupoVaria && (
         <div className="ficha-varia">
@@ -493,6 +605,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
                   <b>{ins?.nome || "Ingrediente"}</b>
                   <button type="button" className="eo-x" aria-label={`Tirar ${ins?.nome || "ingrediente"}`} onClick={() => mudaVaria({ ...varia, linhas: varia.linhas.filter((_, j) => j !== k) })}>✕</button>
                 </div>
+                <QuandoSai linha={l} montagem={produto.montagem} todos={todos} passaveis={passaveis(l)} onChange={(nova) => mudaVaria({ ...varia, linhas: varia.linhas.map((x, j) => (j === k ? nova : x)) })} />
                 <div className="ficha-varia-qtds" style={{ gridTemplateColumns: `repeat(${Math.min(3, grupoVaria.opcoes.length)}, minmax(0, 1fr))` }}>
                   {grupoVaria.opcoes.map((op) => (
                     <div key={op} className="ficha-varia-celula">
