@@ -177,3 +177,17 @@
 .pnp-titulo { margin: 0 0 6px; font-weight: 700; font-size: 14px; }
 .ficha-estoque { display: block; color: var(--muted); font-size: 12px; margin-top: 1px; }
 .ni-troca { margin: 8px 0 0; }
+
+/* Ingrediente que muda com uma escolha (ex.: o peixe pelo tamanho) */
+.ficha-varia { display: grid; gap: 8px; margin-top: 12px; padding: 12px; border-radius: 12px; border: 1px dashed var(--border); }
+.ficha-varia-titulo { font-weight: 800; }
+.ficha-varia select { padding: 9px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 15px; }
+.ficha-varia-linha { display: grid; gap: 6px; padding: 8px; border-radius: 10px; background: var(--card-2); }
+.ficha-varia-nome { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.ficha-varia-qtds { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.ficha-varia-qtds label { display: grid; gap: 2px; font-size: 12.5px; color: var(--muted); }
+.ficha-varia-campo { display: flex; align-items: center; gap: 4px; color: var(--muted); }
+.ficha-varia-campo input { width: 100%; min-width: 0; padding: 8px; border-radius: 9px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; text-align: right; }
+.ficha-custo-opcoes { display: grid; gap: 4px; }
+.ficha-custo-opcoes small { display: block; }
+.ficha-op-ruim { color: #dc2626; }
