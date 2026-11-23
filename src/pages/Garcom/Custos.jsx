@@ -12,7 +12,7 @@ import { doc, onSnapshot, setDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 import { L } from "../../loja";
 import { NovoInsumo } from "../../components/FichaTecnica";
-import { custoDaFicha, itensJuntos, unidadeDe } from "../../utils/insumos";
+import { custoDaFicha, custoPronto, itensJuntos, rendimentoDe, unidadeDe } from "../../utils/insumos";
 import { lerValor } from "../../utils/financas";
 import { ehCategoriaDeBebida } from "../../utils/montagem";
 import { contaDoProduto } from "../../utils/precificacao";
@@ -212,6 +212,7 @@ export default function Custos({ produtos, insumos, fichas }) {
                     <>
                       <b>{R(i.custo)}</b>
                       <small>{u === "un" ? "a unidade" : `o ${unidadeDe(u).nomeLongo}`}</small>
+                      {rendimentoDe(i) < 1 && <small>pronto {R(custoPronto(i))} · rende {Math.round(rendimentoDe(i) * 100)}%</small>}
                     </>
                   ) : (
                     <b className="pc-chip baixo">Sem preço</b>

@@ -388,6 +388,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
   })();
   const fichaAtual = { itens, variaPor };
   const porOpcao = custosPorOpcao(fichaAtual, todos);
+  const contaLoja = usePrecificacao();
   // Com tamanho, o custo do produto é o da 1ª opção (a do preço do produto).
   const custo = custoDaFicha(fichaAtual, todos);
   const preco = Number(String(precoAtual ?? produto.preco ?? "").replace(",", ".")) || 0;
@@ -535,13 +536,29 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
 
       {porOpcao && (
         <div className="ficha-custo ficha-custo-opcoes">
-          <span>Só de ingredientes, por {grupoVaria.nome.toLowerCase()}:</span>
+          <span>Conta de cada {grupoVaria.nome.toLowerCase()}:</span>
           {porOpcao.map(({ opcao, custo: c }) => {
             const p = grupoVaria.preco?.[opcao] ?? preco;
+            // A conta completa de cada tamanho: preço − ingredientes − maquininha − parte das contas da loja.
+            const conta = c !== null && contaLoja && contaLoja.conta !== "ingredientes" ? contaDoProduto(c, p, contaLoja) : null;
+            const minimo = c !== null && contaLoja && contaLoja.conta !== "ingredientes" ? contaDoProduto(c, 100, contaLoja)?.minimo ?? null : null;
+            const ruim = conta ? conta.lucro < 0 : c !== null && p > 0 && p - c < 0;
             return (
-              <small key={opcao} className={c !== null && p > 0 && p - c < 0 ? "ficha-op-ruim" : ""}>
-                <b>{opcao}</b>: {c === null ? "falta o preço de algum ingrediente" : `custa ${R(c)}${p > 0 ? ` · vende ${R(p)} · sobra ${R(p - c)} (${Math.round(((p - c) / p) * 100)}%)` : ""}`}
-              </small>
+              <div key={opcao} className={`ficha-op-conta ${ruim ? "ficha-op-ruim" : ""}`}>
+                <b>{opcao}</b>
+                {c === null ? (
+                  <small>falta o preço de algum ingrediente</small>
+                ) : !(p > 0) ? (
+                  <small>ingredientes {R(c)} · sem preço de venda{minimo ? `: venda por pelo menos ${R(minimo)}` : ""}</small>
+                ) : conta ? (
+                  <small>
+                    vende {R(p)} − ingredientes {R(c)}{conta.taxas > 0 ? ` − maquininha ${R(conta.taxas)}` : ""}{conta.parteContas > 0 ? ` − contas da loja ${R(conta.parteContas)}` : ""} = <b>lucro {R(conta.lucro)} ({String(conta.margem).replace(".", ",")}%)</b>
+                    {conta.faltaVendas ? " · falta dizer quanto a loja vende por mês em Preço certo" : ""}
+                  </small>
+                ) : (
+                  <small>vende {R(p)} · ingredientes {R(c)} · sobra {R(p - c)} ({Math.round(((p - c) / p) * 100)}%)</small>
+                )}
+              </div>
             );
           })}
         </div>
@@ -623,7 +640,19 @@ export function PrecoNoProduto({ custo, preco, digitado = false }) {
     );
   }
   const c = contaDoProduto(custo, p, salvo);
-  if (!c) return null;
+  if (!c) {
+    // Sem preço de venda: a conta não some; diz o mínimo (com a maquininha e a parte das contas da loja).
+    const minimo = contaDoProduto(custo, 100, salvo)?.minimo ?? null;
+    return (
+      <div className="pnp baixo">
+        <div className="pnp-conta">
+          <span>Preço de hoje</span><b>{R(p)}</b>
+          <span>{digitado ? "− Custo digitado" : "− Ingredientes (com a embalagem)"}</span><b>{R(custo)}</b>
+        </div>
+        <p>Ponha o preço de venda para ver o lucro, já descontando a maquininha e a parte das contas da loja (luz, gás, aluguel…).{minimo ? ` Para não ter prejuízo, venda por pelo menos ${R(minimo)}.` : ""}</p>
+      </div>
+    );
+  }
   return (
     <div className={`pnp ${c.lucro > 0 ? "bom" : "baixo"}`}>
       <div className="pnp-conta">
