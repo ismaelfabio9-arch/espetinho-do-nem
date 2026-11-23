@@ -340,7 +340,9 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
     setMudou(true);
     setMsg("");
   };
-  const grupoVaria = grupos.find((g) => g.nome === varia.grupo) || grupos.find((g) => /tamanh/i.test(g.nome)) || grupos[0] || null;
+  // Só escolhas que mudam o preço ou que são de tamanho/porção (no feijão Carioca ou Preto a quantidade é a mesma).
+  const gruposVaria = grupos.filter((g) => g.temPreco || /tamanh|por[cç][aã]o|peso|grama|quilo|kg|ml|litro/i.test(g.nome) || g.nome === ficha?.variaPor?.grupo);
+  const grupoVaria = gruposVaria.find((g) => g.nome === varia.grupo) || gruposVaria.find((g) => /tamanh/i.test(g.nome)) || gruposVaria[0] || null;
   const variaPor = (() => {
     if (!grupoVaria) return null;
     const vItens = varia.linhas
@@ -436,9 +438,9 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
       {grupoVaria && (
         <div className="ficha-varia">
           <span className="ficha-varia-titulo">Algum ingrediente muda com {grupoVaria.nome.toLowerCase()}?</span>
-          {grupos.length > 1 && (
+          {gruposVaria.length > 1 && (
             <select value={grupoVaria.nome} onChange={(e) => mudaVaria({ ...varia, grupo: e.target.value })} aria-label="Escolha que muda a quantidade">
-              {grupos.map((g) => (
+              {gruposVaria.map((g) => (
                 <option key={g.nome} value={g.nome}>{g.nome}</option>
               ))}
             </select>
@@ -455,7 +457,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
                   <b>{ins?.nome || "Ingrediente"}</b>
                   <button type="button" className="eo-x" aria-label={`Tirar ${ins?.nome || "ingrediente"}`} onClick={() => mudaVaria({ ...varia, linhas: varia.linhas.filter((_, j) => j !== k) })}>✕</button>
                 </div>
-                <div className="ficha-varia-qtds">
+                <div className="ficha-varia-qtds" style={{ gridTemplateColumns: `repeat(${Math.min(3, grupoVaria.opcoes.length)}, minmax(0, 1fr))` }}>
                   {grupoVaria.opcoes.map((op) => (
                     <div key={op} className="ficha-varia-celula">
                       <span>{op}</span>
