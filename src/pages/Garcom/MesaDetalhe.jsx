@@ -36,7 +36,7 @@ import { useRecurso } from "../../recursos";
 import ContaParcial from "../../components/ContaParcial";
 import FormasPagamento, { resolverPartes } from "../../components/FormasPagamento";
 import { ajustarPartes, falta as faltaDaConta, textoPagamentos, totalPago as totalPagoMesa } from "../../utils/conta";
-import { MONTAGEM_ALMOCO, emojiCategoria, pratosSemMontagem, sugestoesBebida, abreEscolha } from "../../utils/montagem";
+import { MONTAGEM_ALMOCO, detalhesMontagem, textoDoItem, emojiCategoria, pratosSemMontagem, sugestoesBebida, abreEscolha } from "../../utils/montagem";
 import { baixarInsumos } from "../../utils/insumos";
 import { meuAparelho } from "../../utils/sons";
 import { MOTIVOS_PEDIDO, registrar } from "../../utils/registro";
@@ -373,7 +373,7 @@ if (pedidosDaMesa.length === 0) {
     });
     setAlterouPedidoMesa(true);
     await atualizarPedidoMesa(novos);
-    registrar({ area: "pedidos", acao: "Alterou prato da comanda", mesa: id, antes: editandoSalvo, depois: prato.nome, texto: prato.nomeBase || prato.nome });
+    registrar({ area: "pedidos", acao: "Alterou prato da comanda", mesa: id, antes: detalhesMontagem(itensMesa.find((i) => i.nome === editandoSalvo)?.montagem).join(", ") || editandoSalvo, depois: detalhesMontagem(prato.montagem).join(", ") || prato.nome, texto: prato.nomeBase || prato.nome });
     mostrarNotificacao("Prato alterado na comanda.");
     setMostrarPedidoMesa(true);
   }
@@ -530,7 +530,7 @@ if (pedidosDaMesa.length === 0) {
 
     setAlterouPedidoMesa(true);
     await atualizarPedidoMesa(novosItens);
-    registrar({ area: "pedidos", acao: "Acrescentou na comanda", mesa: id, texto: `+1 ${itemSelecionado.nome}`, valor: Number(itemSelecionado.preco || 0) });
+    registrar({ area: "pedidos", acao: "Acrescentou na comanda", mesa: id, texto: `+${textoDoItem({ ...itemSelecionado, qtd: 1 })}`, valor: Number(itemSelecionado.preco || 0) });
   }
 
   /** Tirar 1 de um item já salvo: pergunta o motivo antes. */
@@ -541,7 +541,7 @@ if (pedidosDaMesa.length === 0) {
       titulo: ultimo ? `Tirar ${itemSelecionado.nome} da comanda?` : `Tirar 1 ${itemSelecionado.nome}?`,
       fazer: async (motivo) => {
         await tirarItemMesa(itemSelecionado);
-        registrar({ area: "pedidos", acao: ultimo ? "Tirou da comanda" : "Diminuiu na comanda", mesa: id, texto: `−1 ${itemSelecionado.nome}`, valor: -Number(itemSelecionado.preco || 0), motivo });
+        registrar({ area: "pedidos", acao: ultimo ? "Tirou da comanda" : "Diminuiu na comanda", mesa: id, texto: `−${textoDoItem({ ...itemSelecionado, qtd: 1 })}`, valor: -Number(itemSelecionado.preco || 0), motivo });
       },
     });
   }
@@ -629,7 +629,7 @@ if (pedidosDaMesa.length === 0) {
         });
       }
 
-      registrar({ area: "pedidos", acao: !resultado.empty ? "Acrescentou pedido" : "Abriu a mesa", mesa: id, texto: itensPedido.map((i) => `${i.qtd}× ${i.nome}`).join(", "), valor: total });
+      registrar({ area: "pedidos", acao: !resultado.empty ? "Acrescentou pedido" : "Abriu a mesa", mesa: id, texto: itensPedido.map(textoDoItem).join(", "), valor: total });
       // Avisa os outros aparelhos da equipe (cozinha, caixa): som de pedido novo ou de acrescentou.
       avisarEquipe(!resultado.empty ? "acrescentou" : "mesa", !resultado.empty ? `Mesa ${id}: acrescentaram itens no pedido` : `Novo pedido na Mesa ${id}`);
 
@@ -845,7 +845,7 @@ if (pedidosDaMesa.length === 0) {
         mesa: id,
         texto: `Mesa ${id}${nomeCliente ? ` (${nomeCliente})` : ""}: R$ ${formatarMoeda(totalTodos)} · ${pagamentosFinal ? textoPagamentos(pagamentosFinal) : formaPagamento || "sem forma"}${troco > 0 ? ` · troco R$ ${formatarMoeda(troco)}` : ""}${taxaTotal ? ` · taxa do cartão R$ ${formatarMoeda(taxaTotal)}` : ""}`,
         valor: totalTodos,
-        detalhes: resultado.docs.flatMap((d) => (d.data().itens || []).map((i) => `${i.qtd || i.quantidade}× ${i.nome} · R$ ${formatarMoeda(Number(i.preco || 0) * Number(i.qtd || i.quantidade || 0))}${i.cliente && i.cliente !== "Cliente" ? ` · ${i.cliente}` : ""}`)),
+        detalhes: resultado.docs.flatMap((d) => (d.data().itens || []).map((i) => `${textoDoItem(i)} · R$ ${formatarMoeda(Number(i.preco || 0) * Number(i.qtd || i.quantidade || 0))}${i.cliente && i.cliente !== "Cliente" ? ` · ${i.cliente}` : ""}`)),
       });
       // Controle da mesa no histórico: quem estava, quando abriu e fechou, quantos pedidos fez.
       const agoraIso = new Date().toISOString();
