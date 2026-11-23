@@ -252,3 +252,25 @@
 .qs-dica { margin: 6px 0 10px; }
 .qs-painel > label { display: grid !important; grid-template-columns: 1fr !important; gap: 4px; align-items: start; }
 .qs-painel > label > select { width: 100%; box-sizing: border-box; }
+.pd-item { padding: 10px 12px; border-radius: 14px; border: 1px solid rgba(127, 127, 127, 0.3); margin-bottom: 8px; display: grid; gap: 8px; }
+.pd-item-topo { display: flex; align-items: center; gap: 8px; }
+.pd-item-topo strong { flex: 1; }
+.pd-tipo { font-size: 11px; font-weight: 800; padding: 2px 7px; border-radius: 6px; background: #dbeafe; color: #1e40af !important; }
+.pd-tipo.ing { background: #fef3c7; color: #92400e !important; }
+.pd-qtd em, .pd-ing em { margin-left: auto; font-style: normal; font-weight: 800; color: #dc2626; }
+.pd-ing { display: flex; align-items: center; gap: 8px; }
+.pd-ing input { width: 90px; padding: 10px; border-radius: 10px; border: 1px solid rgba(127, 127, 127, 0.35); background: transparent; color: inherit; font: inherit; font-size: 16px; }
+.pd-medida { display: flex; border: 1px solid rgba(127, 127, 127, 0.35); border-radius: 10px; overflow: hidden; }
+.pd-medida button { border: 0; background: transparent; color: inherit; padding: 9px 12px; font: inherit; font-weight: 700; cursor: pointer; }
+.pd-medida button.on { background: #16a34a; color: #fff; }
+.pd-tem { opacity: 0.7; }
+.pd-busca { margin-top: 2px; }
+/* Compra em fardo / caixa */
+.cp-modo { margin: 6px 0 10px; }
+.cp-fardo { display: grid; gap: 10px; }
+.cp-fardo > label { display: grid !important; grid-template-columns: 1fr !important; gap: 4px; font-size: 14px; font-weight: 600; }
+.cp-fardo input { width: 100%; box-sizing: border-box; padding: 11px 12px; border-radius: 12px; border: 1px solid rgba(127, 127, 127, 0.35); background: transparent; color: inherit; font: inherit; font-size: 16px; }
+.cp-pacote { display: flex; gap: 8px; align-items: center; }
+.cp-pacote input { width: 110px; }
+.cp-conta { margin: 2px 0 0; padding: 10px 12px; border-radius: 12px; background: rgba(22, 163, 74, 0.12); font-size: 14.5px; }
+.cp-pratos { margin: 10px 0 0; padding: 10px 12px; border-radius: 12px; background: rgba(59, 130, 246, 0.12); font-size: 13.5px; line-height: 1.4; }

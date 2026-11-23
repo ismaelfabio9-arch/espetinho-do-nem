@@ -195,16 +195,33 @@ export function Movimentar({ acao, fechar }) {
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
   const titulo = tipo === "compra" ? `Compra de ${insumo.nome}` : tipo === "perda" ? `Perda de ${insumo.nome}` : `Contagem de ${insumo.nome}`;
+  // Compra em fardo / caixa / pacote: 1 fardo com 20 pacotes de 1 kg por R$ 120 → 20 kg a R$ 6,00 o quilo.
+  const medidas = insumo.unidade === "kg" ? [["kg", 1], ["g", 1000]] : insumo.unidade === "L" ? [["litro", 1], ["ml", 1000]] : [["un", 1]];
+  const [fardo, setFardo] = useState(false);
+  const [nFardos, setNFardos] = useState("1");
+  const [porFardo, setPorFardo] = useState("");
+  const [tamPacote, setTamPacote] = useState(insumo.unidade === "un" ? "1" : "1");
+  const [medida, setMedida] = useState(medidas[0][0]);
+  const [valorFardo, setValorFardo] = useState("");
+  const fator = medidas.find(([m]) => m === medida)?.[1] || 1;
+  const qtdFardo = (num(nFardos) || 0) * (num(porFardo) || 0) * ((num(tamPacote) || 0) / fator);
+  const valorTotalFardo = (num(nFardos) || 0) * lerValor(valorFardo);
+  // Pratos que levam este ingrediente: o custo deles muda sozinho com o preço novo.
+  const fichas = useColecao("fichas");
+  const pratos = (fichas || [])
+    .filter((f) => [...(f.itens || []), ...(f.variaPor?.itens || []), ...((f.opcoes || []).flatMap((o) => o.itens || []))].some((it) => it.insumoId === insumo.id || it.passa === insumo.id))
+    .map((f) => f.nome)
+    .filter(Boolean);
 
   async function salvar(e) {
     e.preventDefault();
-    const q = num(qtd);
-    if (!(q > 0) && !(tipo === "contagem" && q === 0)) return setErro("Informe a quantidade.");
+    const q = tipo === "compra" && fardo ? Math.round(qtdFardo * 1000) / 1000 : num(qtd);
+    if (!(q > 0) && !(tipo === "contagem" && q === 0)) return setErro(fardo ? "Diga quantos pacotes vêm no fardo e o tamanho de cada um." : "Informe a quantidade.");
     setSalvando(true);
     setErro("");
     try {
       if (tipo === "compra") {
-        const v = lerValor(valor);
+        const v = fardo ? Math.round(valorTotalFardo * 100) / 100 : lerValor(valor);
         await entradaInsumo(insumo, q, v, quem(), modo);
         // A compra também vai para Finanças (Compras de mercadoria), se o dono quiser.
         if (v > 0 && lancar) {
@@ -225,7 +242,50 @@ export function Movimentar({ acao, fechar }) {
       <form className="ins-modal-caixa" onClick={(e) => e.stopPropagation()} onSubmit={salvar}>
         <h2>{titulo}</h2>
         <p className="fin-explica">Tem agora: {mostrarQtd(insumo.quantidade, insumo.unidade)}</p>
-        <div className="fin-campos">
+        {tipo === "compra" && (
+          <div className="pd-modo cp-modo" role="tablist" aria-label="Como comprou">
+            <button type="button" role="tab" aria-selected={!fardo} className={!fardo ? "on" : ""} onClick={() => setFardo(false)}>Solto ({insumo.unidade === "un" ? "unidades" : u.id})</button>
+            <button type="button" role="tab" aria-selected={fardo} className={fardo ? "on" : ""} onClick={() => setFardo(true)}>Fardo / caixa / pacote</button>
+          </div>
+        )}
+        {tipo === "compra" && fardo && (
+          <div className="cp-fardo">
+            <label>
+              Quantos fardos (ou caixas)
+              <input inputMode="decimal" value={nFardos} onChange={(e) => setNFardos(e.target.value)} />
+            </label>
+            <label>
+              Cada fardo vem com quantos pacotes
+              <input autoFocus inputMode="decimal" placeholder="Ex.: 20" value={porFardo} onChange={(e) => setPorFardo(e.target.value)} />
+            </label>
+            <label>
+              Cada pacote tem
+              <span className="cp-pacote">
+                <input inputMode="decimal" placeholder="1" value={tamPacote} onChange={(e) => setTamPacote(e.target.value)} />
+                {medidas.length > 1 ? (
+                  <span className="pd-medida">
+                    {medidas.map(([m]) => (
+                      <button key={m} type="button" className={medida === m ? "on" : ""} onClick={() => setMedida(m)}>{m}</button>
+                    ))}
+                  </span>
+                ) : (
+                  <span>un</span>
+                )}
+              </span>
+            </label>
+            <label>
+              Quanto pagou em cada fardo (R$)
+              <input inputMode="decimal" placeholder="0,00" value={valorFardo} onChange={(e) => setValorFardo(e.target.value)} />
+            </label>
+            {qtdFardo > 0 && valorTotalFardo > 0 && (
+              <p className="cp-conta">
+                {num(nFardos) > 1 ? `${nFardos} fardos = ` : ""}
+                <b>{mostrarQtd(qtdFardo, insumo.unidade)}</b> por <b>{R(valorTotalFardo)}</b> → {insumo.unidade === "un" ? "a unidade" : `o ${u.nomeLongo}`} sai a <b>{R(valorTotalFardo / qtdFardo)}</b>
+              </p>
+            )}
+          </div>
+        )}
+        <div className="fin-campos" style={tipo === "compra" && fardo ? { display: "none" } : undefined}>
           <label className={tipo === "compra" ? "" : "fin-largo"}>
             {tipo === "contagem" ? `Quanto tem de verdade (${u.id})` : tipo === "compra" ? `Quanto comprou (${u.id === "un" ? "unidades" : u.id})` : `Quantidade (${u.id})`}
             <input autoFocus inputMode="decimal" placeholder="0" value={qtd} onChange={(e) => setQtd(e.target.value)} />
@@ -249,8 +309,8 @@ export function Movimentar({ acao, fechar }) {
           </label>
         )}
         {tipo === "compra" && (() => {
-          const q = num(qtd);
-          const v = lerValor(valor);
+          const q = fardo ? qtdFardo : num(qtd);
+          const v = fardo ? valorTotalFardo : lerValor(valor);
           if (!(q > 0) || !(v > 0)) return <p className="fin-explica">Diga quanto comprou e quanto pagou: o sistema calcula o preço {insumo.unidade === "un" ? "da unidade" : `do ${u.nomeLongo}`} e todos os pratos com {insumo.nome} recalculam sozinhos.</p>;
           const desta = v / q;
           const media = novoCustoCompra(insumo, q, v, "media");
@@ -281,6 +341,12 @@ export function Movimentar({ acao, fechar }) {
             </div>
           );
         })()}
+        {tipo === "compra" && pratos.length > 0 && (
+          <p className="cp-pratos">
+            🔄 Com o preço novo, o custo destes pratos muda sozinho: <b>{pratos.slice(0, 8).join(", ")}</b>
+            {pratos.length > 8 ? ` e mais ${pratos.length - 8}` : ""}.
+          </p>
+        )}
         {erro && <p className="fin-erro">{erro}</p>}
         <div className="ins-modal-botoes">
           <button type="button" className="ins-btn" onClick={fechar}>Cancelar</button>
@@ -404,12 +470,12 @@ function Perdas({ movs, porId }) {
           {s.lista.map((l) => (
             <li key={l.id} onClick={() => setAberto(aberto === l.id ? null : l.id)} style={{ cursor: "pointer" }}>
               <div>
-                <strong>{l.produtoNome ? `${l.qtdProduto}× ${l.produtoNome}${l.opcao ? ` (${l.opcao})` : ""}` : l.itens.map((i) => `${i.nome} ${mostrarQtd(i.qtd, porId[i.insumoId]?.unidade)}`).join(", ")}</strong>
+                <strong>{l.descricoes?.length ? l.descricoes.join(" + ") : l.produtoNome ? `${l.qtdProduto}× ${l.produtoNome}${l.opcao ? ` (${l.opcao})` : ""}` : l.itens.map((i) => `${i.nome} ${mostrarQtd(i.qtd, porId[i.insumoId]?.unidade)}`).join(", ")}</strong>
                 <small>
                   {new Date(l.em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })} · {l.motivo}
                   {l.semPreco ? " · algum ingrediente sem preço" : ""}
                 </small>
-                {aberto === l.id && l.produtoNome && l.itens.length > 0 && (
+                {aberto === l.id && (l.produtoNome || l.descricoes?.length > 1) && l.itens.length > 0 && (
                   <small style={{ display: "block", marginTop: 4 }}>Saiu: {l.itens.map((i) => `${i.nome} ${mostrarQtd(i.qtd, porId[i.insumoId]?.unidade)}`).join(", ")}</small>
                 )}
               </div>
