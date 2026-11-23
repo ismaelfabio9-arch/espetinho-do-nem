@@ -993,3 +993,5 @@ body:not(.dark) .md-nome { background: #dcfce7; color: #166534; }
   .md-com-botoes { display: flex; gap: 8px; }
   .md-com-botoes .md-btn.verde { justify-content: center; }
 }
+/* O sistema pinta todo span/p/small de cinza (App.css); no topo, na barra e na comanda o texto segue a cor. */
+html body :is(.md-topo, .md-barra, .md-comanda) :is(span, p, small, b, strong, h1, h2) { color: inherit; }
