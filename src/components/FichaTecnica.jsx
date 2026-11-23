@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { addDoc, collection, doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { L } from "../loja";
-import { custoDaFicha, custosPorOpcao, daFicha, daParaQuantos, itensJuntos, mostrarQtd, paraFicha, unidadeDe } from "../utils/insumos";
+import { custoDaFicha, custoPronto, custosPorOpcao, daFicha, daParaQuantos, itensJuntos, mostrarQtd, paraFicha, rendimentoDe, unidadeDe } from "../utils/insumos";
 import { tipoDe } from "../utils/montagem";
 import { lerValor } from "../utils/financas";
 import { contaDoProduto, pesoIngredientes, precoBonito } from "../utils/precificacao";
@@ -62,7 +62,10 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
     preco: typeof editar?.custo === "number" ? fmt(editar.custo) : "",
     quantidade: editar && Number(editar.quantidade) > 0 ? String(editar.quantidade).replace(".", ",") : "",
     minimo: editar && Number(editar.minimo) > 0 ? String(editar.minimo).replace(".", ",") : "",
+    // Rendimento: de 1 kg (ou 1 litro) comprado, quantos g (ml) sobram prontos ou limpos. Vazio = não perde.
+    sobra: editar && rendimentoDe(editar) < 1 ? String(Math.round(rendimentoDe(editar) * 1000)) : "",
   }));
+  const [perdeAberto, setPerdeAberto] = useState(() => !!(editar && rendimentoDe(editar) < 1));
   const [pacote, setPacote] = useState(null); // { pagou, qtd } calcular o preço de um pacote
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -91,6 +94,9 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
     const preco = lerValor(f.preco);
     const quantidade = Math.max(0, num(f.quantidade) || 0);
     const minimo = Math.max(0, num(f.minimo) || 0);
+    const sobra = num(f.sobra);
+    if (f.unidade !== "un" && f.sobra.trim() && !(sobra > 0 && sobra <= 1000)) return setErro(`Quanto sobra de 1 ${u.nomeLongo}: escreva entre 1 e 1000 ${u.sub}.`);
+    const rendimento = f.unidade !== "un" && sobra > 0 && sobra < 1000 ? Math.round((sobra / 1000) * 1000) / 1000 : null;
     setSalvando(true);
     setErro("");
     try {
@@ -99,7 +105,7 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
         const antes = Number(editar.quantidade || 0);
         await setDoc(
           doc(db, ...L(), "insumos", editar.id),
-          { nome: nome.slice(0, 60), ...(preco > 0 ? { custo: preco } : {}), ...(preco > 0 && preco !== editar.custo ? { custoEm: agora } : {}), minimo, ...(trocouUnidade ? { unidade: f.unidade, quantidade } : {}), atualizadoEm: agora },
+          { nome: nome.slice(0, 60), ...(preco > 0 ? { custo: preco } : {}), ...(preco > 0 && preco !== editar.custo ? { custoEm: agora } : {}), minimo, rendimento, ...(trocouUnidade ? { unidade: f.unidade, quantidade } : {}), atualizadoEm: agora },
           { merge: true }
         );
         if (trocouUnidade && quantidade !== antes)
@@ -107,7 +113,7 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
         fechar();
         return;
       }
-      const dados = { nome: nome.slice(0, 60), unidade: f.unidade, quantidade, minimo, ...(preco > 0 ? { custo: preco, custoEm: agora } : {}), ativo: true, criadoEm: serverTimestamp(), atualizadoEm: agora };
+      const dados = { nome: nome.slice(0, 60), unidade: f.unidade, quantidade, minimo, ...(rendimento ? { rendimento } : {}), ...(preco > 0 ? { custo: preco, custoEm: agora } : {}), ativo: true, criadoEm: serverTimestamp(), atualizadoEm: agora };
       const ref = await addDoc(collection(db, ...L(), "insumos"), dados);
       if (quantidade > 0)
         await addDoc(collection(db, ...L(), "insumosMov"), { insumoId: ref.id, nome, tipo: "contagem", qtd: quantidade, antes: 0, depois: quantidade, motivo: "Cadastro", em: agora, por: quem(), criadoEm: serverTimestamp() });
@@ -211,6 +217,32 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
                 Comprou em fardo, saco ou caixa? Toque aqui que o sistema calcula
               </button>
             )}
+            {f.unidade !== "un" &&
+              (perdeAberto ? (
+                <div className="ni-pacote ni-perde">
+                  <strong>Perde no preparo ou na limpeza?</strong>
+                  <small>Ex.: frango grelhado, peixe sem espinha, carne sem osso, verdura limpa. Nos produtos você põe o peso do pronto.</small>
+                  <span className="ni-pac-linha">
+                    De 1 {u.nomeLongo} comprado, sobram
+                    <input aria-label={`Quanto sobra pronto de 1 ${u.nomeLongo}, em ${u.sub}`} inputMode="decimal" placeholder="700" value={f.sobra} onChange={(e) => setF({ ...f, sobra: e.target.value })} />
+                    {u.sub} prontos
+                  </span>
+                  {(() => {
+                    const s = num(f.sobra);
+                    const p = lerValor(f.preco);
+                    if (!(s > 0 && s < 1000)) return null;
+                    return (
+                      <p className="ni-pac-res">
+                        Perde {Math.round(100 - s / 10)}% no preparo{p > 0 ? <> → <b>o {u.nomeLongo} pronto sai por {R(p / (s / 1000))}</b> (cru: {R(p)})</> : null}
+                      </p>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <button type="button" className="ni-link" onClick={() => setPerdeAberto(true)}>
+                  Perde peso no preparo ou na limpeza (grelhado, frito, limpo)? Toque aqui
+                </button>
+              ))}
           </div>
         </div>
 
@@ -266,7 +298,7 @@ function LinhasFicha({ linhas, muda, todos, lista, novo, extra = null, vazio, pr
         const ins = todos[l.insumoId];
         const u = unidadeDe(ins?.unidade);
         const q = num(l.qtd);
-        const linhaCusto = ins && typeof ins.custo === "number" && q > 0 ? daFicha(l.qtd, ins.unidade) * ins.custo : null;
+        const linhaCusto = ins && typeof ins.custo === "number" && q > 0 ? daFicha(l.qtd, ins.unidade) * custoPronto(ins) : null;
         const ajustar = (delta) => muda(linhas.map((x, k) => (k === n ? { ...x, qtd: String(Math.max(0, Math.round(((num(x.qtd) || 0) + delta) * 1000) / 1000)).replace(".", ",") } : x)));
         return (
           <div key={l.insumoId || n} className="ficha-linha">
@@ -533,7 +565,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
               // O que mais pesa no preço: os 3 ingredientes mais caros deste produto.
               if (!(preco > 0) || itens.length < 3) return null;
               const caros = itens
-                .map((it) => ({ nome: todos[it.insumoId]?.nome, v: Number(it.qtd) * Number(todos[it.insumoId]?.custo || 0) }))
+                .map((it) => ({ nome: todos[it.insumoId]?.nome, v: Number(it.qtd) * Number(custoPronto(todos[it.insumoId]) || 0) }))
                 .filter((x) => x.nome && x.v > 0)
                 .sort((a, b) => b.v - a.v)
                 .slice(0, 3);

@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { addDoc, collection, limit, onSnapshot, orderBy, query, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../../firebase";
-import { ajustarInsumo, entradaInsumo, novoCustoCompra, inventario, mostrarQtd, perdasNoPeriodo, previsao, unidadeDe } from "../../utils/insumos";
+import { ajustarInsumo, custoPronto, entradaInsumo, novoCustoCompra, inventario, mostrarQtd, perdasNoPeriodo, previsao, rendimentoDe, unidadeDe } from "../../utils/insumos";
 import { NovoInsumo } from "../../components/FichaTecnica";
 import { isoDia, periodo } from "../../utils/financas";
 import { lerValor } from "../../utils/financas";
@@ -141,6 +141,7 @@ function Estoque({ insumos, prev, perdasMes, verPerdas }) {
                     <strong>{i.nome}</strong>
                     <small>
                       {typeof i.custo === "number" ? `${R(i.custo)} ${i.unidade === "un" ? "a" : "o"} ${unidadeDe(i.unidade).nomeLongo}` : "sem preço"}
+                      {typeof i.custo === "number" && rendimentoDe(i) < 1 ? ` · pronto ${R(custoPronto(i))} (rende ${Math.round(rendimentoDe(i) * 100)}%)` : ""}
                       {min > 0 ? ` · mínimo ${mostrarQtd(min, i.unidade)}` : ""}
                       {typeof i.custo === "number" && q > 0 ? ` · vale ${R(q * i.custo)}` : ""}
                     </small>
