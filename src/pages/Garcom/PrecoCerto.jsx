@@ -489,7 +489,7 @@ function PorcaoRapida({ produto, insumos, digitado }) {
 
   return (
     <div className="pc-porcao">
-      <strong>Quanto vai em 1 {produto.nome}?</strong>
+      <strong>Quanto vai na porção de {produto.nome}?</strong>
       {ativos.length === 0 ? (
         <p className="pc-porcao-dica">
           Cadastre primeiro o ingrediente com o preço da compra (ex.: Arroz, comprei 5 kg por R$ 40) em <Link to="/cardapio?aba=ingredientes">Ingredientes</Link>.
