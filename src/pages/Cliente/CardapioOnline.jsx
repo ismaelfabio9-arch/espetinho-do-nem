@@ -120,14 +120,14 @@ export default function CardapioOnline() {
     }
     setCarrinho((c) => ({ ...c, [item.id]: { chave: item.id, produtoId: item.id, nome: item.nome, preco: item.preco, quantidade: (c[item.id]?.quantidade || 0) + 1 } }));
   }
-  function adicionarMontado({ prato, bebidas }) {
+  function adicionarMontado({ prato, bebidas, qtd: quantos = 1 }) {
     setCarrinho((c) => {
       const novo = { ...c };
       const chave = `m:${prato.nome}`;
       // Editando: a linha antiga sai e a nova fica com a mesma quantidade.
       const antiga = editando ? c[editando] : null;
       if (antiga) delete novo[editando];
-      const qtd = antiga ? antiga.quantidade : 1;
+      const qtd = antiga ? antiga.quantidade : quantos;
       novo[chave] = { chave, produtoId: prato.produtoId, nome: prato.nome, preco: prato.preco, montagem: prato.montagem, quantidade: (novo[chave]?.quantidade || 0) + qtd };
       bebidas.forEach((b) => (novo[b.id] = { chave: b.id, produtoId: b.id, nome: b.nome, preco: b.preco, quantidade: (c[b.id]?.quantidade || 0) + 1 }));
       return novo;
@@ -392,6 +392,8 @@ export default function CardapioOnline() {
           key={editando || "novo"}
           produto={montando}
           foto={fotos[montando.id] || null}
+          fotos={fotos}
+          claro
           bebidas={editando ? [] : sugestoesBebida(produtos)}
           inicial={editando ? carrinho[editando]?.montagem : null}
           textoBotao={editando ? "Salvar alteração" : "Adicionar"}

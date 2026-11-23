@@ -942,3 +942,54 @@ body.dark .resumo-linha .resumo-nome, body.dark .resumo-linha .resumo-ajuste b {
 .modal-cartao { margin: 10px 0 0; padding: 10px 12px; border-radius: 10px; background: rgba(22, 163, 74, 0.12); font-size: 14px; line-height: 1.5; }
 /* "Editar" no prato montado do pedido atual */
 .resumo-editar { display: block; margin-top: 3px; padding: 0; border: 0; background: none; color: #16a34a; font-weight: 700; font-size: 13px; cursor: pointer; }
+
+/* ===== Comanda da mesa: topo compacto, barra presa embaixo e (no computador) a comanda ao lado ===== */
+.md-pagina { --d-bg: #0b0b0c; --d-card: #17181a; --d-card2: #202125; --d-linha: #2a2b2f; --d-txt: #f4f4f5; --d-mute: #a1a1aa; --d-verde: #16a34a; --d-verde-txt: #22c55e; padding-bottom: 110px !important; }
+body:not(.dark) .md-pagina { --d-bg: #f4f5f7; --d-card: #fff; --d-card2: #f3f4f6; --d-linha: #e5e7eb; --d-txt: #111827; --d-mute: #6b7280; --d-verde-txt: #15803d; }
+.md-pagina :is(.md-topo, .md-barra, .md-comanda) :is(h1, h2, small, span, strong, b, p) { color: inherit; }
+.md-topo { display: flex; align-items: center; gap: 10px; padding: 4px 0 10px; color: var(--d-txt); }
+.md-voltar { flex: none; width: 42px; height: 42px; border-radius: 12px; border: 1px solid var(--d-linha); background: var(--d-card); color: var(--d-verde-txt); font-size: 21px; cursor: pointer; }
+.md-mesa { flex: 1; min-width: 0; }
+.md-mesa small, .md-total small { display: block; font-size: 12px; color: var(--d-mute) !important; }
+.md-mesa h1 { margin: 0; font-size: 24px; font-weight: 800; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; line-height: 1.1; }
+.md-nome { border: 0; border-radius: 99px; padding: 3px 10px; font-size: 12.5px; font-weight: 700; background: #14532d; color: #bbf7d0; cursor: pointer; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+body:not(.dark) .md-nome { background: #dcfce7; color: #166534; }
+.md-total { text-align: right; }
+.md-total strong { font-size: 21px; color: var(--d-verde-txt) !important; font-weight: 800; }
+.md-barra { position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; display: flex; gap: 8px; padding: 10px 14px calc(12px + env(safe-area-inset-bottom, 0px)); background: linear-gradient(transparent, var(--d-bg) 28%); }
+.md-btn { flex: 1; display: flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; border-radius: 14px; border: 1px solid var(--d-linha); background: var(--d-card); color: var(--d-txt); font: inherit; font-weight: 800; font-size: 15px; cursor: pointer; }
+.md-btn.verde { flex: 2.3; background: var(--d-verde); border-color: var(--d-verde); color: #fff; justify-content: space-between; padding: 0 14px; }
+.md-btn.verde:disabled { opacity: 0.55; justify-content: center; }
+.md-btn.verde i { font-style: normal; background: rgba(0, 0, 0, 0.25); border-radius: 8px; padding: 1px 8px; }
+.md-btn.verde :is(span, b, i) { color: #fff !important; }
+.md-comanda { display: none; }
+/* Itens que só aparecem no computador ficam escondidos; a barra antiga sai. */
+.md-pagina .barra-pedido { display: none; }
+
+@media (min-width: 1100px) {
+  .mesa-page.md-pagina { max-width: 1500px; display: grid; grid-template-columns: minmax(0, 1fr) 370px; column-gap: 24px; align-items: start; padding-bottom: 24px !important; }
+  .md-pagina > :not(.md-comanda):not(.toast):not(.modal-overlay) { grid-column: 1; }
+  .md-barra, .md-pagina .pm-resumo, .md-pagina .resumo-pedido { display: none !important; }
+  .md-comanda { display: flex; flex-direction: column; grid-column: 2; grid-row: 1 / span 40; position: sticky; top: 12px; height: calc(100dvh - 24px); background: var(--d-card); border: 1px solid var(--d-linha); border-radius: 18px; overflow: hidden; color: var(--d-txt); }
+  .md-com-topo { padding: 16px 16px 12px; border-bottom: 1px solid var(--d-linha); }
+  .md-com-topo small { color: var(--d-mute) !important; font-size: 12px; }
+  .md-com-topo h2 { margin: 2px 0 0; font-size: 22px; display: flex; gap: 8px; align-items: center; }
+  .md-com-nome { font-size: 12.5px; padding: 3px 10px; border-radius: 99px; background: #14532d; color: #bbf7d0 !important; }
+  body:not(.dark) .md-com-nome { background: #dcfce7; color: #166534 !important; }
+  .md-com-lista { flex: 1; overflow-y: auto; padding: 4px 16px 10px; }
+  .md-com-grupo { margin: 12px 0 2px; font-size: 11.5px; font-weight: 800; letter-spacing: 0.06em; text-transform: uppercase; color: var(--d-mute) !important; }
+  .md-com-item { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--d-linha); font-size: 14px; }
+  .md-com-item img, .md-com-sem { flex: none; width: 42px; height: 42px; border-radius: 10px; object-fit: cover; background: var(--d-card2); display: grid; place-items: center; }
+  .md-com-txt { flex: 1; min-width: 0; line-height: 1.25; overflow-wrap: anywhere; }
+  .md-com-link { display: block; border: 0; background: none; padding: 2px 0 0; color: var(--d-verde-txt); font-size: 12.5px; font-weight: 700; cursor: pointer; }
+  .md-com-qtd { display: flex; gap: 4px; }
+  .md-com-qtd button { width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--d-linha); background: transparent; color: var(--d-txt); cursor: pointer; font-weight: 800; }
+  .md-com-item b { min-width: 58px; text-align: right; }
+  .md-com-vazio { color: var(--d-mute) !important; margin-top: 18px; }
+  .md-com-pe { padding: 12px 16px 16px; border-top: 1px solid var(--d-linha); }
+  .md-com-linha { display: flex; justify-content: space-between; margin: 0 0 4px; font-size: 14px; color: var(--d-mute) !important; }
+  .md-com-total { margin: 6px 0 12px; font-size: 19px; font-weight: 800; color: var(--d-txt) !important; }
+  .md-com-total strong { color: var(--d-verde-txt) !important; }
+  .md-com-botoes { display: flex; gap: 8px; }
+  .md-com-botoes .md-btn.verde { justify-content: center; }
+}

@@ -20,6 +20,7 @@ import PratoNoPedido from "../../components/PratoNoPedido";
 import { emojiCategoria, sugestoesBebida, abreEscolha } from "../../utils/montagem";
 import { useConfigImpressora } from "../../hooks/useConfigImpressora";
 import { useRecurso } from "../../recursos";
+import { useFotos } from "../../utils/fotos";
 import { gerarComandaHTML, imprimir } from "../../utils/print";
 import { numeroDoPedido } from "../../utils/numeroPedido";
 import { moeda, useEntrega } from "../../utils/entrega";
@@ -51,6 +52,7 @@ function Viagem({ modo = "balcao", topo = null }) {
   const [paraImprimir, setParaImprimir] = useState(null); // { itens, total, cliente, numero }
   const configImpressora = useConfigImpressora();
   const montarLigado = useRecurso("montar-prato");
+  const fotos = useFotos(useRecurso("fotos"));
   const imprimirLigado = useRecurso("imprimir-cozinha");
   const [pedido, setPedido] = useState({});
   const [notificacao, setNotificacao] = useState("");
@@ -131,14 +133,14 @@ function Viagem({ modo = "balcao", topo = null }) {
   }
 
   /** Prato montado (e as bebidas escolhidas junto) entram no pedido. */
-  function adicionarMontado({ prato, bebidas }) {
+  function adicionarMontado({ prato, bebidas, qtd: quantos = 1 }) {
     setPedido((atual) => {
       const novo = { ...atual };
       // Editando: a linha antiga sai e a nova fica com a mesma quantidade.
       const antiga = editando ? atual[editando] : null;
       if (antiga) delete novo[editando];
       const ja = novo[prato.nome];
-      const qtd = antiga ? antiga.qtd : 1;
+      const qtd = antiga ? antiga.qtd : quantos;
       novo[prato.nome] = { ...prato, qtd: ja ? ja.qtd + qtd : qtd };
       bebidas.forEach((b) => {
         const jb = novo[b.nome];
@@ -615,6 +617,8 @@ function Viagem({ modo = "balcao", topo = null }) {
         <MontarPrato
           key={editando || "novo"}
           produto={montando}
+          foto={fotos[montando.id] || null}
+          fotos={fotos}
           bebidas={editando ? [] : sugestoesBebida(produtos)}
           permitirOutros
           inicial={editando ? pedido[editando]?.montagem : null}
@@ -647,6 +651,7 @@ function Viagem({ modo = "balcao", topo = null }) {
           montar={montarLigado}
           contagem={(item) => itensPedido.filter((p) => p.produtoId === item.id).reduce((s, p) => s + p.qtd, 0)}
           onTocar={tocarItem}
+          fotos={fotos}
         />
       )}
 

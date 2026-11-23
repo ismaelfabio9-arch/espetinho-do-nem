@@ -39,6 +39,7 @@ import { ajustarPartes, falta as faltaDaConta, textoPagamentos, totalPago as tot
 import { MONTAGEM_ALMOCO, emojiCategoria, pratosSemMontagem, sugestoesBebida, abreEscolha } from "../../utils/montagem";
 import { baixarInsumos } from "../../utils/insumos";
 import { meuAparelho } from "../../utils/sons";
+import { useFotos } from "../../utils/fotos";
 
 
 
@@ -52,6 +53,7 @@ function MesaDetalhe() {
   const { id } = useParams();
   const navigate = useNavigate();
   const alterouTimer = useRef(null);
+  const fotos = useFotos(useRecurso("fotos"));
 
   const [produtos, setProdutos] = useState([]);
   const [categoriaAberta, setCategoriaAberta] = useState("");
@@ -372,7 +374,7 @@ if (pedidosDaMesa.length === 0) {
   }
 
   /** Prato montado (e as bebidas escolhidas junto) entram no pedido atual. */
-  function adicionarMontado({ prato, bebidas }) {
+  function adicionarMontado({ prato, bebidas, qtd: quantos = 1 }) {
     if (editandoSalvo) return void salvarEdicaoSalvo(prato);
     setPedido((atual) => {
       const novo = { ...atual };
@@ -380,7 +382,7 @@ if (pedidosDaMesa.length === 0) {
       const antiga = editando ? atual[editando] : null;
       if (antiga) delete novo[editando];
       const ja = novo[prato.nome];
-      const qtd = antiga ? antiga.qtd : 1;
+      const qtd = antiga ? antiga.qtd : quantos;
       novo[prato.nome] = { ...prato, qtd: ja ? ja.qtd + qtd : qtd };
       bebidas.forEach((b) => {
         const jb = novo[b.nome];
@@ -897,7 +899,7 @@ if (pedidosDaMesa.length === 0) {
   }
 
   return (
-    <div className="mesa-page">
+    <div className="mesa-page md-pagina">
       {notificacao && <div className="toast">{notificacao}</div>}
 
       {editandoNomeCliente && (
@@ -1120,43 +1122,21 @@ if (pedidosDaMesa.length === 0) {
         </div>
       )}
 
-      <button className="voltar" onClick={() => navigate("/")}>
-        ← Voltar
-      </button>
-
-      <div className="mesa-topo">
-        <div>
-          <span>Comanda</span>
-
-          <div className="mesa-titulo-cliente">
-            <h1>
-              Mesa {id}
-              {nomeCliente ? ` - ${nomeCliente}` : ""}
-            </h1>
-
-            <button onClick={() => setEditandoNomeCliente(true)}>✏️</button>
-          </div>
+      <div className="md-topo">
+        <button type="button" className="md-voltar" onClick={() => navigate("/")} aria-label="Voltar">←</button>
+        <div className="md-mesa">
+          <small>Comanda</small>
+          <h1>
+            Mesa {id}
+            <button type="button" className="md-nome" onClick={() => setEditandoNomeCliente(true)} aria-label="Nome do cliente">
+              ✏️ {nomeCliente || "nome"}
+            </button>
+          </h1>
         </div>
-
-        <div className="mesa-total">
-          <span>Total atual</span>
+        <div className="md-total">
+          <small>Total</small>
           <strong>R$ {formatarMoeda(totalGeralMesa)}</strong>
         </div>
-      </div>
-
-      <div className="acoes-mesa">
-        <button className="btn-verde" onClick={salvarPedido} data-atalho="F8">
-          Salvar pedido
-        </button>
-
-        <button
-          className="btn-cinza"
-          onClick={abrirModalEncerrar}
-          disabled={encerrando}
-          data-atalho="F9"
-        >
-          {encerrando ? "Encerrando..." : "Encerrar mesa"}
-        </button>
       </div>
 
       {totalItensMesa > 0 && (
@@ -1242,6 +1222,8 @@ if (pedidosDaMesa.length === 0) {
         <MontarPrato
           key={editandoSalvo ? `s:${editandoSalvo}` : editando || "novo"}
           produto={montando}
+          foto={fotos[montando.id] || null}
+          fotos={fotos}
           bebidas={editando || editandoSalvo ? [] : sugestoesBebida(produtos)}
           permitirOutros
           inicial={editandoSalvo ? itensMesa.find((i) => i.nome === editandoSalvo)?.montagem || null : editando ? pedido[editando]?.montagem : null}
@@ -1284,6 +1266,7 @@ if (pedidosDaMesa.length === 0) {
               montar={montarLigado}
               contagem={(item) => itensPedido.filter((p) => p.produtoId === item.id).reduce((s, p) => s + p.qtd, 0)}
               onTocar={tocarItem}
+              fotos={fotos}
             />
           )}
         </>
@@ -1439,17 +1422,74 @@ if (pedidosDaMesa.length === 0) {
       )}
       </>)}
 
-      {totalItens > 0 && (
-        <div className="barra-pedido">
-          <div>
-            <strong>{totalItens} itens</strong>
-            <br />
-            <span>R$ {formatarMoeda(total)}</span>
-          </div>
+      {/* Barra presa embaixo (celular): encerrar e salvar, sempre à mão. No computador fica na comanda ao lado. */}
+      <div className="md-barra">
+        <button type="button" className="md-btn" onClick={abrirModalEncerrar} disabled={encerrando} data-atalho="F9">
+          {encerrando ? "Encerrando…" : "Encerrar"}
+        </button>
+        <button type="button" className="md-btn verde" onClick={salvarPedido} disabled={!totalItens} data-atalho="F8">
+          {totalItens > 0 && <i>{totalItens}</i>}
+          <span>Salvar pedido</span>
+          {totalItens > 0 && <b>R$ {formatarMoeda(total)}</b>}
+        </button>
+      </div>
 
-          <button onClick={salvarPedido}>Salvar Pedido</button>
+      {/* Computador: a comanda fica aberta ao lado dos produtos. */}
+      <aside className="md-comanda" aria-label={`Comanda da mesa ${id}`}>
+        <div className="md-com-topo">
+          <small>Comanda</small>
+          <h2>
+            Mesa {id}
+            {nomeCliente ? <span className="md-com-nome">✏️ {nomeCliente}</span> : null}
+          </h2>
         </div>
-      )}
+        <div className="md-com-lista">
+          {itensPedido.length > 0 && <p className="md-com-grupo">Agora (falta salvar)</p>}
+          {itensPedido.map((item) => (
+            <div className="md-com-item" key={`n:${item.nome}`}>
+              {fotos[item.produtoId] ? <img src={fotos[item.produtoId]} alt="" /> : <span className="md-com-sem" aria-hidden="true">🍽️</span>}
+              <span className="md-com-txt">
+                {item.qtd}× {item.nome}
+                {item.montagem && produtoPorId(item.produtoId) && (
+                  <button type="button" className="md-com-link" onClick={() => editarLinha(item)}>✏️ editar</button>
+                )}
+              </span>
+              <span className="md-com-qtd">
+                <button type="button" onClick={() => ajustarItemPedido(item.nome, -1)} aria-label={`Tirar 1 ${item.nome}`}>−</button>
+                <button type="button" onClick={() => ajustarItemPedido(item.nome, 1)} aria-label={`Mais 1 ${item.nome}`}>+</button>
+              </span>
+              <b>{formatarMoeda(item.preco * item.qtd)}</b>
+            </div>
+          ))}
+          {itensMesa.length > 0 && <p className="md-com-grupo">Já na comanda</p>}
+          {itensMesa.map((item) => (
+            <div className="md-com-item" key={`m:${item.nome}`}>
+              {fotos[item.produtoId] ? <img src={fotos[item.produtoId]} alt="" /> : <span className="md-com-sem" aria-hidden="true">🧾</span>}
+              <span className="md-com-txt">
+                {item.qtd}× {item.nome}
+              </span>
+              <span className="md-com-qtd">
+                <button type="button" onClick={() => diminuirItemMesa(item)} aria-label={Number(item.qtd) === 1 ? `Tirar ${item.nome}` : `Menos 1 ${item.nome}`}>{Number(item.qtd) === 1 ? "🗑" : "−"}</button>
+                <button type="button" onClick={() => aumentarItemMesa(item)} aria-label={`Mais 1 ${item.nome}`}>+</button>
+              </span>
+              <b>{formatarMoeda(Number(item.preco || 0) * Number(item.qtd || 0))}</b>
+            </div>
+          ))}
+          {!itensPedido.length && !itensMesa.length && <p className="md-com-vazio">Mesa sem pedido. Toque nos produtos para lançar.</p>}
+        </div>
+        <div className="md-com-pe">
+          {itensMesa.length > 0 && <p className="md-com-linha"><span>Já na comanda</span><span>R$ {formatarMoeda(totalMesa)}</span></p>}
+          {itensPedido.length > 0 && <p className="md-com-linha"><span>Agora</span><span>R$ {formatarMoeda(total)}</span></p>}
+          <p className="md-com-linha md-com-total"><span>Total</span><strong>R$ {formatarMoeda(totalGeralMesa)}</strong></p>
+          <div className="md-com-botoes">
+            <button type="button" className="md-btn" onClick={abrirModalEncerrar} disabled={encerrando}>{encerrando ? "Encerrando…" : "Encerrar mesa"}</button>
+            <button type="button" className="md-btn verde" onClick={salvarPedido} disabled={!totalItens}>
+              {totalItens > 0 && <i>{totalItens}</i>}
+              <span>Salvar pedido</span>
+            </button>
+          </div>
+        </div>
+      </aside>
     </div>
   );
 }
