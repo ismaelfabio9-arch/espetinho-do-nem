@@ -274,14 +274,15 @@ export function emojiCategoria(categoria) {
 // simples = bebida, sobremesa, doce: só nome e preço
 // sabor   = picolé, sorvete, suco: o cliente escolhe o sabor
 // recheio = tapioca, cuscuz, açaí, pastel: recheio ou tamanho, cada opção com o seu preço
+// Nomes pelo que acontece na hora do pedido (o id não muda: é o que fica gravado no produto).
 export const TIPOS = [
-  { id: "prato", emoji: "🍛", nome: "Prato de almoço", exemplo: "Prato do dia, PF, marmita", botao: "🍽️ Montagem do prato", titulo: "Montar o prato" },
-  { id: "lanche", emoji: "🍔", nome: "Lanche montado", exemplo: "Hambúrguer, cachorro-quente, sanduíche", botao: "🍔 O que vem e adicionais", titulo: "Montar o lanche" },
-  { id: "simples", emoji: "🥤", nome: "Simples", exemplo: "Bebida, sobremesa, doce, salgado", botao: "⚙️ Opções", titulo: "" },
-  { id: "sabor", emoji: "🍦", nome: "Com sabor", exemplo: "Picolé, sorvete, suco", botao: "🍦 Sabores", titulo: "Escolher o sabor" },
-  { id: "recheio", emoji: "🌮", nome: "Com escolha (tipo, recheio, tamanho)", exemplo: "Arroz branco ou integral, tapioca, açaí, pastel", botao: "🌮 Escolhas, recheios e tamanhos", titulo: "Escolher" },
+  { id: "simples", emoji: "🥤", nome: "Pronto, sem perguntar nada", exemplo: "Refrigerante, água, sobremesa, salgado: um toque e já entra no pedido", botao: "⚙️ Opções", titulo: "" },
+  { id: "sabor", emoji: "🍦", nome: "Escolhe o sabor", exemplo: "Suco, picolé, sorvete: pergunta o sabor", botao: "🍦 Sabores", titulo: "Escolher o sabor" },
+  { id: "recheio", emoji: "🌮", nome: "Escolhe tamanho ou recheio", exemplo: "Pastel, açaí, tapioca, porção P, M ou G: cada opção com o seu preço", botao: "🌮 Escolhas, recheios e tamanhos", titulo: "Escolher" },
+  { id: "prato", emoji: "🍛", nome: "Prato que se monta", exemplo: "Prato do dia, PF, marmita: tira o que não quer e escolhe o feijão", botao: "🍽️ Montagem do prato", titulo: "Montar o prato" },
+  { id: "lanche", emoji: "🍔", nome: "Lanche com adicionais", exemplo: "Hambúrguer, cachorro-quente: tira ingredientes e põe adicionais", botao: "🍔 O que vem e adicionais", titulo: "Montar o lanche" },
 ];
-export const tipoInfo = (id) => TIPOS.find((t) => t.id === id) || TIPOS[1];
+export const tipoInfo = (id) => TIPOS.find((t) => t.id === id) || TIPOS.find((t) => t.id === "lanche");
 
 /** Tipo do produto. Produtos antigos (sem o campo): com montagem = prato; sem = simples. */
 export function tipoDe(produto) {
