@@ -1,7 +1,7 @@
 // Janela "Montar o prato": o que vem no prato (toque para tirar), as escolhas, o que vai a mais
 // e a bebida em um toque. Usada pelo garçom (MesaDetalhe) e pelo cliente no QR Code da mesa.
 import { useState } from "react";
-import { cobraEscolhas, escolhaPadrao, escolhidas, grupoCortado, limparEscolha, maxDoGrupo, maxNaEscolha, nomeMontado, precoMontado, precoOpcao, sortear, tipoDe, tipoInfo } from "../utils/montagem";
+import { cobraEscolhas, ehEscolhaDeTamanho, escolhaPadrao, escolhidas, grupoCortado, limparEscolha, maxDoGrupo, maxNaEscolha, nomeMontado, precoMontado, precoOpcao, sortear, tipoDe, tipoInfo } from "../utils/montagem";
 import "./MontarPrato.css";
 
 const moeda = (v) => Number(v || 0).toFixed(2).replace(".", ",");
@@ -93,33 +93,10 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
     });
   }
 
-  return (
-    <div className="montar-fundo" onClick={onFechar}>
-      <div className="montar-folha" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`${tipoInfo(tipo).titulo || "Escolher"}: ${produto.nome}`}>
-        {foto && <img className="montar-foto" src={foto} alt={produto.nome} />}
-        <div className="montar-topo">
-          <h2>{produto.nome}</h2>
-          <strong>R$ {moeda(precoPrato)}</strong>
-          <button type="button" className="montar-fechar" onClick={onFechar} aria-label="Fechar">✕</button>
-        </div>
-
-        {(m.vem || []).length > 0 && (
-          <>
-            <div className="montar-grupo">{tipo === "prato" ? "VEM NO PRATO" : tipo === "lanche" ? "VEM NO LANCHE" : "VEM"} · toque para tirar</div>
-            <div className="montar-opcoes">
-              {m.vem.map((v) => {
-                const tirou = escolha.tirar.includes(v);
-                return (
-                  <button type="button" key={v} className={tirou ? "montar-op tirou" : "montar-op tem"} onClick={() => alternarVem(v)}>
-                    {tirou ? v : `✓ ${v}`}
-                  </button>
-                );
-              })}
-            </div>
-          </>
-        )}
-
-        {(m.escolhas || []).filter((g) => !grupoCortado(g, escolha.tirar)).map((g) => (
+  const visiveis = (m.escolhas || []).filter((g) => !grupoCortado(g, escolha.tirar));
+  const doTopo = visiveis.filter(ehEscolhaDeTamanho);
+  const resto = visiveis.filter((g) => !ehEscolhaDeTamanho(g));
+  const grupoNaTela = (g) => (
           <div key={g.nome}>
             <div className="montar-grupo">
               {g.nome.toUpperCase()}
@@ -146,7 +123,38 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
               ))}
             </div>
           </div>
-        ))}
+        );
+
+  return (
+    <div className="montar-fundo" onClick={onFechar}>
+      <div className="montar-folha" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`${tipoInfo(tipo).titulo || "Escolher"}: ${produto.nome}`}>
+        {foto && <img className="montar-foto" src={foto} alt={produto.nome} />}
+        <div className="montar-topo">
+          <h2>{produto.nome}</h2>
+          <strong>R$ {moeda(precoPrato)}</strong>
+          <button type="button" className="montar-fechar" onClick={onFechar} aria-label="Fechar">✕</button>
+        </div>
+
+        {/* Tamanho (peixe pequeno, médio, grande; açaí 300 ml, 500 ml) vem primeiro: é o que define o produto e o preço. */}
+        {doTopo.map(grupoNaTela)}
+
+        {(m.vem || []).length > 0 && (
+          <>
+            <div className="montar-grupo">{tipo === "prato" ? "VEM NO PRATO" : tipo === "lanche" ? "VEM NO LANCHE" : "VEM"} · toque para tirar</div>
+            <div className="montar-opcoes">
+              {m.vem.map((v) => {
+                const tirou = escolha.tirar.includes(v);
+                return (
+                  <button type="button" key={v} className={tirou ? "montar-op tirou" : "montar-op tem"} onClick={() => alternarVem(v)}>
+                    {tirou ? v : `✓ ${v}`}
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {resto.map(grupoNaTela)}
 
         {((m.extras || []).length > 0 || permitirOutros) && (
           <>
