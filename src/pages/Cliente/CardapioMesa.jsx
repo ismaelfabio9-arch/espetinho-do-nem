@@ -239,14 +239,14 @@ function CardapioMesa() {
   }
 
   /** Prato montado (e as bebidas escolhidas) entram no carrinho; cada montagem diferente é uma linha. */
-  function adicionarMontado({ prato, bebidas }) {
+  function adicionarMontado({ prato, bebidas, qtd = 1 }) {
     setCarrinho((anterior) => {
       const novo = { ...anterior };
       const chave = `m:${prato.nome}`;
       // Editando: a linha antiga sai e a nova fica com a mesma quantidade.
       const antiga = editando ? anterior[editando] : null;
       if (antiga) delete novo[editando];
-      novo[chave] = { chave, produtoId: prato.produtoId, nome: prato.nome, preco: prato.preco, montagem: prato.montagem, quantidade: (novo[chave]?.quantidade || 0) + (antiga ? antiga.quantidade : 1) };
+      novo[chave] = { chave, produtoId: prato.produtoId, nome: prato.nome, preco: prato.preco, montagem: prato.montagem, quantidade: (novo[chave]?.quantidade || 0) + (antiga ? antiga.quantidade : qtd) };
       bebidas.forEach((b) => {
         novo[b.id] = { chave: b.id, produtoId: b.id, nome: b.nome, preco: b.preco, quantidade: (anterior[b.id]?.quantidade || 0) + 1 };
       });
@@ -762,6 +762,8 @@ function CardapioMesa() {
           key={editando || "novo"}
           produto={montando}
           foto={fotos[montando.id] || null}
+          fotos={fotos}
+          claro
           bebidas={editando ? [] : sugestoesBebida(produtos)}
           inicial={editando ? carrinho[editando]?.montagem : null}
           textoBotao={editando ? "Salvar alteração" : "Adicionar"}
