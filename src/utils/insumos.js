@@ -243,8 +243,16 @@ export async function baixarInsumos(itens, origem = "venda") {
       batch.set(doc(collection(db, ...L(), "insumosMov")), { insumoId: id, nome: antes[id].nome || "", tipo: origem, qtd: -consumo[id], motivo: nomes, em: agora, criadoEm: serverTimestamp() });
     }
     await batch.commit();
-    // Registro da dona: o que saiu, o que não saiu e por quê.
-    const nomeDe = (id) => antes[id]?.nome || "ingrediente";
+    // Registro da dona: o que saiu, o que não saiu e por quê (busca o nome também do que não saiu).
+    const citados = [...new Set(Object.values(fichas).flatMap((f) => [...itensJuntos(f), ...(f.variaPor?.itens || [])].flatMap((l) => [l.insumoId, l.passa]).filter(Boolean)))].filter((id) => !antes[id]);
+    const nomes2 = {};
+    await Promise.all(
+      citados.map(async (id) => {
+        const s = await getDoc(doc(db, ...L(), "insumos", id)).catch(() => null);
+        if (s?.exists()) nomes2[id] = s.data().nome;
+      })
+    );
+    const nomeDe = (id) => antes[id]?.nome || nomes2[id] || "ingrediente";
     registrar({
       area: "comida",
       acao: origem === "venda" ? "Venda baixou o estoque" : "Baixa do estoque",
