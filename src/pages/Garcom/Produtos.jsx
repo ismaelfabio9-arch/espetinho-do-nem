@@ -30,7 +30,7 @@ import { useRecurso } from "../../recursos";
 import FotoProduto from "../../components/FotoProduto";
 import { useSouDono } from "../../tenant";
 import EditorOpcoes, { erroDasOpcoes, opcoesParaEditar, opcoesParaSalvar, precoPelasOpcoes } from "../../components/EditorOpcoes";
-import { useFotos } from "../../utils/fotos";
+import { apagarFoto, useFotos } from "../../utils/fotos";
 import { MODELOS, TIPOS, lerMontagem, precosDoCardapio, temMontagem, textoMontagem, tipoDe, tipoInfo, tipoPelaCategoria } from "../../utils/montagem";
 
 
@@ -216,12 +216,23 @@ function Produtos() {
   function abrirNovo() {
     setNomesIngredientes(null);
     const semCategorias = categoriasExibidas.length === 0;
-    setFicha({ novo: true, id: null, nome: "", preco: "", categoria: semCategorias ? NOVA_CATEGORIA : "", novaCategoria: "", tipo: "simples", tipoEscolhido: false, ed: { vem: [], extras: [], escolhas: [] }, erro: "", salvando: false });
+    // Código do produto já na abertura: a foto e os ingredientes entram nesta mesma tela.
+    const id = `prod-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+    setFicha({ novo: true, id, nome: "", preco: "", categoria: semCategorias ? NOVA_CATEGORIA : "", novaCategoria: "", tipo: "simples", tipoEscolhido: false, ed: { vem: [], extras: [], escolhas: [] }, erro: "", salvando: false });
+  }
+
+  /** Fecha a tela; produto novo não salvo: apaga a foto e os ingredientes que já tinham sido postos. */
+  function fecharFicha() {
+    if (ficha?.novo && ficha.id) {
+      apagarFoto(ficha.id).catch(() => {});
+      deleteDoc(doc(db, ...L(), "fichas", ficha.id)).catch(() => {});
+    }
+    setFicha(null);
   }
 
   /** Cria o produto novo (e a categoria, se for nova). Devolve o produto salvo. */
-  async function criarProduto({ nome, categoria, preco, tipo, montagem }) {
-    const produtoId = criarIdProduto(`${categoria}-${nome}`);
+  async function criarProduto({ id, nome, categoria, preco, tipo, montagem }) {
+    const produtoId = id || criarIdProduto(`${categoria}-${nome}`);
     const agora = new Date().toISOString();
     await setDoc(
       doc(db, ...L(), "produtos", produtoId),
@@ -324,13 +335,11 @@ function Produtos() {
     if (erroOpcoes) return setFicha({ ...ficha, erro: erroOpcoes });
     setFicha({ ...ficha, erro: "", salvando: true });
     try {
-      const salvo = await criarProduto({ nome: nomeTratado, categoria, preco, tipo: ficha.tipo, montagem: opcoesParaSalvar(ficha.tipo, ficha.ed) });
-      // Foto e ingredientes precisam do produto salvo: a tela continua aberta, já editando o produto.
-      if (fotosLigado || financasLigado) {
-        abrirFicha(salvo);
-        const falta = [fotosLigado && "a foto", financasLigado && "os ingredientes"].filter(Boolean).join(" e ");
-        setFicha((f) => f && { ...f, aviso: `Produto salvo. Agora dá para pôr ${falta}.` });
-      } else setFicha(null);
+      // Prato e lanche: o que vem = os ingredientes postos aqui (uma lista só), como no editar.
+      const comVem = ficha.tipo === "prato" || ficha.tipo === "lanche";
+      const edSalvar = financasLigado && comVem && nomesIngredientes?.length ? { ...ficha.ed, vem: nomesIngredientes } : ficha.ed;
+      await criarProduto({ id: ficha.id, nome: nomeTratado, categoria, preco, tipo: ficha.tipo, montagem: opcoesParaSalvar(ficha.tipo, edSalvar) });
+      setFicha(null);
     } catch (erro) {
       console.error("Erro ao criar produto:", erro);
       setFicha((f) => f && { ...f, salvando: false, erro: "Não foi possível salvar. Tente novamente." });
@@ -974,22 +983,21 @@ function Produtos() {
 
       {ficha && (() => {
         // Produto novo: ainda não está no banco; a tela usa o que já foi escrito.
-        const produto = ficha.novo ? { id: null, nome: ficha.nome, categoria: ficha.categoria } : produtos.find((p) => p.id === ficha.id) || (ficha.aviso ? { id: ficha.id, nome: ficha.nome, categoria: ficha.categoria } : null);
+        const produto = ficha.novo ? { id: ficha.id, nome: ficha.nome, categoria: ficha.categoria } : produtos.find((p) => p.id === ficha.id);
         if (!produto) return null;
         const escolherCategoria = (categoria) =>
           setFicha({ ...ficha, categoria, erro: "", ...(ficha.novo && !ficha.tipoEscolhido && categoria !== NOVA_CATEGORIA ? { tipo: sugerirTipo(categoria) } : {}) });
         return (
-          <div className="modal-overlay prod-ficha-fundo" onClick={() => !ficha.salvando && setFicha(null)}>
+          <div className="modal-overlay prod-ficha-fundo" onClick={() => !ficha.salvando && fecharFicha()}>
             <div className="prod-ficha" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={ficha.novo ? "Novo produto" : `Editar ${produto.nome}`}>
               <div className="prod-ficha-topo">
                 <h2>{ficha.novo ? "Novo produto" : "Editar produto"}</h2>
-                <button type="button" className="prod-ficha-x" onClick={() => setFicha(null)} aria-label="Fechar">✕</button>
+                <button type="button" className="prod-ficha-x" onClick={fecharFicha} aria-label="Fechar">✕</button>
               </div>
               <label>
                 Nome
                 <input value={ficha.nome} placeholder={ficha.novo ? "Ex.: Coca-Cola lata, Prato do dia, Pastel" : undefined} autoFocus={ficha.novo} onChange={(e) => setFicha({ ...ficha, nome: e.target.value, erro: "" })} />
               </label>
-              {ficha.aviso && <p className="prod-ficha-aviso">✅ {ficha.aviso}</p>}
               <div className="prod-ficha-dupla">
                 <label>
                   Preço (R$)
@@ -1019,12 +1027,9 @@ function Produtos() {
                   <input value={ficha.novaCategoria} placeholder="Ex.: Bebidas, Sobremesas, Porções" onChange={(e) => setFicha({ ...ficha, novaCategoria: e.target.value, erro: "", ...(!ficha.tipoEscolhido ? { tipo: tipoDaCategoria(e.target.value) } : {}) })} />
                 </label>
               )}
-              {fotosLigado && !ficha.novo && <FotoProduto produto={produto} foto={fotos[produto.id] || null} />}
+              {fotosLigado && <FotoProduto produto={produto} foto={fotos[produto.id] || null} />}
               <EditorOpcoes precoBase={ficha.preco} semVem={financasLigado} ingredientes={nomesIngredientes || []} tipo={ficha.tipo} ed={ficha.ed} onTipo={(t) => setFicha({ ...ficha, tipo: t, tipoEscolhido: true, erro: "" })} onChange={(ed) => setFicha({ ...ficha, ed, erro: "" })} />
-              {ficha.novo && (fotosLigado || financasLigado) && (
-                <p className="eo-dica">{fotosLigado && financasLigado ? "A foto e os ingredientes" : fotosLigado ? "A foto" : "Os ingredientes"} você põe logo depois de salvar, nesta mesma tela.</p>
-              )}
-              {financasLigado && !ficha.novo && (
+              {financasLigado && (
                 <div className="prod-ficha-ingred prod-ficha-custo">
                   <span className="eo-rotulo">🧮 Ingredientes</span>
                   <p className="eo-dica">O que vai em 1 {produto.nome || "unidade"} e quanto de cada (arroz, feijão, frango…). Soma o custo; o preço de cada ingrediente fica na aba Ingredientes. Produto comprado pronto (refrigerante) não precisa.</p>
@@ -1034,7 +1039,7 @@ function Produtos() {
               {ficha.erro && <p className="prod-ficha-erro">{ficha.erro}</p>}
               <div className="prod-ficha-botoes">
                 {ficha.novo ? (
-                  <button type="button" className="prod-ficha-excluir" onClick={() => setFicha(null)}>
+                  <button type="button" className="prod-ficha-excluir" onClick={fecharFicha}>
                     Cancelar
                   </button>
                 ) : (
