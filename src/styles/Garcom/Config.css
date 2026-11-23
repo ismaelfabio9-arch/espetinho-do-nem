@@ -79,3 +79,11 @@ body.dark .taxas-linha input[inputmode] { background: #111; color: #f3f4f6; bord
 .config-areas { background: var(--card-2); border-radius: 16px; padding: 12px 14px; margin-bottom: 14px; display: grid; gap: 8px; color: var(--muted); font-size: 14px; }
 .config-areas > div { display: flex; flex-wrap: wrap; gap: 6px; }
 .config-areas a { background: var(--card); border: 1px solid var(--border); color: var(--text); text-decoration: none; font-weight: 800; border-radius: 999px; padding: 8px 14px; }
+
+/* Sons dos avisos */
+.sons-ligar { display: flex; align-items: center; gap: 8px; margin: 8px 0 10px; font-weight: 600; }
+.sons-lista { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.sons-lista li { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 0; border-top: 1px solid rgba(0, 0, 0, 0.08); }
+.sons-lista li span { font-size: 14px; }
+.sons-lista .config-btn { margin: 0; flex-shrink: 0; min-width: 104px; }
+body.dark .sons-lista li { border-top-color: rgba(255, 255, 255, 0.12); }
