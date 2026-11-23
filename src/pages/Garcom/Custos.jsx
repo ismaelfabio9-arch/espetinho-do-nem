@@ -118,7 +118,8 @@ export default function Custos({ produtos, insumos, fichas }) {
     const m = {};
     (fichas || []).forEach((f) => {
       if (!nomeDe[f.id]) return;
-      itensJuntos(f).forEach((it) => {
+      // Também o que muda com a escolha (açaí pelo copo, carne pela marmita).
+      [...itensJuntos(f), ...(f.variaPor?.itens || [])].forEach((it) => {
         if (!it?.insumoId) return;
         (m[it.insumoId] = m[it.insumoId] || []).includes(nomeDe[f.id]) || m[it.insumoId].push(nomeDe[f.id]);
       });
@@ -147,7 +148,7 @@ export default function Custos({ produtos, insumos, fichas }) {
     const abaixo = [];
     feitos.forEach((x) => {
       const f = fichaDe[x.id];
-      if (!f || !itensJuntos(f).length) return semIngredientes.push(x.nome);
+      if (!f || (!itensJuntos(f).length && !(f.variaPor?.itens || []).length)) return semIngredientes.push(x.nome);
       const c = custoDaFicha(f, porId);
       if (c === null) return incompletos.push(x.nome);
       // Dá prejuízo depois de tudo (ingredientes, taxas e a parte das contas): o mesmo do Preço certo.
