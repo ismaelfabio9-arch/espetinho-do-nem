@@ -25,6 +25,9 @@
 // ============================================================
 
 import { formatarMoeda } from "./texto";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { db } from "../firebase";
+import { L, getLoja } from "../loja";
 
 const CHAVE_SESSAO = "espetinho_impressos";
 
@@ -146,6 +149,92 @@ export function gerarComprovanteHTML({ mesa, cliente, itens, total, formaPagamen
   `;
 }
 
+// ------------------------------------------------------------
+// Imprimir pelo computador: a impressora fica ligada num computador com o sistema aberto
+// e ele imprime o que os celulares mandam (coleção "impressoes" da loja). Cada aparelho
+// sabe se ele é "o computador da impressora" (guardado só nele); a loja inteira sabe se a
+// função está ligada (configuracoes/impressora.imprimirNoPc) e quando o computador deu
+// sinal de vida pela última vez (estacaoImpressao/pc).
+// ------------------------------------------------------------
+let mandarParaPc = false;
+let sinalPcMs = 0;
+export const SEM_SINAL_PC_MS = 3 * 60 * 1000;
+
+export function configurarImpressaoRemota(ligado) {
+  mandarParaPc = Boolean(ligado);
+}
+
+export function registrarSinalPc(ms) {
+  sinalPcMs = Number(ms) || 0;
+}
+
+function chaveEstePc() {
+  return "impressora_neste_pc_" + (getLoja() || "loja");
+}
+
+export function esteAparelhoImprime() {
+  try {
+    return localStorage.getItem(chaveEstePc()) === "1";
+  } catch {
+    return false;
+  }
+}
+
+export function definirEsteAparelhoImprime(ligado) {
+  try {
+    if (ligado) localStorage.setItem(chaveEstePc(), "1");
+    else localStorage.removeItem(chaveEstePc());
+  } catch {
+    // sem localStorage: fica só nesta abertura
+  }
+  window.dispatchEvent(new Event("estacao-impressao"));
+}
+
+function aviso(texto, cor) {
+  try {
+    const el = document.createElement("div");
+    el.textContent = texto;
+    el.setAttribute("role", "status");
+    el.style.cssText =
+      "position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:" + cor +
+      ";color:#fff;padding:12px 16px;border-radius:12px;font-weight:700;font-size:15px;z-index:99999;" +
+      "max-width:90vw;text-align:center;box-shadow:0 4px 16px rgba(0,0,0,.25)";
+    document.body.appendChild(el);
+    setTimeout(() => el.remove(), 4000);
+  } catch {
+    // sem aviso na tela
+  }
+}
+
+function enviarParaPc(conteudoHTML, larguraPapel) {
+  // Não espera o servidor: sem internet o Firebase guarda e manda quando voltar.
+  addDoc(collection(db, ...L(), "impressoes"), {
+    status: "pendente",
+    html: conteudoHTML,
+    larguraPapel,
+    criadoMs: Date.now(),
+    criadoEm: serverTimestamp(),
+  }).catch((erro) => {
+    console.error("Erro ao mandar para o computador:", erro);
+    aviso("Não deu para mandar para o computador. Tente de novo.", "#b91c1c");
+  });
+  if (Date.now() - sinalPcMs < SEM_SINAL_PC_MS) {
+    aviso("🖨️ Enviado para a impressora do computador", "#15803d");
+  } else {
+    aviso("⚠️ O computador da impressora está sem sinal. A comanda sai quando o sistema estiver aberto nele.", "#b45309");
+  }
+  return true;
+}
+
+/**
+ * Imprime: manda para o computador da impressora quando essa função está ligada
+ * (e este aparelho não é ele); senão abre a impressão aqui mesmo.
+ */
+export async function imprimir(conteudoHTML, larguraPapel = "58mm") {
+  if (mandarParaPc && !esteAparelhoImprime()) return enviarParaPc(conteudoHTML, larguraPapel);
+  return imprimirAqui(conteudoHTML, larguraPapel);
+}
+
 /**
  * Abre a janela de impressão do navegador com o conteúdo formatado
  * para impressora térmica. Retorna uma Promise que resolve quando o
@@ -159,11 +248,23 @@ export function gerarComprovanteHTML({ mesa, cliente, itens, total, formaPagamen
  * Sem cinza nenhum, cada ponto é queimado por inteiro. Se algo falhar, imprime
  * o texto normal (o HTML com fonte grossa) como antes.
  */
-export function imprimir(conteudoHTML, larguraPapel = "58mm") {
+export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = false) {
   return new Promise(function (resolve) {
     var largura = larguraPapel === "80mm" ? 302 : 219; // ~80mm e ~58mm a 96dpi
     var pontos = larguraPapel === "80mm" ? 576 : 384; // pontos da cabeça térmica (203 dpi)
-    var janela = window.open("", "_blank", "width=380,height=600");
+    // semJanela: o computador que recebe a comanda do celular imprime sem ninguém tocar
+    // nele, e o navegador bloqueia janela nova sem toque; um quadro escondido na página serve.
+    var quadro = null;
+    var janela;
+    if (semJanela) {
+      quadro = document.createElement("iframe");
+      quadro.setAttribute("aria-hidden", "true");
+      quadro.style.cssText = "position:fixed;right:0;bottom:0;width:0;height:0;border:0;visibility:hidden";
+      document.body.appendChild(quadro);
+      janela = quadro.contentWindow;
+    } else {
+      janela = window.open("", "_blank", "width=380,height=600");
+    }
 
     if (!janela) {
       resolve(false);
@@ -186,9 +287,47 @@ export function imprimir(conteudoHTML, larguraPapel = "58mm") {
         ".separador { border-top: 2px dashed #000; margin: 8px 0; }" +
         ".linha-item { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }" +
         ".cupom-imagem { display: block; width: " + largura + "px; margin: 0 auto; image-rendering: pixelated; }" +
+        // Botão para sair da tela de impressão (no celular a janela fica por cima do sistema).
+        ".voltar-sistema { position: sticky; top: 0; z-index: 10; display: block; width: 100%; margin: 0 0 10px;" +
+        " padding: 16px; border: 0; background: #1d4ed8; color: #fff; font: 700 18px Arial, sans-serif; -webkit-text-stroke: 0; }" +
+        "@media print { .voltar-sistema { display: none !important; } }" +
         "</style></head><body>" + conteudoHTML + "</body></html>"
     );
     janela.document.close();
+
+    // Volta ao sistema: fecha a janela de impressão; se o aparelho não deixar fechar, abre o
+    // sistema nela mesma, para nunca ficar preso na tela do cupom.
+    var enderecoSistema = window.location.href;
+    function voltarAoSistema() {
+      try {
+        janela.close();
+      } catch (e) {
+        // segue para o plano B
+      }
+      setTimeout(function () {
+        try {
+          if (!janela.closed) janela.location.replace(enderecoSistema);
+        } catch (e) {
+          // janela já fechada
+        }
+      }, 400);
+    }
+    function botaoVoltar() {
+      if (quadro) return;
+      try {
+        var doc = janela.document;
+        if (doc.querySelector(".voltar-sistema")) return;
+        var botao = doc.createElement("button");
+        botao.type = "button";
+        botao.className = "voltar-sistema";
+        botao.textContent = "← Voltar ao sistema";
+        botao.onclick = voltarAoSistema;
+        doc.body.insertBefore(botao, doc.body.firstChild);
+      } catch (e) {
+        // sem botão
+      }
+    }
+    botaoVoltar();
 
     var disparado = false;
     function disparar() {
@@ -196,11 +335,16 @@ export function imprimir(conteudoHTML, larguraPapel = "58mm") {
       disparado = true;
       try {
         janela.focus();
+        var inicio = Date.now();
         janela.print();
         resolve(true);
+        // No computador o print() espera a pessoa imprimir ou cancelar: aí já fecha sozinho.
+        // No celular ele volta na hora (a tela de impressão abre por cima): fica o botão Voltar.
+        if (!quadro && Date.now() - inicio > 700) setTimeout(voltarAoSistema, 300);
       } catch (e) {
         resolve(false);
       }
+      if (quadro) setTimeout(function () { quadro.remove(); }, 10000);
     }
 
     function desenharCupom() {
@@ -247,6 +391,7 @@ export function imprimir(conteudoHTML, larguraPapel = "58mm") {
       var blocos = corpo.children;
       for (var b = 0; b < blocos.length; b++) {
         var el = blocos[b];
+        if (el.classList.contains("voltar-sistema")) continue; // o botão não vai no cupom
         var mt = parseFloat(el.style.marginTop) || 0;
         y += mt;
         if (el.classList.contains("separador")) {
@@ -326,6 +471,7 @@ export function imprimir(conteudoHTML, larguraPapel = "58mm") {
       corpo.style.padding = "0";
       corpo.innerHTML = "";
       corpo.appendChild(img);
+      botaoVoltar();
     }
 
     var preparado = false;

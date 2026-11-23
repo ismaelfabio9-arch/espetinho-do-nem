@@ -21,6 +21,7 @@ import { emojiCategoria, sugestoesBebida, abreEscolha } from "../../utils/montag
 import { useConfigImpressora } from "../../hooks/useConfigImpressora";
 import { useRecurso } from "../../recursos";
 import { gerarComandaHTML, imprimir } from "../../utils/print";
+import { numeroDoPedido } from "../../utils/numeroPedido";
 import { moeda, useEntrega } from "../../utils/entrega";
 
 const PAGAMENTOS = ["Dinheiro", "Pix", "Cartão"];
@@ -253,9 +254,10 @@ function Viagem({ modo = "balcao", topo = null }) {
     }
   }
 
-  function imprimirViagem(p) {
+  async function imprimirViagem(p) {
     const html = gerarComandaHTML({
-      numeroPedido: p.numero,
+      // Entrega já tem número curto (o que o cliente recebe); o código comprido do Firebase vira 1, 2, 3...
+      numeroPedido: String(p.numero || "").length > 12 ? await numeroDoPedido(p.numero) : p.numero,
       titulo: p.titulo || "PARA VIAGEM",
       cliente: p.cliente,
       itens: p.itens,

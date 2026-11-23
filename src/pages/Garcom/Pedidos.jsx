@@ -22,6 +22,7 @@ import { baixarInsumos } from "../../utils/insumos";
 import { AVISO_PARCIAL, temPagamentoParcial } from "../../utils/contaMesa";
 import useNomeLoja from "../../hooks/useNomeLoja";
 import { linkWhats, mostrarFone, numeroWhats } from "../../utils/contato";
+import FormasPagamento, { resolverPartes } from "../../components/FormasPagamento";
 import "../../components/QuerMais.css";
 
 // Painel: separa os pedidos em Mesas, Balcão (viagem) e Entregas. No computador, uma coluna para cada.
@@ -43,6 +44,7 @@ function Pedidos() {
   const [pc, setPc] = useState(largo);
   // Finalizar pedido sem forma de pagamento (balcão, mesa): pergunta como foi pago (Caixa e Finanças).
   const [pagarPedido, setPagarPedido] = useState(null);
+  const [partesPagar, setPartesPagar] = useState({});
   useEffect(() => {
     const m = window.matchMedia?.("(min-width: 1000px)");
     if (!m) return;
@@ -170,10 +172,14 @@ function Pedidos() {
       return;
     }
     if (pedido.tipo === "entrega" && pedido.pagamento) return removerPedido(pedido);
+    setPartesPagar({});
     setPagarPedido(pedido);
   }
 
-  async function removerPedido(pedido, forma) {
+  // pagamento: forma única ("Pix") ou a lista de formas [{ forma, valor }] quando pagou em mais de uma.
+  async function removerPedido(pedido, pagamento) {
+    const lista = Array.isArray(pagamento) ? pagamento : null;
+    const forma = lista ? (lista.length === 1 ? lista[0].forma : "Dividido") : pagamento;
     const clienteMesa =
       pedido.tipo === "mesa" ? nomesMesas[String(pedido.mesa)] || "" : "";
 
@@ -181,6 +187,7 @@ function Pedidos() {
       origem: pedido.tipo || "viagem",
       ...(pedido.tipo === "entrega" ? { modo: pedido.modo || "entrega", taxaEntrega: pedido.taxaEntrega || 0 } : {}),
       formaPagamento: forma || pedido.pagamento || "",
+      ...(lista && lista.length > 1 ? { pagamentos: lista } : {}),
       mesa: pedido.mesa || null,
       cliente: clienteMesa,
       titulo: tituloPedido(pedido),
@@ -368,24 +375,23 @@ function Pedidos() {
         <p className="modal-total-encerrar">
           {tituloPedido(pagarPedido)} · Total: <strong>R$ {formatarMoeda(pagarPedido.total)}</strong>
         </p>
-        <div className="formas-pagamento">
-          {["Dinheiro", "Pix", "Débito", "Crédito"].map((f) => (
-            <button
-              key={f}
-              type="button"
-              onClick={() => {
-                const p = pagarPedido;
-                setPagarPedido(null);
-                void removerPedido(p, f);
-              }}
-            >
-              {f}
-            </button>
-          ))}
-        </div>
+        <FormasPagamento valor={Number(pagarPedido.total || 0)} partes={partesPagar} onChange={setPartesPagar} />
         <div className="modal-acoes">
           <button type="button" className="modal-btn cancelar" onClick={() => setPagarPedido(null)}>
             Cancelar
+          </button>
+          <button
+            type="button"
+            className="modal-btn confirmar"
+            onClick={() => {
+              const r = resolverPartes(Number(pagarPedido.total || 0), partesPagar, null);
+              if (!r.ok) return window.alert(r.erro);
+              const p = pagarPedido;
+              setPagarPedido(null);
+              void removerPedido(p, r.lista.map(({ forma, valor }) => ({ forma, valor })));
+            }}
+          >
+            Confirmar
           </button>
         </div>
       </div>

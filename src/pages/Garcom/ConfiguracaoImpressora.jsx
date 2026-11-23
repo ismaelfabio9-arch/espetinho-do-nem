@@ -6,7 +6,13 @@ import { db } from "../../firebase";
 import {
   CONFIG_IMPRESSORA_PADRAO,
 } from "../../hooks/useConfigImpressora";
-import { gerarComandaHTML, imprimir } from "../../utils/print";
+import {
+  definirEsteAparelhoImprime,
+  esteAparelhoImprime,
+  gerarComandaHTML,
+  imprimir,
+  SEM_SINAL_PC_MS,
+} from "../../utils/print";
 import "../../styles/Garcom/Config.css";
 import "../../styles/Garcom/ConfiguracaoImpressora.css";
 
@@ -14,6 +20,40 @@ function ConfiguracaoImpressora() {
   const [config, setConfig] = useState(CONFIG_IMPRESSORA_PADRAO);
   const [salvando, setSalvando] = useState(false);
   const [mensagem, setMensagem] = useState("");
+  const [estePc, setEstePc] = useState(esteAparelhoImprime());
+  const [sinalPc, setSinalPc] = useState(0);
+  const [agora, setAgora] = useState(Date.now());
+
+  useEffect(() => {
+    const cancelar = onSnapshot(
+      doc(db, ...L(), "estacaoImpressao", "pc"),
+      (snap) => setSinalPc(snap.exists() ? Number(snap.data().vistoMs) || 0 : 0),
+      () => {}
+    );
+    const relogio = setInterval(() => setAgora(Date.now()), 30 * 1000);
+    return () => {
+      cancelar();
+      clearInterval(relogio);
+    };
+  }, []);
+
+  /** Liga/desliga "este computador imprime": vale na hora (não precisa tocar em Salvar). */
+  async function mudarEstePc(ligado) {
+    definirEsteAparelhoImprime(ligado);
+    setEstePc(ligado);
+    try {
+      if (ligado) {
+        await setDoc(doc(db, ...L(), "configuracoes", "impressora"), { imprimirNoPc: true }, { merge: true });
+        mostrarMensagem("Pronto! Os celulares agora mandam a impressão para este computador.");
+      } else {
+        await setDoc(doc(db, ...L(), "configuracoes", "impressora"), { imprimirNoPc: false }, { merge: true });
+        mostrarMensagem("Cada aparelho volta a imprimir sozinho.");
+      }
+    } catch (erro) {
+      console.error("Erro ao salvar impressão pelo computador:", erro);
+      mostrarMensagem("Erro ao salvar.");
+    }
+  }
 
   useEffect(() => {
     const cancelar = onSnapshot(doc(db, ...L(), "configuracoes", "impressora"), (snap) => {
@@ -95,6 +135,33 @@ function ConfiguracaoImpressora() {
           </div>
         </div>
       </Link>
+
+      <div className="config-card impressora-card">
+        <div className="config-icon">🖥️</div>
+        <div style={{ flex: 1 }}>
+          <h2>Este computador imprime os pedidos dos celulares</h2>
+          <p>
+            Ligue no computador que está com a impressora. Deixe o sistema aberto nele: quando
+            alguém tocar em imprimir no celular, a comanda sai aqui.
+          </p>
+          {config.imprimirNoPc && !estePc && (
+            <p style={{ fontWeight: 700, color: agora - sinalPc < SEM_SINAL_PC_MS ? "#15803d" : "#b45309" }}>
+              {agora - sinalPc < SEM_SINAL_PC_MS
+                ? "✅ Este aparelho manda a impressão para o computador, que está aberto agora."
+                : "⚠️ Este aparelho manda a impressão para o computador, mas ele está sem sinal (sistema fechado ou sem internet)."}
+            </p>
+          )}
+        </div>
+        <label className="switch">
+          <input
+            type="checkbox"
+            checked={Boolean(estePc && config.imprimirNoPc)}
+            disabled={!config.habilitada}
+            onChange={(e) => mudarEstePc(e.target.checked)}
+          />
+          <span className="slider"></span>
+        </label>
+      </div>
 
       <div className="config-card impressora-card">
         <div className="config-icon">🔌</div>
