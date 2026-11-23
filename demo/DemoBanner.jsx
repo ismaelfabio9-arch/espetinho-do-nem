@@ -18,6 +18,7 @@ export function DemoBanner() {
       atalhos={[
         { texto: "Painel do restaurante", href: "#/" },
         { texto: "Ver como o cliente (QR Code da mesa 4)", href: "#/mesa-cliente/4", novaAba: true },
+        { texto: "Dividir a conta (mesa 7: cada um pediu pelo QR Code)", href: "#/mesa/7" },
       ]}
       contratar={{ texto: "Quero para o meu restaurante", href: "/ativar/espetinho" }}
       sair="/sistemas/sistema-de-mesas"
