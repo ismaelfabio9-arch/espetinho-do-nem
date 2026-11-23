@@ -194,3 +194,5 @@
 .ficha-custo-opcoes { display: grid; gap: 4px; }
 .ficha-custo-opcoes small { display: block; }
 .ficha-op-ruim { color: #dc2626; }
+.ficha-op-conta { display: grid; gap: 2px; padding: 6px 0; border-top: 1px solid var(--border); }
+.ficha-op-conta:first-of-type { border-top: 0; }
