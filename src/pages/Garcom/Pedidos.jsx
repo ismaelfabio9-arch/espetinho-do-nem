@@ -83,8 +83,17 @@ function Pedidos() {
     return `Mesa ${pedido.mesa}${cliente ? ` - ${cliente}` : ""}`;
   }
 
+  // Para mostrar: junta o mesmo item de pessoas diferentes (pedidos do QR Code guardam quem pediu).
   function ordenarItensPorPreco(itens) {
-    return [...(itens || [])].sort((a, b) => {
+    const juntos = Object.values(
+      (itens || []).reduce((acc, item) => {
+        const q = Number(item.qtd || item.quantidade || 0);
+        if (acc[item.nome]) acc[item.nome].qtd += q;
+        else acc[item.nome] = { ...item, qtd: q };
+        return acc;
+      }, {})
+    );
+    return juntos.sort((a, b) => {
       const totalA =
         Number(a.preco || 0) * Number(a.qtd || a.quantidade || 0);
 
