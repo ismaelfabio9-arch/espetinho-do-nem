@@ -23,6 +23,7 @@ import Atalhos from "./components/Atalhos";
 import NovoPedido from "./pages/Garcom/NovoPedido";
 import PainelDono from "./pages/Garcom/PainelDono";
 import SeLigado from "./components/SeLigado";
+import EstacaoImpressao from "./components/EstacaoImpressao";
 import { Vendas, CardapioArea, Dinheiro } from "./pages/Garcom/Areas";
 import { Navigate, useLocation } from "react-router-dom";
 
@@ -86,6 +87,7 @@ function TelasEquipe() {
   return (
     <>
     <Atalhos />
+    <EstacaoImpressao />
     <Routes>
       <Route path="/" element={<Dashboard />} />
       <Route path="/pedidos" element={<Pedidos />} />
