@@ -40,3 +40,8 @@ body.dark .online { --o-bg: #0b0b0b; --o-card: #151515; --o-txt: #f3f4f6; --o-mu
 .online-pergunta-op strong { font-size: 15px; }
 .online-pergunta-op span { font-size: 13px; color: var(--o-mut, #6b7280); overflow-wrap: anywhere; }
 .online-editar { display: block; margin-top: 4px; padding: 0; border: 0; background: none; color: var(--o-verde, #16a34a); font-weight: 700; font-size: 13px; cursor: pointer; }
+
+/* Com o layout novo do cliente (cabeçalho da loja, cardápio por seções e sacola). */
+.online.cl-pagina { padding: 0 0 120px; }
+.online.cl-pagina .online-dados, .online.cl-pagina .online-feito { margin: 8px 14px 0; }
+@media (min-width: 600px) { .online.cl-pagina .online-dados, .online.cl-pagina .online-feito { margin: 8px auto 0; } }

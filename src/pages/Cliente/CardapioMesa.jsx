@@ -22,7 +22,7 @@ import {
 import MontarPrato from "../../components/MontarPrato";
 import PratoNoPedido from "../../components/PratoNoPedido";
 import { sugestoesBebida, abreEscolha } from "../../utils/montagem";
-import PedidoRapido from "../../components/PedidoRapido";
+import { BarraSacola, CardapioCliente, ClienteTopo, Folha, ItensSacola } from "../../components/cliente/Cliente";
 import { useFotos } from "../../utils/fotos";
 import { useRecurso } from "../../recursos";
 import { repassaAlguma, useTaxas } from "../../utils/taxas";
@@ -48,6 +48,9 @@ function CardapioMesa() {
   const [mostrarModalNome, setMostrarModalNome] = useState(false);
 
   const [mostrarModalPagamento, setMostrarModalPagamento] = useState(false);
+  // Sacola (o que vai ser pedido agora) e a conta da mesa (o que já foi pedido), em janelas que sobem de baixo.
+  const [sacolaAberta, setSacolaAberta] = useState(false);
+  const [contaAberta, setContaAberta] = useState(false);
   const [formaPagamento, setFormaPagamento] = useState("");
   const [produtos, setProdutos] = useState([]);
   // Funções que a IFTech pode desligar só nesta loja (Central da Loja).
@@ -621,8 +624,24 @@ function CardapioMesa() {
     setEnviando(false);
   }
 
+  // Avisos (pedido enviado, garçom chamado…) somem sozinhos.
+  useEffect(() => {
+    if (!mensagem) return undefined;
+    const t = setTimeout(() => setMensagem(""), 6000);
+    return () => clearTimeout(t);
+  }, [mensagem]);
+
+  const qtdSacola = itensSelecionados.reduce((s, l) => s + Number(l.quantidade || 0), 0);
+  const contaMesa = pedidoMesaAberto && pedidoMesaAberto.totalItens > 0 ? pedidoMesaAberto : null;
+  // Conta da mesa por pessoa (o nome que cada um pôs no QR Code).
+  const contaPorPessoa = (contaMesa?.itens || []).reduce((acc, item) => {
+    const quem = String(item.cliente || "").trim() || "Mesa";
+    (acc[quem] = acc[quem] || []).push(item);
+    return acc;
+  }, {});
+
   return (
-    <div className="cardapio-cliente-page">
+    <div className="cl-pagina">
       {mostrarModalNome && (
         <div className="modal-nome-cliente">
           <div className="modal-nome-card">
@@ -676,103 +695,51 @@ function CardapioMesa() {
         </div>
       )}
 
-      <div className="cardapio-cliente-card">
-        <div className="cardapio-header">
-          <span>{process.env.REACT_APP_MULTI === "1" ? "🍽️" : "🍢"} {nomeLoja}</span>
-          <h1>Mesa {mesa}</h1>
-          <p>{pedidoLigado ? "Toque no prato ou na bebida para pedir." : "Veja o cardápio. Para pedir, chame o garçom."}</p>
-          {repassaAlguma(taxas) && (
-            <p className="aviso-taxa-cartao">
-              💳 Pagamento no cartão tem acréscimo da taxa da maquininha
-              {[taxas.passarDebito && taxas.debito ? `débito ${String(taxas.debito).replace(".", ",")}%` : "", taxas.passarCredito && taxas.credito ? `crédito ${String(taxas.credito).replace(".", ",")}%` : ""].filter(Boolean).join(", ").replace(/^/, ": ")}. Pix e dinheiro sem acréscimo.
-            </p>
-          )}
-
-          {garcomLigado && (
-            <button
-              className="cardapio-garcom-btn"
-              onClick={chamarGarcom}
-              disabled={enviando}
-            >
-              🛎️ Chamar Garcom
-            </button>
-          )}
-
-          {whatsLoja && (
-            <a className="whats-btn claro cardapio-whats" href={linkWhats(whatsLoja, `Olá! Estou na Mesa ${mesa}.`)} target="_blank" rel="noopener noreferrer">
-              💬 WhatsApp da loja
-            </a>
-          )}
-        </div>
-
-        {produtosDisponiveis.length === 0 && (
-          <p className="cardapio-mensagem">
-            Nenhum produto disponível no momento.
-          </p>
+      <ClienteTopo
+        nome={nomeLoja}
+        linha={pedidoLigado ? "Escolha, monte do seu jeito e mande o pedido daqui da mesa." : "Veja o cardápio. Para pedir, chame o garçom."}
+        selos={[
+          { texto: `🍽️ Mesa ${mesa}`, tom: "verde" },
+          nomeCliente ? { texto: `👤 ${nomeCliente}`, tom: "azul" } : null,
+          contaMesa ? { texto: `🧾 Conta R$ ${formatarMoeda(contaMesa.total)}` } : null,
+        ]}
+        aviso={
+          repassaAlguma(taxas)
+            ? `💳 No cartão tem o acréscimo da taxa da maquininha${[taxas.passarDebito && taxas.debito ? `débito ${String(taxas.debito).replace(".", ",")}%` : "", taxas.passarCredito && taxas.credito ? `crédito ${String(taxas.credito).replace(".", ",")}%` : ""].filter(Boolean).join(", ").replace(/^/, ": ")}. Pix e dinheiro sem acréscimo.`
+            : null
+        }
+        acoes={[
+          garcomLigado && { icone: "🛎️", texto: "Chamar garçom", onClick: chamarGarcom, disabled: enviando, destaque: true },
+          { icone: "🧾", texto: "Conta da mesa", sub: contaMesa ? `R$ ${formatarMoeda(contaMesa.total)}` : "nada ainda", onClick: () => setContaAberta(true) },
+          whatsLoja && { icone: "💬", texto: "WhatsApp", sub: "da loja", href: linkWhats(whatsLoja, `Olá! Estou na Mesa ${mesa}.`) },
+        ]}
+      >
+        {nomeCliente && (
+          <button type="button" className="cl-link" onClick={() => { setNomeDigitado(nomeCliente); setMostrarModalNome(true); }}>
+            Não é {nomeCliente}? Trocar o nome
+          </button>
         )}
+      </ClienteTopo>
 
-        {/* Mesmo pedido rápido do garçom: busca, categorias numa faixa e os pratos em grade. */}
-        {produtosDisponiveis.length > 0 && (
-          <div className="rapido-escuro">
-            <PedidoRapido
-              fotos={fotos}
-              categorias={produtosDisponiveis}
-              emoji={emojiCategoria}
-              montar={montarLigado}
-              contagem={(item) => Object.values(carrinho).filter((l) => l.produtoId === item.id).reduce((s, l) => s + l.quantidade, 0)}
-              indisponivel={esgotado}
-              onTocar={(item) => (pedidoLigado ? alterarQuantidade(item, 1) : setMensagem("Para pedir, chame o garçom."))}
-            />
-          </div>
-        )}
+      {produtosDisponiveis.length === 0 ? (
+        <p className="cl-miolo cl-vazio">Nenhum produto disponível no momento.</p>
+      ) : (
+        <CardapioCliente
+          fotos={fotos}
+          categorias={produtosDisponiveis}
+          emoji={emojiCategoria}
+          montar={montarLigado}
+          contagem={(item) => Object.values(carrinho).filter((l) => l.produtoId === item.id).reduce((s, l) => s + l.quantidade, 0)}
+          indisponivel={esgotado}
+          onTocar={(item) => (pedidoLigado ? alterarQuantidade(item, 1) : setMensagem("Para pedir, chame o garçom."))}
+        />
+      )}
 
-        {pedidoMesaAberto && pedidoMesaAberto.totalItens > 0 && (
-          <div className="cardapio-resumo">
-            <h3>Comanda atual da mesa</h3>
-
-            {pedidoMesaAberto.itens.map((item) => (
-              <div
-                key={`${item.nome}-${item.cliente}`}
-                className="cardapio-resumo-item"
-              >
-                <span>
-                  {item.qtd}x {item.nome} - {item.cliente}
-                </span>
-                <strong>R$ {formatarMoeda(item.preco * item.qtd)}</strong>
-              </div>
-            ))}
-
-            <div className="cardapio-resumo-item">
-              <span>Total consumido</span>
-              <strong>R$ {formatarMoeda(pedidoMesaAberto.total)}</strong>
-            </div>
-          </div>
-        )}
-
-        {itensSelecionados.length > 0 && (
-          <div className="cardapio-resumo">
-            <h3>Resumo do pedido</h3>
-
-            {itensSelecionados.map((item) => (
-              <div key={item.chave || item.produtoId} className="cardapio-resumo-item">
-                <span>
-                  <button type="button" className="cardapio-resumo-menos" onClick={() => ajustarLinha(item.chave || item.produtoId, -1)} aria-label={`Tirar 1 ${item.nome}`}>−</button>{" "}
-                  {item.quantidade}x {item.nome}
-                  {item.montagem && produtoPorId(item.produtoId) && (
-                    <button type="button" className="cardapio-resumo-editar" onClick={() => editarLinha(item)}>
-                      ✏️ Editar
-                    </button>
-                  )}
-                </span>
-                <strong>
-                  R$ {formatarMoeda(item.preco * item.quantidade)}
-                </strong>
-              </div>
-            ))}
-          </div>
-        )}
-
-        {mensagem && <p className="cardapio-mensagem">{mensagem}</p>}
+      {mensagem && (
+        <p className="cl-msg" role="status" onClick={() => setMensagem("")}>
+          {mensagem}
+        </p>
+      )}
 
       {querMais && (
         <QuerMais
@@ -785,58 +752,113 @@ function CardapioMesa() {
           onFechar={() => setQuerMais(null)}
         />
       )}
-        {montando && (
-          <MontarPrato
-            key={editando || "novo"}
-            produto={montando}
-            foto={fotos[montando.id] || null}
-            bebidas={editando ? [] : sugestoesBebida(produtos)}
-            inicial={editando ? carrinho[editando]?.montagem : null}
-            textoBotao={editando ? "Salvar alteração" : "Adicionar"}
-            onAdicionar={adicionarMontado}
-            onFechar={() => { setMontando(null); setEditando(null); }}
-          />
-        )}
+      {montando && (
+        <MontarPrato
+          key={editando || "novo"}
+          produto={montando}
+          foto={fotos[montando.id] || null}
+          bebidas={editando ? [] : sugestoesBebida(produtos)}
+          inicial={editando ? carrinho[editando]?.montagem : null}
+          textoBotao={editando ? "Salvar alteração" : "Adicionar"}
+          onAdicionar={adicionarMontado}
+          onFechar={() => { setMontando(null); setEditando(null); }}
+        />
+      )}
 
-        {perguntar && (
-          <PratoNoPedido
-            produto={perguntar}
-            linhas={linhasDoProduto(perguntar.id)}
-            onEditar={editarLinha}
-            onMaisUm={() => { setEditando(null); setMontando(perguntar); setPerguntar(null); }}
-            onFechar={() => setPerguntar(null)}
-          />
-        )}
+      {perguntar && (
+        <PratoNoPedido
+          produto={perguntar}
+          linhas={linhasDoProduto(perguntar.id)}
+          onEditar={editarLinha}
+          onMaisUm={() => { setEditando(null); setMontando(perguntar); setPerguntar(null); }}
+          onFechar={() => setPerguntar(null)}
+        />
+      )}
 
-        <div className="cardapio-footer">
-          <div className="cardapio-total">
-            <span>{itensSelecionados.length} itens</span>
-            <strong className="cardapio-total-valor">
-              R$ {formatarMoeda(total)}
-            </strong>
-          </div>
-
-          {pedidoLigado && (
-            <button
-              className="cardapio-btn-principal"
-              onClick={finalizarPedido}
-              disabled={enviando}
-            >
-              FINALIZAR PEDIDO
+      <BarraSacola
+        qtd={qtdSacola}
+        total={total}
+        onClick={() => setSacolaAberta(true)}
+        secundario={
+          qtdSacola === 0 && contaMesa ? (
+            <button type="button" className="cl-barra-sec" onClick={() => setContaAberta(true)}>
+              <span>🧾 Conta da mesa · {contaMesa.totalItens} {contaMesa.totalItens === 1 ? "item" : "itens"}</span>
+              <strong>R$ {formatarMoeda(contaMesa.total)}</strong>
             </button>
-          )}
+          ) : null
+        }
+      />
 
-          {contaLigada && (
-            <button
-              className="cardapio-btn-pagar"
-              onClick={() => setMostrarModalPagamento(true)}
-              disabled={enviando}
-            >
-              💳 Pedir conta / Pagar
-            </button>
+      {sacolaAberta && (
+        <Folha
+          titulo="🛍️ Sua sacola"
+          onFechar={() => setSacolaAberta(false)}
+          rodape={
+            <>
+              <div className="cl-total">
+                <span>{qtdSacola} {qtdSacola === 1 ? "item" : "itens"}</span>
+                <strong>R$ {formatarMoeda(total)}</strong>
+              </div>
+              {pedidoLigado && (
+                <button type="button" className="cl-btn" disabled={enviando || qtdSacola === 0} onClick={() => { setSacolaAberta(false); finalizarPedido(); }}>
+                  {enviando ? "Enviando…" : "Enviar pedido para a cozinha"}
+                </button>
+              )}
+              <button type="button" className="cl-btn claro" onClick={() => setSacolaAberta(false)}>Continuar escolhendo</button>
+            </>
+          }
+        >
+          <p className="cl-sub">Mesa {mesa}{nomeCliente ? ` · pedido de ${nomeCliente}` : ""}</p>
+          <ItensSacola
+            linhas={itensSelecionados}
+            onMais={(c) => ajustarLinha(c, 1)}
+            onMenos={(c) => ajustarLinha(c, -1)}
+            onEditar={(l) => { setSacolaAberta(false); editarLinha(l); }}
+            podeEditar={(l) => !!produtoPorId(l.produtoId)}
+          />
+        </Folha>
+      )}
+
+      {contaAberta && (
+        <Folha
+          titulo={`🧾 Conta da Mesa ${mesa}`}
+          onFechar={() => setContaAberta(false)}
+          rodape={
+            <>
+              <div className="cl-total">
+                <span>Total consumido</span>
+                <strong>R$ {formatarMoeda(contaMesa?.total || 0)}</strong>
+              </div>
+              {contaLigada && contaMesa && (
+                <button type="button" className="cl-btn azul" disabled={enviando} onClick={() => { setContaAberta(false); setMostrarModalPagamento(true); }}>
+                  💳 Pedir a conta
+                </button>
+              )}
+              {garcomLigado && (
+                <button type="button" className="cl-btn claro" disabled={enviando} onClick={() => { setContaAberta(false); chamarGarcom(); }}>
+                  🛎️ Chamar o garçom
+                </button>
+              )}
+            </>
+          }
+        >
+          {!contaMesa ? (
+            <p className="cl-vazio">Nada pedido nesta mesa ainda. O que você pedir aparece aqui.</p>
+          ) : (
+            Object.entries(contaPorPessoa).map(([quem, itens]) => (
+              <div key={quem} className="cl-conta-pessoa">
+                <b>{quem === "Mesa" ? "🍽️ Da mesa" : `👤 ${quem}`}</b>
+                {itens.map((item) => (
+                  <div key={`${item.nome}-${quem}`} className="cl-conta-linha">
+                    <span>{item.qtd}× {item.nome}</span>
+                    <span>R$ {formatarMoeda(item.preco * item.qtd)}</span>
+                  </div>
+                ))}
+              </div>
+            ))
           )}
-        </div>
-      </div>
+        </Folha>
+      )}
     </div>
   );
 }
