@@ -360,6 +360,8 @@ export default function CardapioOnline() {
                 onMais={(c) => ajustar(c, 1)}
                 onMenos={(c) => ajustar(c, -1)}
                 onEditar={(l) => { setSacolaAberta(false); editarLinha(l); }}
+                fotos={fotos}
+                nomeBase={(l) => produtoPorId(l.produtoId)?.nome}
                 podeEditar={(l) => !!produtoPorId(l.produtoId)}
               />
             </Folha>
@@ -379,6 +381,7 @@ export default function CardapioOnline() {
       {querMais && (
         <QuerMais
           sugestoes={querMais}
+          fotos={fotos}
           contagem={(i) => porProduto[i.id] || 0}
           onAdicionar={adicionar}
           total={subtotal}
