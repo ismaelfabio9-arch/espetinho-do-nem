@@ -1,6 +1,6 @@
 // Ficha técnica (o que vai em cada produto), cadastro de ingrediente e o preço certo do produto.
 // Usado dentro do cadastro do produto (Cardápio e estoque → Produtos → editar) e na Matéria-prima.
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { addDoc, collection, doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { L } from "../loja";
@@ -363,6 +363,17 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
     }, 700);
     return () => clearTimeout(t);
   }, [itensJson, mudou, produto.id, produto.nome]);
+  // Fechou a tela antes do salvamento automático (ex.: tocou em Salvar logo depois de pôr um
+  // ingrediente): grava na hora o que estava pendente, para não perder.
+  const pendente = useRef(null);
+  pendente.current = mudou ? { id: produto.id, nome: produto.nome, itens: itensJson } : null;
+  useEffect(
+    () => () => {
+      const p = pendente.current;
+      if (p) setDoc(doc(db, ...L(), "fichas", p.id), { itens: JSON.parse(p.itens), nome: p.nome, atualizadoEm: new Date().toISOString() }).catch(() => {});
+    },
+    []
+  );
 
   const doPrato = (() => {
     const faltam = doCadastro(produto).filter((n) => {
