@@ -29,7 +29,7 @@ import "../../styles/Garcom/Produtos.css";
 import { useRecurso } from "../../recursos";
 import FotoProduto from "../../components/FotoProduto";
 import { useSouDono } from "../../tenant";
-import EditorOpcoes, { erroDasOpcoes, opcoesParaEditar, opcoesParaSalvar, precoPelasOpcoes } from "../../components/EditorOpcoes";
+import EditorOpcoes, { erroDasOpcoes, indicePrecoCheio, opcoesParaEditar, opcoesParaSalvar, precoPelasOpcoes } from "../../components/EditorOpcoes";
 import { apagarFoto, useFotos } from "../../utils/fotos";
 import { MODELOS, TIPOS, lerMontagem, precosDoCardapio, temMontagem, textoMontagem, tipoDe, tipoInfo, tipoPelaCategoria } from "../../utils/montagem";
 
@@ -44,6 +44,28 @@ const normalizar = (t) =>
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+
+/**
+ * Escolhas do produto com 2 ou mais opções (ex.: Tamanho: Pequeno, Médio, Grande), com o preço de venda de
+ * cada opção, para a ficha dizer o ingrediente que muda com a escolha e o custo e a sobra de cada uma.
+ */
+function gruposDaFicha(ficha) {
+  const n = (t) => {
+    const v = Number(String(t ?? "").trim().replace(/\./g, "").replace(",", "."));
+    return Number.isFinite(v) ? v : 0;
+  };
+  const escolhas = ficha?.ed?.escolhas || [];
+  const ic = indicePrecoCheio(ficha.tipo, escolhas);
+  const base = precoPelasOpcoes(ficha.tipo, ficha.ed) ?? n(ficha.preco);
+  return escolhas
+    .map((g, i) => {
+      const ops = (g.opcoes || []).filter((o) => String(o.nome || "").trim());
+      if (ops.length < 2 || Number(g.max) > 1 || g.livre || g.maxDe) return null;
+      const preco = Object.fromEntries(ops.map((o) => [o.nome.trim(), i === ic ? n(o.mais) || base : base + n(o.mais)]));
+      return { nome: String(g.nome || "").trim() || "Escolha", opcoes: ops.map((o) => o.nome.trim()), preco };
+    })
+    .filter(Boolean);
+}
 
 /** Valor do seletor de categoria para "+ Categoria nova" (o dono escreve o nome). */
 const NOVA_CATEGORIA = "__nova__";
@@ -1037,7 +1059,7 @@ function Produtos() {
                 <div className="prod-ficha-ingred prod-ficha-custo">
                   <span className="eo-rotulo">🧮 Ingredientes</span>
                   <p className="eo-dica">O que vai em 1 {produto.nome || "unidade"} e quanto de cada (arroz, feijão, frango…). Soma o custo; o preço de cada ingrediente fica na aba Ingredientes. Produto comprado pronto (refrigerante) não precisa.</p>
-                  <FichaDoProduto key={produto.id} produto={produto} precoAtual={ficha.preco} onNomes={setNomesIngredientes} />
+                  <FichaDoProduto key={produto.id} produto={produto} precoAtual={ficha.preco} onNomes={setNomesIngredientes} grupos={gruposDaFicha(ficha)} />
                 </div>
               )}
               {ficha.erro && <p className="prod-ficha-erro">{ficha.erro}</p>}

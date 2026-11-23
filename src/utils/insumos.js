@@ -5,6 +5,9 @@
 //   (o estoque por produto, "estoque/", é o do dia e continua como era).
 // - fichas/<produtoId>: { itens: [{ insumoId, qtd }] } — quanto de cada insumo vai em 1 unidade do
 //   produto, na unidade do insumo (300 g de carne = 0,3 kg).
+//   variaPor (opcional): o ingrediente que muda com uma escolha do produto (ex.: o peixe pelo tamanho):
+//   { grupo: "Tamanho", opcoes: ["Pequeno", "Médio", "Grande"], itens: [{ insumoId, qtd: { Pequeno: 0.2, … } }] }.
+//   Cada opção usa os itens de sempre + a quantidade dela; sem opção escolhida, vale a 1ª.
 // - insumosMov/<id>: histórico { insumoId, nome, tipo: "venda" | "compra" | "perda" | "contagem",
 //   qtd (com sinal), antes?, depois?, valor?, motivo?, em, por? }
 // Só a equipe lê essas coleções (o cardápio do cliente não vê custo nem receita).
@@ -37,9 +40,32 @@ export const daFicha = (valor, unidade) => r3(Number(String(valor || "").replace
 /** Unidade do insumo → g / ml / un para editar a ficha. */
 export const paraFicha = (qtd, unidade) => r3(Number(qtd || 0) * unidadeDe(unidade).fator);
 
-/** Custo de 1 unidade do produto pela ficha (null se faltar preço de algum insumo). */
-export function custoDaFicha(ficha, insumosPorId) {
-  const itens = itensJuntos(ficha);
+/** Opção da escolha que muda a quantidade (ex.: "Grande"); sem opção válida, a 1ª. */
+export function opcaoDaVaria(ficha, opcao) {
+  const ops = ficha?.variaPor?.opcoes || [];
+  return opcao && ops.includes(opcao) ? opcao : ops[0] || null;
+}
+
+/** Ingredientes de 1 unidade numa opção: os de sempre + o que muda com a escolha (ex.: 300 g de peixe no Médio). */
+export function itensDaOpcao(ficha, opcao) {
+  const base = itensJuntos(ficha);
+  const v = ficha?.variaPor;
+  if (!v || !(v.itens || []).length) return base;
+  const op = opcaoDaVaria(ficha, opcao);
+  const extra = (v.itens || []).map((it) => ({ insumoId: it.insumoId, qtd: Number(it.qtd?.[op] || 0) })).filter((x) => x.insumoId && x.qtd > 0);
+  return [...base, ...extra];
+}
+
+/** Custo de cada opção da escolha que muda a quantidade: [{ opcao, custo }] (null sem essa escolha). */
+export function custosPorOpcao(ficha, insumosPorId) {
+  const v = ficha?.variaPor;
+  if (!v || !(v.itens || []).length || !(v.opcoes || []).length) return null;
+  return v.opcoes.map((opcao) => ({ opcao, custo: custoDaFicha(ficha, insumosPorId, opcao) }));
+}
+
+/** Custo de 1 unidade do produto pela ficha (null se faltar preço de algum insumo). Com tamanho: o da opção (sem opção, a 1ª). */
+export function custoDaFicha(ficha, insumosPorId, opcao) {
+  const itens = itensDaOpcao(ficha, opcao);
   if (!itens.length) return null;
   let total = 0;
   for (const it of itens) {
@@ -62,9 +88,11 @@ export function itensJuntos(ficha) {
   return out;
 }
 
-/** O que sai do estoque em 1 unidade vendida (a lista do produto). */
-export function itensDaVenda(ficha) {
-  return itensJuntos(ficha);
+/** O que sai do estoque em 1 unidade vendida: com tamanho, o do tamanho que o cliente escolheu. */
+export function itensDaVenda(ficha, item) {
+  const grupo = ficha?.variaPor?.grupo;
+  const esc = grupo ? item?.montagem?.escolhas?.[grupo] : null;
+  return itensDaOpcao(ficha, Array.isArray(esc) ? esc[0] : esc);
 }
 
 /** Soma o que cada insumo gasta nos itens vendidos: { insumoId: qtd }. */
@@ -72,7 +100,7 @@ export function consumoDosItens(itens, fichas) {
   const out = {};
   (itens || []).forEach((item) => {
     const ficha = fichas[item.produtoId];
-    const usados = itensDaVenda(ficha);
+    const usados = itensDaVenda(ficha, item);
     if (!usados.length) return;
     const q = qtdItem(item);
     usados.forEach((it) => {
@@ -211,7 +239,7 @@ export async function inventario(contagens, por) {
 
 /** Quantas unidades do produto dá para fazer com o estoque de hoje (null sem ficha). */
 export function daParaQuantos(ficha, insumosPorId) {
-  const itens = (ficha?.itens || []).filter((it) => Number(it.qtd) > 0);
+  const itens = itensDaOpcao(ficha).filter((it) => Number(it.qtd) > 0);
   if (!itens.length) return null;
   let min = Infinity;
   let limitante = null;

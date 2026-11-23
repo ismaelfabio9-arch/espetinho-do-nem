@@ -78,7 +78,6 @@ export function opcoesParaSalvar(tipo, ed) {
         const n = limpa(o.nome);
         if (!n || opcoes.includes(n)) return;
         opcoes.push(n);
-        if (tipo === "prato") return;
         // Preço final da opção → a diferença para o preço do produto (o menor). Vazio = o preço do produto.
         const v = i === ic ? (base !== null && numero(o.mais) > 0 ? Math.round((numero(o.mais) - base) * 100) / 100 : 0) : numero(o.mais);
         if (v > 0) precos[n] = v;
@@ -185,7 +184,7 @@ export default function EditorOpcoes({ tipo, ed, onTipo, onChange, semVem = fals
       {tipo !== "simples" && (
         <div className="eo-bloco">
           <span className="eo-rotulo">{tipo === "sabor" ? "Sabores" : "O cliente escolhe"}</span>
-          <p className="eo-dica">{tipo === "lanche" ? "Ex.: Normal ou Artesanal (+ R$ 4,00), a carne, até 2 patês." : tipo === "recheio" ? "Ex.: o tipo (arroz branco ou integral), o tamanho (6 sabores, 10 sabores) ou o recheio." : tipo === "sabor" ? "Se um sabor custar mais, ponha quanto a mais." : "Ex.: o feijão (Carioca, Preto)."} {tipo === "prato" ? "No prato a escolha não muda o preço: porção a mais de arroz ou feijão vai em Adicionais com preço (ou como acompanhamento)." : "Na 1ª escolha ponha o preço de cada opção (ex.: 6 sabores R$ 13, 10 sabores R$ 16); nas outras, só quanto custa a mais."}</p>
+          <p className="eo-dica">{tipo === "lanche" ? "Ex.: Normal ou Artesanal (+ R$ 4,00), a carne, até 2 patês." : tipo === "recheio" ? "Ex.: o tipo (arroz branco ou integral), o tamanho (6 sabores, 10 sabores) ou o recheio." : tipo === "sabor" ? "Se um sabor custar mais, ponha quanto a mais." : "Ex.: o feijão (Carioca, Preto)."} {tipo === "prato" ? "No prato a escolha normalmente não muda o preço (deixe o + R$ vazio). Tamanho com preço (Pequeno, Médio, Grande)? Ponha quanto custa a mais em cada um. Porção a mais de arroz ou feijão vai em Adicionais com preço (ou como acompanhamento)." : "Na 1ª escolha ponha o preço de cada opção (ex.: 6 sabores R$ 13, 10 sabores R$ 16); nas outras, só quanto custa a mais."}</p>
           {ed.escolhas.map((g, i) => (
             <div key={i} className="eo-grupo">
               <div className="eo-linha">
@@ -227,7 +226,7 @@ export default function EditorOpcoes({ tipo, ed, onTipo, onChange, semVem = fals
                       <input className="eo-preco" inputMode="decimal" value={o.mais} onChange={(e) => opcao(i, j, { mais: e.target.value })} placeholder="preço" aria-label={`Preço de ${o.nome || `opção ${j + 1}`}`} />
                     </>
                   )}
-                  {tipo !== "prato" && i !== indicePrecoCheio(tipo, ed.escolhas) && (
+                  {i !== indicePrecoCheio(tipo, ed.escolhas) && (tipo !== "prato" || g.opcoes.length > 1) && (
                     <>
                       <span className="eo-reais">+ R$</span>
                       <input className="eo-preco" inputMode="decimal" value={o.mais} onChange={(e) => opcao(i, j, { mais: e.target.value })} placeholder="0" aria-label={`Quanto custa a mais: ${o.nome || `opção ${j + 1}`}`} />

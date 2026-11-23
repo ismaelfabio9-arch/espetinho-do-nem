@@ -126,10 +126,11 @@ export function precoOpcao(grupo, opcao) {
   return Number.isFinite(v) && v > 0 ? v : 0;
 }
 
-/** No prato feito (PF, prato do dia) a escolha (tipo de feijão, salada) não muda o preço: porção a mais é
- *  acompanhamento ou "A mais". Nos outros tipos (tamanho, Normal/Artesanal) a opção pode ter preço. */
+/** A opção com preço soma no preço. No prato, a escolha normalmente não tem preço (tipo de feijão, salada);
+ *  só tem quando o dono põe quanto custa a mais (ex.: tamanho do peixe: Médio + R$ 5). */
+// eslint-disable-next-line no-unused-vars
 export function cobraEscolhas(produto) {
-  return tipoDe(produto) !== "prato";
+  return true;
 }
 
 export function precoMontado(produto, escolha) {

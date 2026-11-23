@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { addDoc, collection, doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { L } from "../loja";
-import { custoDaFicha, daFicha, daParaQuantos, itensJuntos, mostrarQtd, paraFicha, unidadeDe } from "../utils/insumos";
+import { custoDaFicha, custosPorOpcao, daFicha, daParaQuantos, itensJuntos, mostrarQtd, paraFicha, unidadeDe } from "../utils/insumos";
 import { tipoDe } from "../utils/montagem";
 import { lerValor } from "../utils/financas";
 import { contaDoProduto, pesoIngredientes, precoBonito } from "../utils/precificacao";
@@ -314,7 +314,7 @@ const pctPreco = (v, preco) => {
 };
 const paraLinhas = (itens, porId) => (itens || []).map((it) => ({ insumoId: it.insumoId, qtd: String(paraFicha(it.qtd, porId[it.insumoId]?.unidade)).replace(".", ",") }));
 
-function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNomes }) {
+function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNomes, grupos = [] }) {
   const [criados, setCriados] = useState({}); // ingredientes criados aqui (até o banco devolver)
   const todos = { ...criados, ...porId };
   const [linhas, setLinhas] = useState(() => paraLinhas(itensJuntos(ficha), porId));
@@ -327,10 +327,35 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
     setMsg("");
   };
   const itens = linhas.filter((l) => l.insumoId && num(l.qtd) > 0).map((l) => ({ insumoId: l.insumoId, qtd: daFicha(l.qtd, todos[l.insumoId]?.unidade) }));
-  const custo = custoDaFicha({ itens }, todos);
+  // Ingrediente que muda com uma escolha (ex.: o peixe pelo tamanho): quantidade em cada opção.
+  const [varia, setVaria] = useState(() => ({
+    grupo: ficha?.variaPor?.grupo || "",
+    linhas: (ficha?.variaPor?.itens || []).map((it) => ({
+      insumoId: it.insumoId,
+      qtd: Object.fromEntries(Object.entries(it.qtd || {}).map(([op, q]) => [op, String(paraFicha(q, porId[it.insumoId]?.unidade)).replace(".", ",")])),
+    })),
+  }));
+  const mudaVaria = (v) => {
+    setVaria(v);
+    setMudou(true);
+    setMsg("");
+  };
+  const grupoVaria = grupos.find((g) => g.nome === varia.grupo) || grupos.find((g) => /tamanh/i.test(g.nome)) || grupos[0] || null;
+  const variaPor = (() => {
+    if (!grupoVaria) return null;
+    const vItens = varia.linhas
+      .filter((l) => l.insumoId)
+      .map((l) => ({ insumoId: l.insumoId, qtd: Object.fromEntries(grupoVaria.opcoes.map((op) => [op, daFicha(l.qtd?.[op] || "0", todos[l.insumoId]?.unidade)])) }))
+      .filter((it) => Object.values(it.qtd).some((q) => q > 0));
+    return vItens.length ? { grupo: grupoVaria.nome, opcoes: grupoVaria.opcoes, itens: vItens } : null;
+  })();
+  const fichaAtual = { itens, variaPor };
+  const porOpcao = custosPorOpcao(fichaAtual, todos);
+  // Com tamanho, o custo do produto é o da 1ª opção (a do preço do produto).
+  const custo = custoDaFicha(fichaAtual, todos);
   const preco = Number(String(precoAtual ?? produto.preco ?? "").replace(",", ".")) || 0;
   const custoTxt = custo === null ? "" : String(custo);
-  const temItens = itens.length > 0;
+  const temItens = itens.length > 0 || !!variaPor;
   useEffect(() => {
     onCusto?.(custoTxt === "" ? null : Number(custoTxt), temItens);
   }, [custoTxt, temItens, onCusto]);
@@ -338,7 +363,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
   // no prato e ainda não é ingrediente cadastrado (ex.: Salada) continua no cardápio.
   const nomesJson = JSON.stringify(
     (() => {
-      const daFichaNomes = linhas.filter((l) => l.insumoId && todos[l.insumoId]?.nome).map((l) => todos[l.insumoId].nome);
+      const daFichaNomes = [...linhas, ...varia.linhas].filter((l) => l.insumoId && todos[l.insumoId]?.nome).map((l) => todos[l.insumoId].nome);
       const semCadastro = doCadastro(produto).filter((n) => !acharInsumo(Object.values(todos), n) && !daFichaNomes.some((x) => sem(x) === sem(n)));
       return daFichaNomes.length ? [...daFichaNomes, ...semCadastro] : [];
     })()
@@ -349,12 +374,12 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
   const lista = [...insumos, ...Object.values(criados).filter((c) => !porId[c.id])];
 
   // Salva sozinha um instante depois de cada mudança (sem botão a mais na tela do produto).
-  const itensJson = JSON.stringify(itens);
+  const itensJson = JSON.stringify({ itens, variaPor });
   useEffect(() => {
     if (!mudou) return undefined;
     const t = setTimeout(async () => {
       try {
-        await setDoc(doc(db, ...L(), "fichas", produto.id), { itens: JSON.parse(itensJson), nome: produto.nome, atualizadoEm: new Date().toISOString() });
+        await setDoc(doc(db, ...L(), "fichas", produto.id), { ...JSON.parse(itensJson), nome: produto.nome, atualizadoEm: new Date().toISOString() });
         setMudou(false);
         setMsg("✓ Ingredientes salvos");
       } catch {
@@ -370,7 +395,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
   useEffect(
     () => () => {
       const p = pendente.current;
-      if (p) setDoc(doc(db, ...L(), "fichas", p.id), { itens: JSON.parse(p.itens), nome: p.nome, atualizadoEm: new Date().toISOString() }).catch(() => {});
+      if (p) setDoc(doc(db, ...L(), "fichas", p.id), { ...JSON.parse(p.itens), nome: p.nome, atualizadoEm: new Date().toISOString() }).catch(() => {});
     },
     []
   );
@@ -408,13 +433,90 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
       <p className="ficha-titulo">O que vai em 1 <b>{produto.nome}</b>?</p>
       <LinhasFicha linhas={linhas} muda={muda} todos={todos} lista={lista} novo={() => setNovo({})} extra={doPrato} preco={preco} vazio="Toque nos ingredientes abaixo para pôr na ficha." />
 
+      {grupoVaria && (
+        <div className="ficha-varia">
+          <span className="ficha-varia-titulo">Algum ingrediente muda com {grupoVaria.nome.toLowerCase()}?</span>
+          {grupos.length > 1 && (
+            <select value={grupoVaria.nome} onChange={(e) => mudaVaria({ ...varia, grupo: e.target.value })} aria-label="Escolha que muda a quantidade">
+              {grupos.map((g) => (
+                <option key={g.nome} value={g.nome}>{g.nome}</option>
+              ))}
+            </select>
+          )}
+          <small className="ficha-dica">
+            Ex.: o peixe: 200 g no {grupoVaria.opcoes[0]}, 300 g no {grupoVaria.opcoes[1] || "outro"}. O que é igual em todos (arroz, feijão, salada…) fica nos ingredientes acima.
+          </small>
+          {varia.linhas.map((l, k) => {
+            const ins = todos[l.insumoId];
+            const u = unidadeDe(ins?.unidade);
+            return (
+              <div key={l.insumoId || k} className="ficha-varia-linha">
+                <div className="ficha-varia-nome">
+                  <b>{ins?.nome || "Ingrediente"}</b>
+                  <button type="button" className="eo-x" aria-label={`Tirar ${ins?.nome || "ingrediente"}`} onClick={() => mudaVaria({ ...varia, linhas: varia.linhas.filter((_, j) => j !== k) })}>✕</button>
+                </div>
+                <div className="ficha-varia-qtds">
+                  {grupoVaria.opcoes.map((op) => (
+                    <label key={op}>
+                      <span>{op}</span>
+                      <span className="ficha-varia-campo">
+                        <input
+                          inputMode="decimal"
+                          value={l.qtd?.[op] ?? ""}
+                          onChange={(e) => mudaVaria({ ...varia, linhas: varia.linhas.map((x, j) => (j === k ? { ...x, qtd: { ...x.qtd, [op]: e.target.value } } : x)) })}
+                          aria-label={`${ins?.nome || "Ingrediente"} no ${op}, em ${u.sub}`}
+                        />
+                        {u.sub}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+          <select
+            value=""
+            onChange={(e) => {
+              const id = e.target.value;
+              if (!id) return;
+              const naBase = linhas.find((x) => x.insumoId === id);
+              const ins = todos[id];
+              const q = naBase?.qtd || (ins?.unidade === "un" ? "1" : "100");
+              // Já estava nos ingredientes de sempre: passa para cá (com a mesma quantidade em todos, para ajustar).
+              if (naBase) setLinhas(linhas.filter((x) => x.insumoId !== id));
+              mudaVaria({ grupo: grupoVaria.nome, linhas: [...varia.linhas, { insumoId: id, qtd: Object.fromEntries(grupoVaria.opcoes.map((op) => [op, q])) }] });
+            }}
+            aria-label="Pôr ingrediente que muda com a escolha"
+          >
+            <option value="">+ Ingrediente que muda com {grupoVaria.nome.toLowerCase()}…</option>
+            {lista.filter((i) => !varia.linhas.some((l) => l.insumoId === i.id)).map((i) => (
+              <option key={i.id} value={i.id}>{i.nome}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {porOpcao && (
+        <div className="ficha-custo ficha-custo-opcoes">
+          <span>Só de ingredientes, por {grupoVaria.nome.toLowerCase()}:</span>
+          {porOpcao.map(({ opcao, custo: c }) => {
+            const p = grupoVaria.preco?.[opcao] ?? preco;
+            return (
+              <small key={opcao} className={c !== null && p > 0 && p - c < 0 ? "ficha-op-ruim" : ""}>
+                <b>{opcao}</b>: {c === null ? "falta o preço de algum ingrediente" : `custa ${R(c)}${p > 0 ? ` · vende ${R(p)} · sobra ${R(p - c)} (${Math.round(((p - c) / p) * 100)}%)` : ""}`}
+              </small>
+            );
+          })}
+        </div>
+      )}
+      {!porOpcao && (
       <div className={`ficha-custo ${custo !== null && preco > 0 && preco - custo < 0 ? "ruim" : ""}`}>
         {custo !== null ? (
           <>
             <span>Só de ingredientes, 1 {produto.nome} custa</span>
             <strong>{R(custo)}</strong>
             {(() => {
-              const da = daParaQuantos({ itens }, todos);
+              const da = daParaQuantos(fichaAtual, todos);
               return da ? <small className="ficha-da">{da.quantos === 0 ? `${da.limitante} está sem estoque registrado (registre a compra em Ingredientes para o sistema contar quantos dá para fazer)` : `Com o estoque de hoje dá para fazer mais ${da.quantos}${da.limitante ? ` (quem acaba primeiro: ${da.limitante})` : ""}`}</small> : null;
             })()}
             {preco > 0 && (
@@ -437,6 +539,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
           <span>{itens.length ? "O custo aparece quando todos os ingredientes tiverem preço." : "Ponha os ingredientes para ver quanto custa."}</span>
         )}
       </div>
+      )}
 
       <p className={mudou ? "ficha-pendente" : "fin-ok ficha-ok"} aria-live="polite">{mudou ? "Salvando…" : msg}</p>
       {novo && (
@@ -505,7 +608,7 @@ export function PrecoNoProduto({ custo, preco, digitado = false }) {
 }
 
 /** Ingredientes do produto (o custo sai deles: o preço de cada um fica em Cardápio e estoque → Custos) + preço certo. */
-export function FichaDoProduto({ produto, precoAtual, onNomes }) {
+export function FichaDoProduto({ produto, precoAtual, onNomes, grupos = [] }) {
   const [insumos, setInsumos] = useState(null);
   const [ficha, setFicha] = useState(undefined);
   const [custoManual, setCustoManual] = useState(undefined);
@@ -525,7 +628,7 @@ export function FichaDoProduto({ produto, precoAtual, onNomes }) {
   }
   return (
     <div className="fdp">
-      <EditarFicha produto={produto} ficha={ficha} insumos={ativos} porId={porId} onCusto={aoCusto} precoAtual={precoAtual} onNomes={onNomes} />
+      <EditarFicha produto={produto} ficha={ficha} insumos={ativos} porId={porId} onCusto={aoCusto} precoAtual={precoAtual} onNomes={onNomes} grupos={grupos} />
       {digitado && (
         <p className="fin-aviso fdp-digitado">
           Este produto está com um custo digitado antes ({R(custoManual)}), sem ingredientes. Ponha os ingredientes acima (em gramas: ex. 150 g de arroz por porção) que o custo passa a ser deles.{" "}

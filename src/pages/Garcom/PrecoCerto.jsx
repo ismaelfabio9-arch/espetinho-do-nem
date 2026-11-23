@@ -8,9 +8,9 @@ import { Link } from "react-router-dom";
 import { doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 import { db } from "../../firebase";
 import { L } from "../../loja";
-import { ehCategoriaDeBebida, ehCategoriaDePrato, precosDoCardapio } from "../../utils/montagem";
+import { ehCategoriaDeBebida, ehCategoriaDePrato, precoOpcao, precosDoCardapio } from "../../utils/montagem";
 import { PESO_INGREDIENTES_PADRAO, contaDoProduto, pctDasContas, pctPorVenda, pesoIngredientes, precoBonito } from "../../utils/precificacao";
-import { daFicha as paraUnidadeDoInsumo, itensJuntos, unidadeDe } from "../../utils/insumos";
+import { custosPorOpcao, daFicha as paraUnidadeDoInsumo, itensJuntos, unidadeDe } from "../../utils/insumos";
 
 const fmt = (v) => Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const R = (v) => (v < 0 ? `− R$ ${fmt(-v)}` : `R$ ${fmt(v)}`);
@@ -31,7 +31,12 @@ const LISTAS = {
 
 export default function PrecoCerto({ produtos, custos, daFicha, vendas30 = 0, insumos = [], fichas = [] }) {
   // Produtos que já têm ingredientes na ficha (mesmo sem preço): a porção rápida não mexe neles.
-  const comFicha = useMemo(() => new Set((fichas || []).filter((fi) => itensJuntos(fi).length > 0).map((fi) => fi.id)), [fichas]);
+  const comFicha = useMemo(() => new Set((fichas || []).filter((fi) => itensJuntos(fi).length > 0 || fi.variaPor).map((fi) => fi.id)), [fichas]);
+  // Produto com ingrediente que muda com o tamanho: custo de cada opção (peixe pequeno, médio, grande).
+  const porOpcaoDe = useMemo(() => {
+    const ins = Object.fromEntries((insumos || []).map((i) => [i.id, i]));
+    return Object.fromEntries((fichas || []).filter((fi) => fi.variaPor).map((fi) => [fi.id, { grupo: fi.variaPor.grupo, lista: custosPorOpcao(fi, ins) }]));
+  }, [fichas, insumos]);
   const [salvo, setSalvo] = useState(null); // configuracoes/precificacao
   const [form, setForm] = useState(null);
   const [precos, setPrecos] = useState({}); // preço digitado (simula antes de salvar) { id: texto }
@@ -344,6 +349,22 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendas30 = 0, in
                         {c.faltaVendas && (<><span>− Parte das contas da loja</span><b>?</b></>)}
                         <span className="pc-total">= Lucro para você</span><b className={`pc-total ${c.lucro < 0 ? "fin-neg" : "pc-verde"}`}>{R(c.lucro)} ({fmtPct(c.margem)})</b>
                       </div>
+                    )}
+                    {porOpcaoDe[x.id]?.lista && (
+                      <ul className="pc-tamanhos" aria-label={`${x.nome} por ${porOpcaoDe[x.id].grupo}`}>
+                        {porOpcaoDe[x.id].lista.map(({ opcao, custo: co }) => {
+                          const g = (x.montagem?.escolhas || []).find((gg) => gg.nome === porOpcaoDe[x.id].grupo);
+                          const pv = Math.round((Number(x.preco || 0) + precoOpcao(g, opcao)) * 100) / 100;
+                          const conta = co === null ? null : soIngredientes ? { lucro: pv - co, margem: pv > 0 ? ((pv - co) / pv) * 100 : 0 } : contaDoProduto(co, pv, config);
+                          return (
+                            <li key={opcao}>
+                              <b>{opcao}</b>
+                              <span>{co === null ? "falta o preço de algum ingrediente" : `vende ${R(pv)} · ingredientes ${R(co)}`}</span>
+                              {conta && <strong className={conta.lucro < 0 ? "fin-neg" : "pc-verde"}>{soIngredientes ? "sobra" : "lucro"} {R(conta.lucro)} ({fmtPct(conta.margem)})</strong>}
+                            </li>
+                          );
+                        })}
+                      </ul>
                     )}
                     {typeof daFicha?.[x.id] !== "number" && !comFicha.has(x.id) && (
                       <PorcaoRapida produto={x} insumos={insumos} digitado={typeof custos?.[x.id] === "number" ? custos[x.id] : null} />
