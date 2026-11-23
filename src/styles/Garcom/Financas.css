@@ -195,3 +195,14 @@
 .pc-conta-prod span { color: var(--muted); }
 .pc-conta-prod b { text-align: right; font-variant-numeric: tabular-nums; }
 .pc-conta-prod .pc-total { color: var(--text); font-weight: 800; border-top: 1px solid var(--border); padding-top: 4px; }
+
+/* Porção de um ingrediente no Preço certo (acompanhamento: 150 g de arroz) */
+.pc-porcao-chamada { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0 4px; padding: 10px 12px; border-radius: 12px; background: #fef3c7; color: #92400e; font-size: 13.5px; }
+.pc-porcao-chamada span { flex: 1 1 220px; }
+.pc-porcao { display: grid; gap: 8px; margin: 8px 0 4px; padding: 12px; border-radius: 12px; border: 2px solid var(--green, #22c55e); background: var(--card); color: var(--text); }
+.pc-porcao-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.pc-porcao-linha select { flex: 1 1 160px; min-width: 0; padding: 9px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); font-size: 16px; }
+.pc-porcao-qtd input { width: 84px; }
+.pc-porcao-dica { margin: 0; font-size: 13px; color: var(--muted); }
+.pc-porcao-dica b { color: var(--text); }
+.pc-porcao-botoes { display: flex; gap: 8px; justify-content: flex-end; }
