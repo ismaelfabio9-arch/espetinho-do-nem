@@ -26,6 +26,8 @@ import SeLigado from "./components/SeLigado";
 import EstacaoImpressao from "./components/EstacaoImpressao";
 import { Vendas, CardapioArea, Dinheiro } from "./pages/Garcom/Areas";
 import { Navigate, useLocation } from "react-router-dom";
+// Por último: no computador as telas usam a largura da tela (o resto foi feito para o celular).
+import "./styles/computador.css";
 
 
 function App() {

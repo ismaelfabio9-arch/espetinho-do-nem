@@ -1,0 +1,50 @@
+/* ============================================================
+   Computador e notebook
+   As telas foram desenhadas para o celular (coluna de 430 px). Numa tela larga elas
+   ficavam espremidas no meio; aqui passam a usar a largura da tela.
+   ============================================================ */
+@media (min-width: 900px) {
+  .container,
+  .app-ref,
+  .mesa-page {
+    max-width: 1180px;
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+
+  .menu-inferior,
+  .bottom-nav-ref {
+    max-width: 1180px;
+  }
+
+  /* Mesas: quantas couberem na linha */
+  .tables-grid-ref,
+  .grid-mesas {
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  }
+
+  /* As telas que já tinham largura própria no computador ficam todas na mesma medida. */
+  .container.pedidos-pagina,
+  .container.prod-pagina,
+  .container.dono-pagina {
+    max-width: 1180px;
+  }
+
+  /* Vendas, Cardápio e estoque, Dinheiro: título e abas na mesma largura do conteúdo */
+  .area-topo,
+  .area-sub {
+    max-width: 1180px;
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+
+  /* Produtos para lançar na mesa e no balcão: em várias colunas */
+  .produtos-grid,
+  .rapido-grade {
+    grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  }
+
+  .barra-pedido {
+    max-width: 720px;
+  }
+}
