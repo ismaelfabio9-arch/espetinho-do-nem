@@ -145,8 +145,8 @@ export default function EditorOpcoes({ tipo, ed, onTipo, onChange, semVem = fals
   return (
     <div className="eo">
       <div className="eo-bloco">
-        <span className="eo-rotulo">Como é pedido</span>
-        <div className="eo-tipos" role="radiogroup" aria-label="Como é pedido">
+        <span className="eo-rotulo">Como o cliente pede este produto?</span>
+        <div className="eo-tipos" role="radiogroup" aria-label="Como o cliente pede este produto">
           {TIPOS.map((t) => (
             <button type="button" role="radio" aria-checked={t.id === tipo} key={t.id} className={t.id === tipo ? "ativo" : ""} onClick={() => onTipo(t.id)}>
               <b>{t.emoji} {t.nome}</b>
@@ -154,7 +154,7 @@ export default function EditorOpcoes({ tipo, ed, onTipo, onChange, semVem = fals
             </button>
           ))}
         </div>
-        {tipo === "simples" && <p className="eo-dica">Entra direto no pedido com um toque, sem perguntar nada. Tem tipo para escolher (ex.: arroz branco ou integral, feijão carioca ou preto)? Toque em "Com escolha".</p>}
+        {tipo === "simples" && <p className="eo-dica">Entra direto no pedido com um toque, sem perguntar nada. Tem algo para escolher (ex.: arroz branco ou integral, tamanho P, M ou G)? Toque em "Escolhe tamanho ou recheio".</p>}
       </div>
 
       {comVem && semVem && (

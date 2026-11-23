@@ -45,6 +45,9 @@ const normalizar = (t) =>
     .toLowerCase()
     .trim();
 
+/** Valor do seletor de categoria para "+ Categoria nova" (o dono escreve o nome). */
+const NOVA_CATEGORIA = "__nova__";
+
 function Produtos() {
   // Planos Completo e Premium: ingredientes (ficha técnica), custo e preço certo dentro do produto.
   const souDono = useSouDono();
@@ -62,15 +65,9 @@ function Produtos() {
   const [busca, setBusca] = useState("");
   // Montagem do prato (almoço): o que vem, as escolhas e o que vai a mais.
   const [montagemAberta, setMontagemAberta] = useState(null);
-  const [adicionando, setAdicionando] = useState(false);
-  const [novoNome, setNovoNome] = useState("");
-  const [novaCategoria, setNovaCategoria] = useState("");
-  const [precoNovoProduto, setPrecoNovoProduto] = useState("");
-  const [tipoNovo, setTipoNovo] = useState("");
   const [prontasAbertas, setProntasAbertas] = useState(false);
   const [pondoPronta, setPondoPronta] = useState(false);
   const [produtoParaExcluir, setProdutoParaExcluir] = useState(null);
-  const [erroProduto, setErroProduto] = useState("");
 
   // ── Estado da gestão de categorias ──
   const [gerenciandoCategorias, setGerenciandoCategorias] = useState(false);
@@ -200,72 +197,33 @@ function Produtos() {
     setPondoPronta(false);
   }
 
-  async function adicionarProduto() {
-    if (!novoNome || !novaCategoria || !precoNovoProduto) {
-      setErroProduto("Preencha nome, categoria e preço.");
-      return;
-    }
+  // "+ Produto" abre direto a mesma tela de editar, em branco: nome, preço, categoria e como o cliente pede.
+  function abrirNovo() {
+    setNomesIngredientes(null);
+    const semCategorias = categoriasExibidas.length === 0;
+    setFicha({ novo: true, id: null, nome: "", preco: "", categoria: semCategorias ? NOVA_CATEGORIA : "", novaCategoria: "", tipo: "simples", tipoEscolhido: false, ed: { vem: [], extras: [], escolhas: [] }, erro: "", salvando: false });
+  }
 
-    const nomeTratado = novoNome.trim();
-    const categoriaTratada = novaCategoria.trim();
-    const produtoId = criarIdProduto(`${categoriaTratada}-${nomeTratado}`);
-    const tipoEscolhido = tipoNovo || tipoDaCategoria(categoriaTratada);
-
+  /** Cria o produto novo (e a categoria, se for nova). Devolve o produto salvo. */
+  async function criarProduto({ nome, categoria, preco, tipo, montagem }) {
+    const produtoId = criarIdProduto(`${categoria}-${nome}`);
+    const agora = new Date().toISOString();
     await setDoc(
       doc(db, ...L(), "produtos", produtoId),
-      {
-        nome: nomeTratado,
-        categoria: categoriaTratada,
-        preco: Number(precoNovoProduto),
-        ativo: true,
-        tipo: tipoEscolhido,
-        criadoEm: serverTimestamp(),
-      },
+      { nome, categoria, preco, ativo: true, tipo, ...(montagem ? { montagem } : {}), criadoEm: serverTimestamp(), atualizadoEm: agora },
       { merge: true }
     );
-
-    await setDoc(
-      doc(db, ...L(), "estoque", produtoId),
-      {
-        nome: nomeTratado,
-        categoria: categoriaTratada,
-        quantidade: 0,
-        atualizadoEm: new Date().toISOString(),
-      },
-      { merge: true }
-    );
-
-    // Se o cliente digitou uma categoria nova que ainda não existe na
-    // coleção "categorias", cria automaticamente ao final da lista.
-    const existeCategoria = categorias.some(
-      (c) => c.nome.toLowerCase() === categoriaTratada.toLowerCase()
-    );
-    if (!existeCategoria) {
+    await setDoc(doc(db, ...L(), "estoque", produtoId), { nome, categoria, quantidade: 0, atualizadoEm: agora }, { merge: true });
+    // Categoria nova: entra no fim da lista, já com o tipo do produto.
+    if (!categorias.some((c) => c.nome.toLowerCase() === categoria.toLowerCase())) {
       try {
-        const idCategoria = await criarCategoria(categoriaTratada, categorias);
-        await setDoc(doc(db, ...L(), "categorias", idCategoria), { tipo: tipoEscolhido }, { merge: true });
+        const idCategoria = await criarCategoria(categoria, categorias);
+        await setDoc(doc(db, ...L(), "categorias", idCategoria), { tipo }, { merge: true });
       } catch {
         // categoria pode já existir por corrida entre abas — ignora
       }
     }
-
-    // Sabor, recheio ou prato: já abre as opções com o modelo do tipo para o dono ajustar.
-    if (tipoEscolhido !== "simples") {
-      // Começa vazio: o exemplo aparece só em cinza (e no botão "Usar o exemplo"), para nenhuma opção
-      // inventada (recheio, "Ovo = 2"…) ir parar no pedido sem o dono escrever.
-      // Abre a mesma tela de editar, já nas opções (sabor e tamanho já com o espaço da escolha).
-      const comEscolha = tipoEscolhido === "sabor" || tipoEscolhido === "recheio";
-      setFicha({
-        id: produtoId, nome: nomeTratado, preco: String(precoNovoProduto), categoria: categoriaTratada, tipo: tipoEscolhido, erro: "", salvando: false,
-        ed: { vem: [], extras: [], escolhas: comEscolha ? [{ nome: tipoEscolhido === "sabor" ? "Sabor" : "Tamanho", max: 1, opcoes: [{ nome: "", mais: "" }, { nome: "", mais: "" }, { nome: "", mais: "" }] }] : [] },
-      });
-    }
-    setTipoNovo("");
-    setNovoNome("");
-    setNovaCategoria("");
-    setPrecoNovoProduto("");
-    setErroProduto("");
-    setAdicionando(false);
+    return { id: produtoId, nome, categoria, preco, tipo, ...(montagem ? { montagem } : {}) };
   }
 
   // ?editar=<id> (link do Preço certo): abre o produto direto.
@@ -287,6 +245,7 @@ function Produtos() {
   }
 
   async function salvarFicha() {
+    if (ficha?.novo) return salvarNovo();
     const produto = produtos.find((p) => p.id === ficha?.id);
     if (!produto) return setFicha(null);
     const nomeTratado = ficha.nome.trim();
@@ -331,6 +290,34 @@ function Produtos() {
       setFicha(null);
     } catch (erro) {
       console.error("Erro ao salvar produto:", erro);
+      setFicha((f) => f && { ...f, salvando: false, erro: "Não foi possível salvar. Tente novamente." });
+    }
+  }
+
+  async function salvarNovo() {
+    const nomeTratado = ficha.nome.trim();
+    const categoria = (ficha.categoria === NOVA_CATEGORIA ? ficha.novaCategoria : ficha.categoria).trim();
+    const precoOpcoes = precoPelasOpcoes(ficha.tipo, ficha.ed);
+    const preco = precoOpcoes ?? Number(String(ficha.preco).replace(",", "."));
+    if (!nomeTratado) return setFicha({ ...ficha, erro: "Escreva o nome do produto." });
+    if (!categoria) return setFicha({ ...ficha, erro: ficha.categoria === NOVA_CATEGORIA ? "Escreva o nome da categoria nova." : "Escolha a categoria." });
+    if (String(ficha.preco).trim() === "" && precoOpcoes === null) return setFicha({ ...ficha, erro: "Escreva o preço." });
+    if (!Number.isFinite(preco) || preco < 0) return setFicha({ ...ficha, erro: "Confira o preço." });
+    const nomeJaExiste = produtos.some((item) => (item.categoria || "").toLowerCase() === categoria.toLowerCase() && (item.nome || "").trim().toLowerCase() === nomeTratado.toLowerCase());
+    if (nomeJaExiste) return setFicha({ ...ficha, erro: "Já existe um produto com esse nome nessa categoria." });
+    const erroOpcoes = erroDasOpcoes(ficha.tipo, ficha.ed);
+    if (erroOpcoes) return setFicha({ ...ficha, erro: erroOpcoes });
+    setFicha({ ...ficha, erro: "", salvando: true });
+    try {
+      const salvo = await criarProduto({ nome: nomeTratado, categoria, preco, tipo: ficha.tipo, montagem: opcoesParaSalvar(ficha.tipo, ficha.ed) });
+      // Foto e ingredientes precisam do produto salvo: a tela continua aberta, já editando o produto.
+      if (fotosLigado || financasLigado) {
+        abrirFicha(salvo);
+        const falta = [fotosLigado && "a foto", financasLigado && "os ingredientes"].filter(Boolean).join(" e ");
+        setFicha((f) => f && { ...f, aviso: `Produto salvo. Agora dá para pôr ${falta}.` });
+      } else setFicha(null);
+    } catch (erro) {
+      console.error("Erro ao criar produto:", erro);
       setFicha((f) => f && { ...f, salvando: false, erro: "Não foi possível salvar. Tente novamente." });
     }
   }
@@ -485,10 +472,7 @@ function Produtos() {
         </div>
         <button
           className="prod-acao principal"
-          onClick={() => {
-            setAdicionando(true);
-            setErroProduto("");
-          }}
+          onClick={abrirNovo}
         >
           + Produto
         </button>
@@ -870,72 +854,6 @@ function Produtos() {
         </div>
       )}
 
-      {adicionando && (
-        <div className="modal-fechar-dia">
-          <div className="modal-fechar-dia-card produto-modal-card">
-            <div className="modal-fechar-dia-icone">➕</div>
-
-            <h2>Adicionar produto</h2>
-
-            <p>Cadastre um novo item no cardápio.</p>
-
-            {erroProduto && <strong>{erroProduto}</strong>}
-
-            <div className="produto-modal-form">
-              <input
-                placeholder="Nome do produto"
-                value={novoNome}
-                onChange={(e) => setNovoNome(e.target.value)}
-              />
-
-              <input
-                placeholder="Categoria"
-                value={novaCategoria}
-                onChange={(e) => setNovaCategoria(e.target.value)}
-                list="lista-categorias-existentes"
-              />
-              <datalist id="lista-categorias-existentes">
-                {categorias.map((c) => (
-                  <option key={c.id} value={c.nome} />
-                ))}
-              </datalist>
-
-              <input
-                type="number"
-                placeholder={(tipoNovo || tipoDaCategoria(novaCategoria)) === "simples" ? "Preço" : "Preço (o menor; o que custar mais vai nas opções)"}
-                value={precoNovoProduto}
-                onChange={(e) => setPrecoNovoProduto(e.target.value)}
-              />
-              <div className="tipo-opcoes">
-                {TIPOS.map((t) => (
-                  <button type="button" key={t.id} className={t.id === (tipoNovo || tipoDaCategoria(novaCategoria)) ? "tipo-op ativo" : "tipo-op"} onClick={() => setTipoNovo(t.id)}>
-                    <strong>{t.emoji} {t.nome}</strong>
-                    <small>{t.exemplo}</small>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="modal-fechar-dia-botoes">
-              <button
-                className="modal-btn-cancelar"
-                onClick={() => {
-                  setAdicionando(false);
-                  setErroProduto("");
-                  setTipoNovo("");
-                }}
-              >
-                Cancelar
-              </button>
-
-              <button className="modal-btn-confirmar" onClick={adicionarProduto}>
-                Salvar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {produtoParaExcluir && (
         <div className="modal-fechar-dia">
           <div className="modal-fechar-dia-card">
@@ -1040,19 +958,23 @@ function Produtos() {
       })()}
 
       {ficha && (() => {
-        const produto = produtos.find((p) => p.id === ficha.id);
+        // Produto novo: ainda não está no banco; a tela usa o que já foi escrito.
+        const produto = ficha.novo ? { id: null, nome: ficha.nome, categoria: ficha.categoria } : produtos.find((p) => p.id === ficha.id) || (ficha.aviso ? { id: ficha.id, nome: ficha.nome, categoria: ficha.categoria } : null);
         if (!produto) return null;
+        const escolherCategoria = (categoria) =>
+          setFicha({ ...ficha, categoria, erro: "", ...(ficha.novo && !ficha.tipoEscolhido && categoria !== NOVA_CATEGORIA ? { tipo: tipoDaCategoria(categoria) } : {}) });
         return (
           <div className="modal-overlay prod-ficha-fundo" onClick={() => !ficha.salvando && setFicha(null)}>
-            <div className="prod-ficha" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Editar ${produto.nome}`}>
+            <div className="prod-ficha" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={ficha.novo ? "Novo produto" : `Editar ${produto.nome}`}>
               <div className="prod-ficha-topo">
-                <h2>Editar produto</h2>
+                <h2>{ficha.novo ? "Novo produto" : "Editar produto"}</h2>
                 <button type="button" className="prod-ficha-x" onClick={() => setFicha(null)} aria-label="Fechar">✕</button>
               </div>
               <label>
                 Nome
-                <input value={ficha.nome} onChange={(e) => setFicha({ ...ficha, nome: e.target.value, erro: "" })} />
+                <input value={ficha.nome} placeholder={ficha.novo ? "Ex.: Coca-Cola lata, Prato do dia, Pastel" : undefined} autoFocus={ficha.novo} onChange={(e) => setFicha({ ...ficha, nome: e.target.value, erro: "" })} />
               </label>
+              {ficha.aviso && <p className="prod-ficha-aviso">✅ {ficha.aviso}</p>}
               <div className="prod-ficha-dupla">
                 <label>
                   Preço (R$)
@@ -1067,16 +989,27 @@ function Produtos() {
                 </label>
                 <label>
                   Categoria
-                  <select value={ficha.categoria} onChange={(e) => setFicha({ ...ficha, categoria: e.target.value, erro: "" })}>
+                  <select value={ficha.categoria} onChange={(e) => escolherCategoria(e.target.value)}>
+                    {ficha.novo && <option value="" disabled>Escolha…</option>}
                     {categoriasExibidas.map((c) => (
                       <option key={c.id} value={c.nome}>{c.nome}</option>
                     ))}
+                    {ficha.novo && <option value={NOVA_CATEGORIA}>+ Categoria nova</option>}
                   </select>
                 </label>
               </div>
-              {fotosLigado && <FotoProduto produto={produto} foto={fotos[produto.id] || null} />}
-              <EditorOpcoes precoBase={ficha.preco} semVem={financasLigado} ingredientes={nomesIngredientes || []} tipo={ficha.tipo} ed={ficha.ed} onTipo={(t) => setFicha({ ...ficha, tipo: t, erro: "" })} onChange={(ed) => setFicha({ ...ficha, ed, erro: "" })} />
-              {financasLigado && (
+              {ficha.novo && ficha.categoria === NOVA_CATEGORIA && (
+                <label>
+                  Nome da categoria nova
+                  <input value={ficha.novaCategoria} placeholder="Ex.: Bebidas, Sobremesas, Porções" onChange={(e) => setFicha({ ...ficha, novaCategoria: e.target.value, erro: "", ...(!ficha.tipoEscolhido ? { tipo: tipoDaCategoria(e.target.value) } : {}) })} />
+                </label>
+              )}
+              {fotosLigado && !ficha.novo && <FotoProduto produto={produto} foto={fotos[produto.id] || null} />}
+              <EditorOpcoes precoBase={ficha.preco} semVem={financasLigado} ingredientes={nomesIngredientes || []} tipo={ficha.tipo} ed={ficha.ed} onTipo={(t) => setFicha({ ...ficha, tipo: t, tipoEscolhido: true, erro: "" })} onChange={(ed) => setFicha({ ...ficha, ed, erro: "" })} />
+              {ficha.novo && (fotosLigado || financasLigado) && (
+                <p className="eo-dica">{fotosLigado && financasLigado ? "A foto e os ingredientes" : fotosLigado ? "A foto" : "Os ingredientes"} você põe logo depois de salvar, nesta mesma tela.</p>
+              )}
+              {financasLigado && !ficha.novo && (
                 <div className="prod-ficha-ingred prod-ficha-custo">
                   <span className="eo-rotulo">🧮 Ingredientes</span>
                   <p className="eo-dica">O que vai em 1 {produto.nome || "unidade"} e quanto de cada (arroz, feijão, frango…). Soma o custo; o preço de cada ingrediente fica na aba Ingredientes. Produto comprado pronto (refrigerante) não precisa.</p>
@@ -1085,6 +1018,11 @@ function Produtos() {
               )}
               {ficha.erro && <p className="prod-ficha-erro">{ficha.erro}</p>}
               <div className="prod-ficha-botoes">
+                {ficha.novo ? (
+                  <button type="button" className="prod-ficha-excluir" onClick={() => setFicha(null)}>
+                    Cancelar
+                  </button>
+                ) : (
                 <button
                   type="button"
                   className="prod-ficha-excluir"
@@ -1095,6 +1033,7 @@ function Produtos() {
                 >
                   Excluir
                 </button>
+                )}
                 <button type="button" className="btn-verde" disabled={ficha.salvando} onClick={salvarFicha}>
                   {ficha.salvando ? "Salvando…" : "Salvar"}
                 </button>
