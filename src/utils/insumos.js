@@ -40,6 +40,19 @@ export const daFicha = (valor, unidade) => r3(Number(String(valor || "").replace
 /** Unidade do insumo → g / ml / un para editar a ficha. */
 export const paraFicha = (qtd, unidade) => r3(Number(qtd || 0) * unidadeDe(unidade).fator);
 
+/**
+ * Rendimento: quanto sobra do que foi comprado depois de pronto ou limpo (frango grelhado, peixe sem espinha,
+ * alface limpa). 0,7 = de 1 kg cru sobram 700 g prontos. Sem informar = 1 (não perde).
+ * Na ficha a quantidade é a do PRONTO (150 g de frango grelhado): o custo usa o preço do pronto e o estoque
+ * baixa o cru que foi gasto (150 g ÷ 0,7 = 214 g).
+ */
+export const rendimentoDe = (ins) => {
+  const r = Number(ins?.rendimento);
+  return r > 0 && r < 1 ? r : 1;
+};
+/** Preço de 1 unidade do ingrediente já pronto (o cru ÷ o rendimento); null sem preço. */
+export const custoPronto = (ins) => (typeof ins?.custo === "number" ? ins.custo / rendimentoDe(ins) : null);
+
 /** Opção da escolha que muda a quantidade (ex.: "Grande"); sem opção válida, a 1ª. */
 export function opcaoDaVaria(ficha, opcao) {
   const ops = ficha?.variaPor?.opcoes || [];
@@ -71,7 +84,7 @@ export function custoDaFicha(ficha, insumosPorId, opcao) {
   for (const it of itens) {
     const ins = insumosPorId[it.insumoId];
     if (!ins || typeof ins.custo !== "number") return null;
-    total += Number(it.qtd || 0) * ins.custo;
+    total += Number(it.qtd || 0) * custoPronto(ins);
   }
   return Math.round(total * 100) / 100;
 }
@@ -136,6 +149,8 @@ export async function baixarInsumos(itens, origem = "venda") {
         if (s?.exists()) antes[id] = s.data();
       })
     );
+    // A ficha diz o pronto; do estoque sai o cru (com a perda no preparo).
+    for (const id of insumoIds) if (antes[id]) consumo[id] = r3(consumo[id] / rendimentoDe(antes[id]));
     const batch = writeBatch(db);
     const agora = new Date().toISOString();
     const nomes = (itens || []).map((i) => `${qtdItem(i)}× ${nomeProduto(i)}`).join(", ").slice(0, 200);
@@ -246,7 +261,7 @@ export function daParaQuantos(ficha, insumosPorId) {
   for (const it of itens) {
     const ins = insumosPorId[it.insumoId];
     if (!ins) return null;
-    const n = Math.max(0, Math.floor((Number(ins.quantidade || 0) + 1e-9) / Number(it.qtd)));
+    const n = Math.max(0, Math.floor((Number(ins.quantidade || 0) * rendimentoDe(ins) + 1e-9) / Number(it.qtd)));
     if (n < min) {
       min = n;
       limitante = ins.nome;

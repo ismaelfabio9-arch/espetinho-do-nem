@@ -10,7 +10,7 @@ import { db } from "../../firebase";
 import { L } from "../../loja";
 import { ehCategoriaDeBebida, ehCategoriaDePrato, precoOpcao, precosDoCardapio } from "../../utils/montagem";
 import { PESO_INGREDIENTES_PADRAO, contaDoProduto, pctDasContas, pctPorVenda, pesoIngredientes, precoBonito } from "../../utils/precificacao";
-import { custosPorOpcao, daFicha as paraUnidadeDoInsumo, itensJuntos, unidadeDe } from "../../utils/insumos";
+import { custoPronto, custosPorOpcao, daFicha as paraUnidadeDoInsumo, itensJuntos, rendimentoDe, unidadeDe } from "../../utils/insumos";
 
 const fmt = (v) => Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const R = (v) => (v < 0 ? `− R$ ${fmt(-v)}` : `R$ ${fmt(v)}`);
@@ -479,7 +479,7 @@ function PorcaoRapida({ produto, insumos, digitado }) {
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState("");
   const qtdNum = numDe(qtd);
-  const custo = ins && typeof ins.custo === "number" && qtdNum ? Math.round((qtdNum / u.fator) * ins.custo * 100) / 100 : null;
+  const custo = ins && typeof ins.custo === "number" && qtdNum ? Math.round((qtdNum / u.fator) * custoPronto(ins) * 100) / 100 : null;
 
   async function salvar() {
     if (!ins) return setErro("Escolha o ingrediente.");
@@ -541,7 +541,7 @@ function PorcaoRapida({ produto, insumos, digitado }) {
           {ins && typeof ins.custo !== "number" && <p className="pc-porcao-dica">Esse ingrediente está sem preço: ponha o preço da compra em <Link to="/cardapio?aba=ingredientes">Ingredientes</Link>.</p>}
           {custo !== null && (
             <p className="pc-porcao-dica">
-              {qtd} {u.sub} de {ins.nome} custam <b>{R(custo)}</b> (o {u.nomeLongo} sai a {R(ins.custo)}).
+              {qtd} {u.sub} de {ins.nome} custam <b>{R(custo)}</b> (o {u.nomeLongo} {rendimentoDe(ins) < 1 ? `pronto sai a ${R(custoPronto(ins))}; cru, ${R(ins.custo)}` : `sai a ${R(ins.custo)}`}).
             </p>
           )}
           {erro && <p className="cp-erro">{erro}</p>}
