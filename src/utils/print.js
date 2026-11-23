@@ -287,9 +287,47 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
         ".separador { border-top: 2px dashed #000; margin: 8px 0; }" +
         ".linha-item { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }" +
         ".cupom-imagem { display: block; width: " + largura + "px; margin: 0 auto; image-rendering: pixelated; }" +
+        // Botão para sair da tela de impressão (no celular a janela fica por cima do sistema).
+        ".voltar-sistema { position: sticky; top: 0; z-index: 10; display: block; width: 100%; margin: 0 0 10px;" +
+        " padding: 16px; border: 0; background: #1d4ed8; color: #fff; font: 700 18px Arial, sans-serif; -webkit-text-stroke: 0; }" +
+        "@media print { .voltar-sistema { display: none !important; } }" +
         "</style></head><body>" + conteudoHTML + "</body></html>"
     );
     janela.document.close();
+
+    // Volta ao sistema: fecha a janela de impressão; se o aparelho não deixar fechar, abre o
+    // sistema nela mesma, para nunca ficar preso na tela do cupom.
+    var enderecoSistema = window.location.href;
+    function voltarAoSistema() {
+      try {
+        janela.close();
+      } catch (e) {
+        // segue para o plano B
+      }
+      setTimeout(function () {
+        try {
+          if (!janela.closed) janela.location.replace(enderecoSistema);
+        } catch (e) {
+          // janela já fechada
+        }
+      }, 400);
+    }
+    function botaoVoltar() {
+      if (quadro) return;
+      try {
+        var doc = janela.document;
+        if (doc.querySelector(".voltar-sistema")) return;
+        var botao = doc.createElement("button");
+        botao.type = "button";
+        botao.className = "voltar-sistema";
+        botao.textContent = "← Voltar ao sistema";
+        botao.onclick = voltarAoSistema;
+        doc.body.insertBefore(botao, doc.body.firstChild);
+      } catch (e) {
+        // sem botão
+      }
+    }
+    botaoVoltar();
 
     var disparado = false;
     function disparar() {
@@ -297,8 +335,12 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
       disparado = true;
       try {
         janela.focus();
+        var inicio = Date.now();
         janela.print();
         resolve(true);
+        // No computador o print() espera a pessoa imprimir ou cancelar: aí já fecha sozinho.
+        // No celular ele volta na hora (a tela de impressão abre por cima): fica o botão Voltar.
+        if (!quadro && Date.now() - inicio > 700) setTimeout(voltarAoSistema, 300);
       } catch (e) {
         resolve(false);
       }
@@ -349,6 +391,7 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
       var blocos = corpo.children;
       for (var b = 0; b < blocos.length; b++) {
         var el = blocos[b];
+        if (el.classList.contains("voltar-sistema")) continue; // o botão não vai no cupom
         var mt = parseFloat(el.style.marginTop) || 0;
         y += mt;
         if (el.classList.contains("separador")) {
@@ -428,6 +471,7 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
       corpo.style.padding = "0";
       corpo.innerHTML = "";
       corpo.appendChild(img);
+      botaoVoltar();
     }
 
     var preparado = false;
