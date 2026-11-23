@@ -250,3 +250,5 @@
 .qs-ops button.on { border-color: #16a34a; background: #16a34a; color: #fff; }
 .qs-ok { justify-self: end; border: 0; background: #16a34a; color: #fff; border-radius: 10px; padding: 8px 18px; font-weight: 800; cursor: pointer; }
 .qs-dica { margin: 6px 0 10px; }
+.qs-painel > label { display: grid !important; grid-template-columns: 1fr !important; gap: 4px; align-items: start; }
+.qs-painel > label > select { width: 100%; box-sizing: border-box; }
