@@ -153,22 +153,7 @@ function Dashboard() {
           ...change.doc.data(),
         };
 
-        const tocarSom = (arquivo) => {
-          const audio = new Audio(`/sounds/${arquivo}`);
-          audio.volume = 1;
-          audio.play().catch(() => {});
-        };
-
-        if (navigator.vibrate) {
-          if (notificacao.tipo === "pedido") navigator.vibrate([300]);
-          if (notificacao.tipo === "garcom") navigator.vibrate([500, 200, 500]);
-          if (notificacao.tipo === "pagamento") navigator.vibrate([1000]);
-          if (notificacao.tipo === "estoque") navigator.vibrate([700, 200, 700]);
-        }
-
-        if (notificacao.tipo === "pedido") tocarSom("pedido.mp3");
-        if (notificacao.tipo === "garcom") tocarSom("garcom.mp3");
-        if (notificacao.tipo === "pagamento") tocarSom("pagamento.mp3");
+        // O som e a vibração de cada aviso ficam em components/AvisosSom (tocam em qualquer tela).
 
         if (notificacao.tipo === "pedido" || notificacao.tipo === "garcom") {
           setTimeout(async () => {

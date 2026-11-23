@@ -437,6 +437,7 @@ function CardapioMesa() {
 
       const resultado = await getDocs(consultaMesaAberta);
 
+      const acrescentou = !resultado.empty;
       if (!resultado.empty) {
         const documentoMesa = resultado.docs[0];
         const pedidoAtual = documentoMesa.data();
@@ -502,7 +503,8 @@ function CardapioMesa() {
       await addDoc(collection(db, ...L(), "notificacoes"), {
         mesa: Number(mesa),
         tipo: "pedido",
-        mensagem: `Novo pedido na Mesa ${mesa}`,
+        som: acrescentou ? "acrescentou" : "mesa",
+        mensagem: acrescentou ? `Mesa ${mesa} acrescentou itens no pedido` : `Novo pedido na Mesa ${mesa}`,
         total,
         totalItens: itensNovos.reduce(
           (soma, item) => soma + Number(item.qtd || 0),
@@ -548,6 +550,7 @@ function CardapioMesa() {
       await addDoc(collection(db, ...L(), "notificacoes"), {
         mesa: Number(mesa),
         tipo: "garcom",
+        som: "garcom",
         mensagem: `Mesa ${mesa} chamou o garçom`,
         lida: false,
         horario: new Date().toISOString(),
@@ -596,6 +599,7 @@ function CardapioMesa() {
       await addDoc(collection(db, ...L(), "notificacoes"), {
         mesa: Number(mesa),
         tipo: "pagamento",
+        som: "conta",
         mensagem: `Mesa ${mesa} pediu pagamento`,
         formaPagamento,
         total: totalConta,

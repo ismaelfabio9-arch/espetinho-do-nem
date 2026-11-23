@@ -24,6 +24,7 @@ import { useRecurso } from "../../recursos";
 import { useCaixaAberto } from "../../components/AvisoCaixa";
 import "../../styles/Garcom/AvisoCaixa.css";
 import WhatsLojaConfig from "../../components/WhatsLojaConfig";
+import SonsConfig from "../../components/SonsConfig";
 import "../../components/QuerMais.css";
 
 // Prato montado ("Peito empanado — feijão preto, …") conta no relatório como o prato.
@@ -263,6 +264,8 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
           </div>
         </div>
       </Link>
+
+      <SonsConfig />
 
       <div className="config-card">
         <div className="config-icon">🔔</div>

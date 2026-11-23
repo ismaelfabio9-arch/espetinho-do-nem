@@ -1,5 +1,5 @@
 import { L, MULTI } from "../../loja";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import {
   collection,
@@ -38,6 +38,7 @@ import FormasPagamento, { resolverPartes } from "../../components/FormasPagament
 import { ajustarPartes, falta as faltaDaConta, textoPagamentos, totalPago as totalPagoMesa } from "../../utils/conta";
 import { MONTAGEM_ALMOCO, emojiCategoria, pratosSemMontagem, sugestoesBebida, abreEscolha } from "../../utils/montagem";
 import { baixarInsumos } from "../../utils/insumos";
+import { meuAparelho } from "../../utils/sons";
 
 
 
@@ -50,6 +51,7 @@ const donoDoItem = (item) => {
 function MesaDetalhe() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const alterouTimer = useRef(null);
 
   const [produtos, setProdutos] = useState([]);
   const [categoriaAberta, setCategoriaAberta] = useState("");
@@ -450,9 +452,26 @@ if (pedidosDaMesa.length === 0) {
 
   const totalGeralMesa = totalMesa + total;
 
+  /** Aviso com som nos outros aparelhos da equipe (o deste aparelho não toca). */
+  function avisarEquipe(som, mensagem) {
+    addDoc(collection(db, ...L(), "notificacoes"), {
+      mesa: Number(id),
+      tipo: "pedido",
+      som,
+      mensagem,
+      de: meuAparelho(),
+      lida: false,
+      horario: new Date().toISOString(),
+      criadoEm: serverTimestamp(),
+    }).catch(() => {});
+  }
+
   // ✅ CORREÇÃO BUG 4: atualiza sempre o primeiro pedido com os itens agrupados de todos
   async function atualizarPedidoMesa(novosItens) {
     if (!pedidoMesaId) return;
+    // Mexeu na comanda já salva (+, −, editou ou tirou prato): 1 aviso "alterou" depois de 5 s sem mexer.
+    clearTimeout(alterouTimer.current);
+    alterouTimer.current = setTimeout(() => avisarEquipe("alterou", `Mesa ${id}: o pedido foi alterado`), 5000);
 
     if (novosItens.length === 0) {
       // Se ficou sem itens, apaga todos os pedidos da mesa
@@ -588,6 +607,9 @@ if (pedidosDaMesa.length === 0) {
           criadoEm: serverTimestamp(),
         });
       }
+
+      // Avisa os outros aparelhos da equipe (cozinha, caixa): som de pedido novo ou de acrescentou.
+      avisarEquipe(!resultado.empty ? "acrescentou" : "mesa", !resultado.empty ? `Mesa ${id}: acrescentaram itens no pedido` : `Novo pedido na Mesa ${id}`);
 
       for (const item of itensPedido) {
         if (!item.produtoId) continue;
