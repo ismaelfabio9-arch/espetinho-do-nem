@@ -105,3 +105,5 @@ body:not(.dark) .montar-status.falta, .montar-claro .montar-status.falta { backg
 .prato-no-pedido-op { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; width: 100%; margin-bottom: 8px; padding: 12px 14px; border-radius: 12px; border: 1px solid #2f2f2f; background: transparent; color: #f3f4f6; text-align: left; font: inherit; cursor: pointer; }
 .prato-no-pedido-op strong { font-size: 15px; }
 .prato-no-pedido-op span { font-size: 13px; color: #9ca3af; overflow-wrap: anywhere; }
+/* O sistema pinta todo span/p/small de cinza (App.css); aqui o texto segue a cor da janela. */
+html body :is(.montar-fundo) :is(span, p, small, b, strong, h2, h3, li) { color: inherit; }

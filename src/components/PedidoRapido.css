@@ -53,3 +53,5 @@ body:not(.dark) .rapido { --r-bg: #f4f5f7; --r-card: #fff; --r-card2: #f3f4f6; -
   .rapido-lista { grid-area: lista; min-width: 0; }
   .rapido-grade { grid-template-columns: repeat(auto-fill, minmax(185px, 1fr)); gap: 12px; }
 }
+/* O sistema pinta todo span/p/small de cinza (App.css); aqui o texto segue a cor do card. */
+html body :is(.rapido) :is(span, p, small, b, strong, h3) { color: inherit; }
