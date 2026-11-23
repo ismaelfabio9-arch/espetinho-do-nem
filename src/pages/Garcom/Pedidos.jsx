@@ -15,6 +15,7 @@ import {
   setDoc,
 } from "firebase/firestore";
 import { registrar } from "../../utils/registro";
+import { textoDoItem } from "../../utils/montagem";
 import { db } from "../../firebase";
 import "../../styles/Garcom/Pedidos.css";
 import { useConfigImpressora } from "../../hooks/useConfigImpressora";
@@ -220,7 +221,7 @@ function Pedidos() {
       ...(pedido.mesa ? { mesa: pedido.mesa } : {}),
       texto: `${tituloPedido(pedido)}: R$ ${formatarMoeda(pedido.total || 0)} · ${lista ? lista.map((x) => `${x.forma} R$ ${formatarMoeda(x.valor)}`).join(" + ") : forma || pedido.pagamento || "sem forma"}`,
       valor: pedido.total || 0,
-      detalhes: (pedido.itens || []).map((i) => `${i.qtd || i.quantidade}× ${i.nome}`),
+      detalhes: (pedido.itens || []).map(textoDoItem),
     });
 
     await addDoc(collection(db, ...L(), "historicoMesas"), {

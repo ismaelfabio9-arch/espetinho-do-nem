@@ -2,7 +2,7 @@
 // (categorias presas no topo, que acompanham a rolagem), barra da sacola e a sacola.
 // A lógica do pedido continua em cada página; aqui é só a aparência e a navegação.
 import { useEffect, useMemo, useRef, useState } from "react";
-import { abreEscolha, precosDoCardapio, tipoDe } from "../../utils/montagem";
+import { abreEscolha, detalhesMontagem, precosDoCardapio, tipoDe } from "../../utils/montagem";
 import "./Cliente.css";
 
 export const moeda = (v) => Number(v || 0).toFixed(2).replace(".", ",");
@@ -211,18 +211,7 @@ export function Folha({ titulo, onFechar, children, rodape }) {
   );
 }
 
-/** As escolhas do prato montado em lista curta: "Marmita P", "Feijão preto", "sem Cebola", "+ Ovo", "Obs.: pouco sal". */
-export function detalhesMontagem(m) {
-  if (!m) return [];
-  const esc = Object.values(m.escolhas || {}).flatMap((v) => (Array.isArray(v) ? v : v ? [v] : []));
-  return [
-    ...esc,
-    ...(m.tirar || []).map((t) => `sem ${t}`),
-    ...(m.extras || []).map((e) => `+ ${e}`),
-    ...(m.outros || []).map((o) => `+ ${o.nome}`),
-    ...(m.obs ? [`Obs.: ${m.obs}`] : []),
-  ];
-}
+export { detalhesMontagem };
 
 /** Itens da sacola: foto, nome, as escolhas em lista, − quantidade +, editar e o valor de cada linha. */
 export function ItensSacola({ linhas, onMais, onMenos, onEditar, podeEditar = () => false, fotos = null, nomeBase = null }) {

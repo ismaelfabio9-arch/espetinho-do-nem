@@ -24,6 +24,7 @@ import { db } from "../firebase";
 import { L } from "../loja";
 import { nomeProduto, qtdItem } from "./tipoVenda";
 import { registrar } from "./registro";
+import { textoDoItem } from "./montagem";
 
 export const UNIDADES = [
   { id: "kg", nome: "kg", sub: "g", fator: 1000, nomeLongo: "quilo" },
@@ -235,7 +236,7 @@ export async function baixarInsumos(itens, origem = "venda") {
     for (const id of insumoIds) if (antes[id]) consumo[id] = r3(consumo[id] / rendimentoDe(antes[id]));
     const batch = writeBatch(db);
     const agora = new Date().toISOString();
-    const nomes = (itens || []).map((i) => `${qtdItem(i)}× ${nomeProduto(i)}`).join(", ").slice(0, 200);
+    const nomes = (itens || []).map(textoDoItem).join(", ").slice(0, 280);
     for (const id of insumoIds) {
       if (!antes[id]) continue;
       batch.update(doc(db, ...L(), "insumos", id), { quantidade: increment(-consumo[id]), atualizadoEm: agora });

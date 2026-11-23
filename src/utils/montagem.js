@@ -330,3 +330,16 @@ export function abreEscolha(produto, montarLigado) {
   if (!temMontagem(produto)) return false;
   return montarLigado || tipoDe(produto) !== "prato";
 }
+
+/** As escolhas do prato montado em lista curta: "Marmita P", "Feijão preto", "sem Cebola", "+ Ovo", "Obs.: pouco sal". */
+export function detalhesMontagem(m) {
+  if (!m) return [];
+  const esc = Object.values(m.escolhas || {}).flatMap((v) => (Array.isArray(v) ? v : v ? [v] : []));
+  return [...esc, ...(m.tirar || []).map((t) => `sem ${t}`), ...(m.extras || []).map((e) => `+ ${e}`), ...(m.outros || []).map((o) => `+ ${o.nome}`), ...(m.obs ? [`Obs.: ${m.obs}`] : [])];
+}
+
+/** "2× Guisado de boi (Marmita M, Sem feijão, + Ovo)": o item como a dona lê no registro. */
+export function textoDoItem(i) {
+  const det = detalhesMontagem(i?.montagem);
+  return `${Number(i?.qtd || i?.quantidade || 0)}× ${i?.nomeBase || i?.nome || ""}${det.length ? ` (${det.join(", ")})` : ""}`;
+}
