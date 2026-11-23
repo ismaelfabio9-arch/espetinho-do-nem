@@ -8,3 +8,8 @@
 .fp-cartao { grid-column: 1 / -1; color: var(--muted, #6b7280); font-size: 12.5px; }
 .fp-status { margin: 0; padding: 9px 12px; border-radius: 10px; background: #fef2f2; color: #b91c1c; font-weight: 700; font-size: 14px; }
 .fp-status.ok { background: #f0fdf4; color: #15803d; }
+
+/* Cores próprias: as janelas de pagamento do sistema são escuras, e as linhas claras precisam de texto escuro. */
+.fp-linha { color: var(--text, #111827); border: 1px solid var(--border, #e5e7eb); }
+.fp-forma, .fp-valor { color: var(--text, #111827); }
+.fp-valor input { color: var(--text, #111827); }
