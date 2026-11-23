@@ -34,12 +34,12 @@ import PratoNoPedido from "../../components/PratoNoPedido";
 import { totalNoCartao, useTaxas } from "../../utils/taxas";
 import { useRecurso } from "../../recursos";
 import ContaParcial from "../../components/ContaParcial";
-import { falta as faltaDaConta, textoPagamentos, totalPago as totalPagoMesa } from "../../utils/conta";
+import FormasPagamento, { resolverPartes } from "../../components/FormasPagamento";
+import { ajustarPartes, falta as faltaDaConta, textoPagamentos, totalPago as totalPagoMesa } from "../../utils/conta";
 import { MONTAGEM_ALMOCO, emojiCategoria, pratosSemMontagem, sugestoesBebida, abreEscolha } from "../../utils/montagem";
 import { baixarInsumos } from "../../utils/insumos";
 
 
-const FORMAS_PAGAMENTO = ["Pix", "Dinheiro", "Débito", "Crédito"];
 
 function MesaDetalhe() {
   const { id } = useParams();
@@ -65,7 +65,8 @@ function MesaDetalhe() {
   const [mostrarModalEncerrarMesa, setMostrarModalEncerrarMesa] = useState(false);
   const [categoriasDocs, setCategoriasDocs] = useState([]);
   const [etapaEncerrar, setEtapaEncerrar] = useState("opcoes"); // opcoes | pagamento
-  const [formaPagamentoEncerrar, setFormaPagamentoEncerrar] = useState("");
+  // Formas de pagamento ao encerrar (pode ser mais de uma): { Pix: "30,00", Dinheiro: "50,00" }
+  const [partesEncerrar, setPartesEncerrar] = useState({});
   // Taxas da maquininha (Configurações): o valor no cartão já vem calculado para o garçom.
   const taxas = useTaxas();
   // Pedido rápido (almoço): prato com montagem aberto na janela, e o modo antigo para organizar.
@@ -673,7 +674,7 @@ if (pedidosDaMesa.length === 0) {
 
   function abrirModalEncerrar() {
     setEtapaEncerrar("opcoes");
-    setFormaPagamentoEncerrar("");
+    setPartesEncerrar({});
     setMostrarModalEncerrarMesa(true);
   }
 
@@ -689,19 +690,30 @@ if (pedidosDaMesa.length === 0) {
     setEtapaEncerrar("pagamento");
   }
 
+  // O que ainda vai ser pago ao encerrar (sem as partes já recebidas na conta parcial).
+  const valorAPagarEncerrar = pagamentosMesa.length ? faltaDaConta(totalMesa, pagamentosMesa) : totalGeralMesa;
+
   async function confirmarEncerrarComComprovante() {
-    if (!formaPagamentoEncerrar && faltaDaConta(totalMesa, pagamentosMesa) > 0) {
-      mostrarNotificacao("Escolha a forma de pagamento.");
-      return;
+    let partes = [];
+    let troco = 0;
+    if (valorAPagarEncerrar > 0) {
+      const r = resolverPartes(valorAPagarEncerrar, partesEncerrar, taxas);
+      if (!r.ok) {
+        mostrarNotificacao(r.erro);
+        return;
+      }
+      partes = r.lista;
+      troco = r.troco;
     }
 
     await encerrarMesa({
       emitirComprovante: comComprovante,
-      formaPagamento: formaPagamentoEncerrar,
+      partes,
+      troco,
     });
   }
 
-  async function encerrarMesa({ emitirComprovante, formaPagamento }) {
+  async function encerrarMesa({ emitirComprovante, partes = [], troco = 0 }) {
     setEncerrando(true);
     setMostrarModalEncerrarMesa(false);
 
@@ -721,10 +733,18 @@ if (pedidosDaMesa.length === 0) {
       // Partes já pagas (conta parcial): cobra só o que falta, na forma escolhida agora.
       const parciais = pagamentosMesa;
       const restante = faltaDaConta(totalTodos, parciais);
-      const cartao = totalNoCartao(restante, taxas, formaPagamento);
-      const pagamentosFinal = parciais.length
-        ? [...parciais.map(({ valor, forma, taxaCartao, taxaCartaoPct }) => ({ valor, forma, ...(taxaCartao ? { taxaCartao, taxaCartaoPct } : {}) })), ...(restante > 0 ? [{ valor: restante, forma: formaPagamento, ...(cartao.taxa ? { taxaCartao: cartao.taxa, taxaCartaoPct: cartao.taxaPct } : {}) }] : [])]
-        : null;
+      // O que falta, pago agora em uma ou mais formas (cada forma com a sua taxa de cartão).
+      const agora = ajustarPartes(partes, restante).map((p) => {
+        const ct = totalNoCartao(p.valor, taxas, p.forma);
+        return { valor: p.valor, forma: p.forma, ...(ct.taxa ? { taxaCartao: ct.taxa, taxaCartaoPct: ct.taxaPct } : {}) };
+      });
+      // Uma forma só e nada pago antes: grava como sempre (formaPagamento); senão, a lista de partes.
+      const formaUnica = !parciais.length && agora.length <= 1;
+      const formaPagamento = formaUnica ? agora[0]?.forma || "" : "";
+      const cartao = formaUnica && agora[0]?.taxaCartao ? { taxa: agora[0].taxaCartao, taxaPct: agora[0].taxaCartaoPct } : { taxa: 0, taxaPct: 0 };
+      const pagamentosFinal = formaUnica
+        ? null
+        : [...parciais.map(({ valor, forma, taxaCartao, taxaCartaoPct, quem }) => ({ valor, forma, ...(taxaCartao ? { taxaCartao, taxaCartaoPct } : {}), ...(quem ? { quem } : {}) })), ...agora];
       const formasUsadas = pagamentosFinal ? [...new Set(pagamentosFinal.map((x) => x.forma))] : [];
       const formaDaVenda = pagamentosFinal ? (formasUsadas.length === 1 ? formasUsadas[0] : "Dividido") : formaPagamento;
       const taxaTotal = pagamentosFinal ? Math.round(pagamentosFinal.reduce((t, x) => t + Number(x.taxaCartao || 0), 0) * 100) / 100 : cartao.taxa;
@@ -749,7 +769,7 @@ if (pedidosDaMesa.length === 0) {
           cliente: nomeCliente,
           itens: todosItens,
           total: totalComprovante,
-          formaPagamento: pagamentosFinal ? textoPagamentos(pagamentosFinal) : formaPagamento,
+          formaPagamento: (pagamentosFinal ? textoPagamentos(pagamentosFinal) : formaPagamento) + (troco > 0 ? ` · Troco R$ ${formatarMoeda(troco)}` : ""),
           config: configImpressora,
           taxaCartao: taxaTotal,
           taxaPct: pagamentosFinal ? 0 : cartao.taxaPct,
@@ -954,37 +974,16 @@ if (pedidosDaMesa.length === 0) {
                 Já pago: <strong>R$ {formatarMoeda(totalPagoMesa(pagamentosMesa))}</strong> ({textoPagamentos(pagamentosMesa)})
                 <br />
                 {faltaDaConta(totalMesa, pagamentosMesa) > 0 ? (
-                  <>Falta: <strong>R$ {formatarMoeda(faltaDaConta(totalMesa, pagamentosMesa))}</strong> — escolha como vai pagar o que falta:</>
+                  <>Falta: <strong>R$ {formatarMoeda(faltaDaConta(totalMesa, pagamentosMesa))}</strong>: escolha como vai pagar o que falta (pode ser mais de uma forma).</>
                 ) : (
                   <strong>Tudo já foi pago.</strong>
                 )}
               </p>
             )}
 
-            <div className="formas-pagamento">
-              {FORMAS_PAGAMENTO.map((forma) => (
-                <button
-                  key={forma}
-                  type="button"
-                  className={formaPagamentoEncerrar === forma ? "ativo" : ""}
-                  onClick={() => setFormaPagamentoEncerrar(forma)}
-                >
-                  {forma}
-                </button>
-              ))}
-            </div>
-
-            {(() => {
-              const base = pagamentosMesa.length ? faltaDaConta(totalMesa, pagamentosMesa) : totalGeralMesa;
-              const ct = totalNoCartao(base, taxas, formaPagamentoEncerrar);
-              return ct.taxa > 0 ? (
-                <p className="modal-cartao">
-                  Taxa do cartão ({String(ct.taxaPct).replace(".", ",")}%): + R$ {formatarMoeda(ct.taxa)}
-                  <br />
-                  Cobrar na maquininha: <strong>R$ {formatarMoeda(ct.total)}</strong>
-                </p>
-              ) : null;
-            })()}
+            {valorAPagarEncerrar > 0 && (
+              <FormasPagamento valor={valorAPagarEncerrar} partes={partesEncerrar} onChange={setPartesEncerrar} taxas={taxas} />
+            )}
 
             <div className="modal-acoes">
               <button
@@ -1149,10 +1148,12 @@ if (pedidosDaMesa.length === 0) {
             const abriu = await imprimirComandaAgora(itensMesa, totalMesa, `CONTA PARCIAL (a mesa continua aberta)${pagamentosMesa.length ? ` · Já pago R$ ${formatarMoeda(totalPagoMesa(pagamentosMesa))} · Falta R$ ${formatarMoeda(faltaDaConta(totalMesa, pagamentosMesa))}` : ""}`);
             if (!abriu) mostrarNotificacao("O celular bloqueou a janela de impressão. Libere as janelas (pop-ups) do site e tente de novo.");
           }}
-          onReceber={async (p) => {
-            const novo = { id: `p${Date.now()}`, ...p, em: new Date().toISOString(), por: auth.currentUser?.email || "" };
-            await setDoc(doc(db, ...L(), "mesas", String(id)), { numero: Number(id), pagamentos: [...pagamentosMesa, novo] }, { merge: true });
-            mostrarNotificacao(`Recebido: R$ ${formatarMoeda(p.valor)} no ${p.forma}.`);
+          onReceber={async (partes, troco) => {
+            // Uma pessoa pode pagar em mais de uma forma: cada forma vira um pagamento (todos gravados juntos).
+            const agora = new Date().toISOString();
+            const novos = partes.map((p, k) => ({ id: `p${Date.now()}${k}`, ...p, em: agora, por: auth.currentUser?.email || "" }));
+            await setDoc(doc(db, ...L(), "mesas", String(id)), { numero: Number(id), pagamentos: [...pagamentosMesa, ...novos] }, { merge: true });
+            mostrarNotificacao(`Recebido: ${textoPagamentos(partes)}${troco > 0 ? ` · Troco R$ ${formatarMoeda(troco)}` : ""}.`);
           }}
           onTirar={async (p) => {
             await setDoc(doc(db, ...L(), "mesas", String(id)), { pagamentos: pagamentosMesa.filter((x) => x.id !== p.id) }, { merge: true });

@@ -1,48 +1,61 @@
-// Conta parcial da mesa: a conta até agora (sem fechar), dividir entre os amigos (igual ou pelo que cada
-// um consumiu) e receber uma parte (valor + forma), que fica gravada na mesa e entra no caixa ao encerrar.
+// Conta da mesa sem fechar: ver a conta, dividir entre as pessoas e receber de cada uma.
+// Cada recebimento fica gravado na mesa (mesas/<n>.pagamentos, com o nome de quem pagou) e
+// entra no caixa ao encerrar. "Cada um paga o seu", resumido: escreve quanto a pessoa paga e
+// o resto é dividido entre os outros.
 import { useMemo, useState } from "react";
-import { dividirIgual, dividirPorConsumo, falta as faltaDe, totalPago } from "../utils/conta";
-import { totalNoCartao } from "../utils/taxas";
+import { dividirIgual, falta as faltaDe, totalPago } from "../utils/conta";
+import FormasPagamento, { moeda, numero, resolverPartes } from "./FormasPagamento";
 import "./ContaParcial.css";
 
-const FORMAS = ["Pix", "Dinheiro", "Débito", "Crédito"];
-const moeda = (v) => Number(v || 0).toFixed(2).replace(".", ",");
-const numero = (t) => {
-  const v = Number(String(t ?? "").trim().replace(/\./g, "").replace(",", ".").replace(/[^\d.]/g, ""));
-  return Number.isFinite(v) ? Math.round(v * 100) / 100 : 0;
-};
+const c = (v) => Math.round(Number(v || 0) * 100);
 const qtd = (i) => Number(i.qtd || i.quantidade || 0);
 
 export default function ContaParcial({ mesa, itens, total, naoSalvo = 0, pagamentos = [], taxas, podeImprimir, onImprimir, onReceber, onTirar, onFechar }) {
-  const [aba, setAba] = useState("conta"); // conta | igual | consumo
-  const [pessoas, setPessoas] = useState(2);
-  const [nomes, setNomes] = useState({});
-  const [dono, setDono] = useState({});
-  const [receber, setReceber] = useState(null); // { valor, forma, quem }
+  // Quem já pagou (pelo nome gravado no pagamento): volta assim quando a tela abre de novo.
+  const quemJaPagou = useMemo(() => [...new Set(pagamentos.map((p) => String(p.quem || "").trim()).filter(Boolean))], [pagamentos]);
+  const [aba, setAba] = useState(quemJaPagou.length ? "dividir" : "conta"); // conta | dividir
+  const [pessoas, setPessoas] = useState(Math.max(2, quemJaPagou.length));
+  const [nomes, setNomes] = useState(() => Object.fromEntries(quemJaPagou.map((n, i) => [i, /^Pessoa \d+$/.test(n) ? "" : n])));
+  const [proprio, setProprio] = useState({}); // { i: "35,00" } quem paga um valor próprio
+  const [receber, setReceber] = useState(null); // { valor, quem, partes }
   const [salvando, setSalvando] = useState(false);
   const [desfazer, setDesfazer] = useState(null);
   const [msg, setMsg] = useState("");
+
   const pago = totalPago(pagamentos);
   const falta = faltaDe(total, pagamentos);
   const nomeDe = (i) => nomes[i]?.trim() || `Pessoa ${i + 1}`;
+  const pagosDe = (nome) => pagamentos.filter((p) => String(p.quem || "").trim() === nome);
 
-  // Cada unidade de cada item vira uma linha que dá para marcar de quem é.
-  const unidades = useMemo(
-    () => itens.flatMap((it, k) => Array.from({ length: Math.max(0, Math.round(qtd(it))) }, (_, u) => ({ chave: `${k}-${u}`, nome: it.nome, preco: Number(it.preco || 0) }))),
-    [itens]
-  );
-  const iguais = dividirIgual(falta, pessoas);
-  const consumo = dividirPorConsumo(unidades, dono, pessoas);
+  // Divisão: quem ainda não pagou divide o que falta; quem escreveu um valor próprio paga esse valor.
+  const linhas = Array.from({ length: pessoas }, (_, i) => {
+    const nome = nomeDe(i);
+    const pagos = pagosDe(nome);
+    return { i, nome, pagos, pago: totalPago(pagos) };
+  });
+  const pendentes = linhas.filter((l) => l.pago === 0);
+  const fixos = pendentes.filter((l) => numero(proprio[l.i]) > 0);
+  const somaFixos = fixos.reduce((s, l) => s + c(numero(proprio[l.i])), 0);
+  const livres = pendentes.filter((l) => !(numero(proprio[l.i]) > 0));
+  const partesIguais = dividirIgual(Math.max(0, c(falta) - somaFixos) / 100, Math.max(1, livres.length));
+  const valorDe = (l) => (numero(proprio[l.i]) > 0 ? numero(proprio[l.i]) : partesIguais[livres.indexOf(l)] || 0);
+  const passou = somaFixos > c(falta);
+  const naoPaga = livres.length === 0 && pendentes.length > 0 && somaFixos < c(falta);
+
+  const abrirReceber = (valor, quem = "") => {
+    setReceber({ valor: moeda(Math.min(valor, falta)), quem, partes: {} });
+    setMsg("");
+  };
 
   async function confirmarReceber() {
     const valor = numero(receber.valor);
     if (!(valor > 0)) return setMsg("Escreva o valor.");
     if (valor > falta + 0.001) return setMsg(`Passa do que falta (R$ ${moeda(falta)}).`);
-    if (!receber.forma) return setMsg("Escolha a forma de pagamento.");
-    const cartao = totalNoCartao(valor, taxas, receber.forma);
+    const r = resolverPartes(valor, receber.partes, taxas);
+    if (!r.ok) return setMsg(r.erro);
     setSalvando(true);
     try {
-      await onReceber({ valor, forma: receber.forma, ...(cartao.taxa ? { taxaCartao: cartao.taxa, taxaCartaoPct: cartao.taxaPct } : {}), ...(receber.quem ? { quem: receber.quem } : {}) });
+      await onReceber(r.lista.map((p) => ({ ...p, ...(receber.quem ? { quem: receber.quem } : {}) })), r.troco);
       setReceber(null);
       setMsg("");
     } catch {
@@ -51,28 +64,35 @@ export default function ContaParcial({ mesa, itens, total, naoSalvo = 0, pagamen
     setSalvando(false);
   }
 
-  const abrirReceber = (valor, quem = "") => {
-    setReceber({ valor: moeda(Math.min(valor, falta)), forma: "", quem });
-    setMsg("");
-  };
+  const textoFormas = (lista) => lista.map((p) => `${p.forma} R$ ${moeda(p.valor)}`).join(" + ");
 
   return (
     <div className="modal-overlay" onClick={onFechar}>
-      <div className="modal-card cp" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Conta parcial da Mesa ${mesa}`}>
+      <div className="modal-card cp" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Conta da Mesa ${mesa}`}>
         <div className="cp-topo">
           <h2>🧾 Conta da Mesa {mesa}</h2>
           <button type="button" className="cp-x" onClick={onFechar} aria-label="Fechar">✕</button>
         </div>
 
-        <div className="cp-resumo">
-          <span>Total <b>R$ {moeda(total)}</b></span>
-          {pago > 0 && <span>Já pago <b className="cp-verde">R$ {moeda(pago)}</b></span>}
-          <span>Falta <b className={falta > 0 ? "cp-falta" : "cp-verde"}>R$ {moeda(falta)}</b></span>
+        <div className="cp-placar">
+          <div>
+            <span>Total</span>
+            <b>R$ {moeda(total)}</b>
+          </div>
+          <div className="pago">
+            <span>Já pago</span>
+            <b>R$ {moeda(pago)}</b>
+          </div>
+          <div className={falta > 0 ? "falta" : "pago"}>
+            <span>Falta</span>
+            <b>R$ {moeda(falta)}</b>
+          </div>
         </div>
         {naoSalvo > 0 && <p className="cp-aviso">Tem R$ {moeda(naoSalvo)} em itens ainda não salvos: salve o pedido para entrarem na conta.</p>}
+        {falta === 0 && total > 0 && <p className="cp-ok">✅ A conta toda foi paga. Pode encerrar a mesa.</p>}
 
         <div className="cp-abas" role="tablist">
-          {[["conta", "Conta"], ["igual", "Dividir igual"], ["consumo", "Cada um o seu"]].map(([k, n]) => (
+          {[["conta", "Conta"], ["dividir", "Dividir conta"]].map(([k, n]) => (
             <button key={k} type="button" role="tab" aria-selected={aba === k} className={aba === k ? "ativo" : ""} onClick={() => setAba(k)}>{n}</button>
           ))}
         </div>
@@ -101,87 +121,68 @@ export default function ContaParcial({ mesa, itens, total, naoSalvo = 0, pagamen
             )}
             <div className="cp-botoes">
               {podeImprimir && <button type="button" className="cp-btn" onClick={() => onImprimir()}>🖨️ Imprimir conta parcial</button>}
-              {falta > 0 && <button type="button" className="cp-btn verde" onClick={() => abrirReceber(falta)}>💵 Receber uma parte</button>}
+              {falta > 0 && <button type="button" className="cp-btn verde" onClick={() => abrirReceber(falta)}>💵 Receber um valor</button>}
             </div>
           </>
         )}
 
-        {aba === "igual" && (
+        {aba === "dividir" && (
           <>
             <div className="cp-pessoas">
-              <span>Dividir o que falta por</span>
-              <button type="button" aria-label="Menos uma pessoa" onClick={() => setPessoas((n) => Math.max(2, n - 1))}>−</button>
+              <span>Dividir entre</span>
+              <button type="button" aria-label="Menos uma pessoa" onClick={() => setPessoas((n) => Math.max(Math.max(2, linhas.filter((l) => l.pago > 0).length), n - 1))}>−</button>
               <b aria-label="Pessoas">{pessoas}</b>
               <button type="button" aria-label="Mais uma pessoa" onClick={() => setPessoas((n) => Math.min(30, n + 1))}>+</button>
               <span>pessoas</span>
             </div>
-            <p className="cp-cada">
-              {new Set(iguais).size === 1 ? (
-                <>Cada um paga <b>R$ {moeda(iguais[0])}</b></>
-              ) : (
-                <>{iguais.filter((v) => v === iguais[0]).length} pagam <b>R$ {moeda(iguais[0])}</b> e {iguais.filter((v) => v !== iguais[0]).length} {iguais.filter((v) => v !== iguais[0]).length === 1 ? "paga" : "pagam"} <b>R$ {moeda(iguais[iguais.length - 1])}</b></>
-              )}
-            </p>
-            {falta > 0 && <button type="button" className="cp-btn verde" onClick={() => abrirReceber(iguais[0])}>💵 Receber de uma pessoa (R$ {moeda(iguais[0])})</button>}
-          </>
-        )}
+            <p className="cp-dica">Alguém vai pagar só o que consumiu? Escreva o valor dele e o resto é dividido entre os outros.</p>
 
-        {aba === "consumo" && (
-          <>
-            <div className="cp-pessoas">
-              <span>Pessoas</span>
-              <button type="button" aria-label="Menos uma pessoa" onClick={() => setPessoas((n) => Math.max(2, n - 1))}>−</button>
-              <b>{pessoas}</b>
-              <button type="button" aria-label="Mais uma pessoa" onClick={() => setPessoas((n) => Math.min(12, n + 1))}>+</button>
-            </div>
-            <div className="cp-nomes">
-              {Array.from({ length: pessoas }, (_, i) => (
-                <input key={i} value={nomes[i] || ""} placeholder={`Pessoa ${i + 1}`} onChange={(e) => setNomes({ ...nomes, [i]: e.target.value })} aria-label={`Nome da pessoa ${i + 1}`} />
-              ))}
-            </div>
-            <p className="cp-dica">Toque em quem pediu cada item. O que é de todos (ex.: uma porção) é dividido igual.</p>
-            <ul className="cp-unidades">
-              {unidades.map((u) => (
-                <li key={u.chave}>
-                  <span className="cp-un-nome">{u.nome} <small>R$ {moeda(u.preco)}</small></span>
-                  <span className="cp-donos">
-                    {Array.from({ length: pessoas }, (_, i) => (
-                      <button key={i} type="button" className={dono[u.chave] === i ? "ativo" : ""} onClick={() => setDono({ ...dono, [u.chave]: i })} aria-label={`${u.nome}: ${nomeDe(i)}`}>{nomeDe(i)}</button>
-                    ))}
-                    <button type="button" className={dono[u.chave] === "todos" ? "ativo" : ""} onClick={() => setDono({ ...dono, [u.chave]: "todos" })} aria-label={`${u.nome}: todos`}>Todos</button>
-                  </span>
+            <ul className="cp-divisao">
+              {linhas.map((l) => (
+                <li key={l.i} className={l.pago > 0 ? "pagou" : ""}>
+                  <input
+                    className="cp-nome"
+                    value={nomes[l.i] || ""}
+                    placeholder={`Pessoa ${l.i + 1}`}
+                    disabled={l.pago > 0}
+                    onChange={(e) => setNomes({ ...nomes, [l.i]: e.target.value })}
+                    aria-label={`Nome da pessoa ${l.i + 1}`}
+                  />
+                  {l.pago > 0 ? (
+                    <span className="cp-pagou">✓ Pagou R$ {moeda(l.pago)} <small>({textoFormas(l.pagos)})</small></span>
+                  ) : (
+                    <>
+                      <label className="cp-parte" title="Valor desta pessoa">
+                        R$
+                        <input
+                          inputMode="decimal"
+                          value={proprio[l.i] ?? ""}
+                          placeholder={moeda(valorDe(l))}
+                          onChange={(e) => setProprio({ ...proprio, [l.i]: e.target.value })}
+                          aria-label={`Valor que ${l.nome} vai pagar`}
+                        />
+                      </label>
+                      <button type="button" className="cp-btn verde mini" disabled={falta <= 0 || valorDe(l) <= 0} onClick={() => abrirReceber(valorDe(l), l.nome)}>
+                        Receber
+                      </button>
+                    </>
+                  )}
                 </li>
               ))}
             </ul>
-            <ul className="cp-por-pessoa">
-              {consumo.porPessoa.map((v, i) => (
-                <li key={i}>
-                  <span>{nomeDe(i)}</span>
-                  <b>R$ {moeda(v)}</b>
-                  {falta > 0 && v > 0 && <button type="button" className="cp-btn mini" onClick={() => abrirReceber(v, nomeDe(i))}>Receber</button>}
-                </li>
-              ))}
-            </ul>
-            {consumo.semDono > 0 && <p className="cp-aviso">Falta marcar de quem são R$ {moeda(consumo.semDono)} em itens.</p>}
-            {pago > 0 && <p className="cp-dica">Já foram pagos R$ {moeda(pago)} desta conta: confira antes de receber de novo.</p>}
+            {passou && <p className="cp-aviso">Os valores escritos passam do que falta (R$ {moeda(falta)}). Confira.</p>}
+            {naoPaga && <p className="cp-aviso">Ainda vão faltar R$ {moeda((c(falta) - somaFixos) / 100)}: apague o valor de alguém para ele dividir o resto.</p>}
           </>
         )}
 
         {receber && (
           <div className="cp-receber">
-            <strong>Receber uma parte{receber.quem ? ` (${receber.quem})` : ""}</strong>
+            <strong>Receber{receber.quem ? ` de ${receber.quem}` : ""}</strong>
             <label className="cp-valor">
-              R$
-              <input inputMode="decimal" value={receber.valor} onChange={(e) => setReceber({ ...receber, valor: e.target.value })} aria-label="Valor recebido" />
+              Valor R$
+              <input inputMode="decimal" value={receber.valor} onFocus={(e) => e.target.select()} onChange={(e) => setReceber({ ...receber, valor: e.target.value })} aria-label="Valor a receber" />
             </label>
-            <div className="formas-pagamento">
-              {FORMAS.map((f) => (
-                <button key={f} type="button" className={receber.forma === f ? "ativo" : ""} onClick={() => setReceber({ ...receber, forma: f })}>{f}</button>
-              ))}
-            </div>
-            {receber.forma && totalNoCartao(numero(receber.valor), taxas, receber.forma).taxa > 0 && (
-              <p className="cp-dica">Cobrar na maquininha: <b>R$ {moeda(totalNoCartao(numero(receber.valor), taxas, receber.forma).total)}</b> (com a taxa do cartão)</p>
-            )}
+            <FormasPagamento valor={numero(receber.valor)} partes={receber.partes} onChange={(partes) => setReceber((r) => ({ ...r, partes }))} taxas={taxas} />
             {msg && <p className="cp-erro">{msg}</p>}
             <div className="cp-botoes">
               <button type="button" className="cp-btn" onClick={() => setReceber(null)}>Cancelar</button>

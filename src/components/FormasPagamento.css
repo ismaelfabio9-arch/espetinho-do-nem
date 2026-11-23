@@ -1,0 +1,10 @@
+.fp { display: grid; gap: 10px; text-align: left; }
+.fp-botoes { margin: 0; }
+.fp-linhas { display: grid; gap: 8px; }
+.fp-linha { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 10px; padding: 8px 10px; border-radius: 12px; background: var(--card-2, #f3f4f6); }
+.fp-forma { font-weight: 800; }
+.fp-valor { display: flex; align-items: center; gap: 6px; font-weight: 700; }
+.fp-valor input { width: 120px; padding: 9px 10px; border-radius: 10px; border: 1px solid var(--border, #d1d5db); background: var(--card, #fff); color: inherit; font-size: 18px; font-weight: 700; text-align: right; min-width: 0; }
+.fp-cartao { grid-column: 1 / -1; color: var(--muted, #6b7280); font-size: 12.5px; }
+.fp-status { margin: 0; padding: 9px 12px; border-radius: 10px; background: #fef2f2; color: #b91c1c; font-weight: 700; font-size: 14px; }
+.fp-status.ok { background: #f0fdf4; color: #15803d; }

@@ -59,3 +59,18 @@ export function partesDaVenda(v) {
 /** "Pix R$ 30,00 + Dinheiro R$ 45,00" (para o comprovante e o histórico). */
 export const textoPagamentos = (pagamentos) =>
   (pagamentos || []).map((p) => `${p.forma} R$ ${Number(p.valor || 0).toFixed(2).replace(".", ",")}`).join(" + ");
+
+/**
+ * Formas de pagamento escolhidas na tela ([{ forma, valor }]) ajustadas ao valor que o sistema
+ * conferiu ao encerrar (ex.: centavos de diferença): a diferença fica na última forma.
+ */
+export function ajustarPartes(partes, total) {
+  const alvo = c(total);
+  const lista = (partes || []).filter((p) => c(p.valor) > 0).map((p) => ({ forma: p.forma, valor: r(c(p.valor)) }));
+  if (alvo <= 0 || !lista.length) return [];
+  const dif = alvo - lista.reduce((s, p) => s + c(p.valor), 0);
+  const ultima = lista[lista.length - 1];
+  ultima.valor = r(c(ultima.valor) + dif);
+  if (ultima.valor <= 0) return [{ forma: lista[0].forma, valor: r(alvo) }];
+  return lista;
+}

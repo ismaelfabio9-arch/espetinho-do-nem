@@ -35,3 +35,30 @@
 .cp-valor { display: flex; align-items: center; gap: 8px; font-weight: 700; }
 .cp-valor input { font-size: 20px; width: 140px; }
 .cp-erro { margin: 0; color: #dc2626; font-size: 13px; }
+
+/* Placar: total, já pago e o que falta, sempre à vista */
+.cp-placar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.cp-placar div { padding: 10px 8px; border-radius: 12px; background: var(--card-2, #f3f4f6); text-align: center; }
+.cp-placar span { display: block; font-size: 12px; font-weight: 700; color: var(--muted, #6b7280); }
+.cp-placar b { display: block; margin-top: 2px; font-size: 18px; }
+.cp-placar .pago b { color: #16a34a; }
+.cp-placar .falta { background: #fef2f2; }
+.cp-placar .falta b { color: #dc2626; }
+.cp-ok { margin: 0; padding: 9px 12px; border-radius: 10px; background: #f0fdf4; color: #15803d; font-weight: 700; font-size: 14px; }
+
+/* Dividir conta: uma linha por pessoa */
+.cp-divisao { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; }
+.cp-divisao li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 8px; padding: 8px; border-radius: 12px; background: var(--card-2, #f3f4f6); }
+.cp-divisao li.pagou { grid-template-columns: minmax(0, 1fr) auto; background: #f0fdf4; }
+.cp-nome { padding: 9px; border-radius: 10px; border: 1px solid var(--border, #e5e7eb); background: var(--card, #fff); color: inherit; font-size: 15px; font-weight: 700; min-width: 0; }
+.cp-nome:disabled { background: transparent; border-color: transparent; color: #15803d; opacity: 1; }
+.cp-parte { display: flex; align-items: center; gap: 4px; font-weight: 700; font-size: 14px; }
+.cp-parte input { width: 92px; padding: 9px; border-radius: 10px; border: 1px solid var(--border, #e5e7eb); background: var(--card, #fff); color: inherit; font-size: 16px; font-weight: 700; text-align: right; }
+.cp-parte input::placeholder { color: inherit; opacity: 0.85; }
+.cp-pagou { color: #15803d; font-weight: 800; font-size: 14px; text-align: right; }
+.cp-pagou small { display: block; font-weight: 600; color: var(--muted, #6b7280); }
+.cp-btn:disabled { opacity: 0.5; cursor: default; }
+@media (max-width: 420px) {
+  .cp-divisao li { grid-template-columns: 1fr auto; }
+  .cp-divisao li .cp-nome { grid-column: 1 / -1; }
+}
