@@ -3,19 +3,7 @@ import { L } from "../../loja";
 import useNomeLoja from "../../hooks/useNomeLoja";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import {
-  Bell,
-  ClipboardList,
-  DollarSign,
-  LayoutGrid,
-  Menu,
-  Settings,
-  ShoppingBag,
-  Table2,
-  TrendingUp,
-  X,
-  Pencil,
-} from "lucide-react";
+import { Bell, ClipboardList, DollarSign, LayoutGrid, Menu, Settings, ShoppingBag, Table2, TrendingUp, X, Pencil, Eye, EyeOff } from "lucide-react";
 import "../../styles/Garcom/Dashboard.css";
 import {
   collection,
@@ -68,6 +56,26 @@ function Dashboard() {
   function formatarMoeda(valor) {
     return Number(valor || 0).toFixed(2).replace(".", ",");
   }
+
+  // Olhinho: esconde os valores do painel (total do dia e de cada mesa). Fica lembrado neste aparelho.
+  const [ocultar, setOcultar] = useState(() => {
+    try {
+      return localStorage.getItem("iftech_ocultar_valores") === "1";
+    } catch {
+      return false;
+    }
+  });
+  function alternarOcultar() {
+    setOcultar((o) => {
+      try {
+        localStorage.setItem("iftech_ocultar_valores", o ? "0" : "1");
+      } catch {
+        /* sem armazenamento */
+      }
+      return !o;
+    });
+  }
+  const valor = (v) => (ocultar ? "R$ ••••" : `R$ ${formatarMoeda(v)}`);
 
   useEffect(() => {
     const pedidosRef = query(collection(db, ...L(), "pedidos"), orderBy("salvoEm", "desc"));
@@ -592,8 +600,13 @@ function Dashboard() {
           </div>
 
           <div className="summary-text-ref">
-            <span>Total do dia</span>
-            <h2>R$ {formatarMoeda(faturamentoDia)}</h2>
+            <span className="olho-linha">
+              Total do dia
+              <button type="button" className="olho-btn" onClick={alternarOcultar} aria-label={ocultar ? "Mostrar os valores" : "Esconder os valores"} title={ocultar ? "Mostrar os valores" : "Esconder os valores"}>
+                {ocultar ? <EyeOff size={20} strokeWidth={2.4} /> : <Eye size={20} strokeWidth={2.4} />}
+              </button>
+            </span>
+            <h2>{valor(faturamentoDia)}</h2>
           </div>
 
           <div className="icon-square-ref green">
@@ -707,7 +720,7 @@ function Dashboard() {
                 )}
               </div>
 
-              <strong>R$ {formatarMoeda(mesa.total)}</strong>
+              <strong>{valor(mesa.total)}</strong>
               <small>{mesa.totalItens} itens</small>
             </article>
           );
