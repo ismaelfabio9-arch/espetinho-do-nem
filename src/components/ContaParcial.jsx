@@ -1,7 +1,9 @@
 // Conta da mesa sem fechar: ver a conta, dividir entre as pessoas e receber de cada uma.
 // Cada recebimento fica gravado na mesa (mesas/<n>.pagamentos, com o nome de quem pagou) e
-// entra no caixa ao encerrar. "Cada um paga o seu", resumido: escreve quanto a pessoa paga e
-// o resto é dividido entre os outros.
+// entra no caixa ao encerrar. A divisão é toda automática:
+// - Igual para todos: o que falta dividido entre quem ainda não pagou;
+// - Pelo que cada um pediu: soma os itens de cada nome (o cliente põe o nome ao pedir pelo
+//   QR Code); o que não tem nome (lançado pelo garçom) é dividido igual entre todos.
 import { useMemo, useState } from "react";
 import { dividirIgual, falta as faltaDe, totalPago } from "../utils/conta";
 import FormasPagamento, { moeda, numero, resolverPartes } from "./FormasPagamento";
@@ -9,14 +11,21 @@ import "./ContaParcial.css";
 
 const c = (v) => Math.round(Number(v || 0) * 100);
 const qtd = (i) => Number(i.qtd || i.quantidade || 0);
+const donoDoItem = (i) => {
+  const n = String(i.cliente || "").trim();
+  return n && n.toLowerCase() !== "cliente" ? n : "";
+};
 
 export default function ContaParcial({ mesa, itens, total, naoSalvo = 0, pagamentos = [], taxas, podeImprimir, onImprimir, onReceber, onTirar, onFechar }) {
   // Quem já pagou (pelo nome gravado no pagamento): volta assim quando a tela abre de novo.
   const quemJaPagou = useMemo(() => [...new Set(pagamentos.map((p) => String(p.quem || "").trim()).filter(Boolean))], [pagamentos]);
+  // Quem pediu pelo QR Code (o nome vai em cada item).
+  const nomesDosPedidos = useMemo(() => [...new Set(itens.map(donoDoItem).filter(Boolean))], [itens]);
+  const temPorPedido = nomesDosPedidos.length > 0;
   const [aba, setAba] = useState(quemJaPagou.length ? "dividir" : "conta"); // conta | dividir
+  const [modo, setModo] = useState(nomesDosPedidos.length >= 2 ? "pedido" : "igual"); // igual | pedido
   const [pessoas, setPessoas] = useState(Math.max(2, quemJaPagou.length));
   const [nomes, setNomes] = useState(() => Object.fromEntries(quemJaPagou.map((n, i) => [i, /^Pessoa \d+$/.test(n) ? "" : n])));
-  const [proprio, setProprio] = useState({}); // { i: "35,00" } quem paga um valor próprio
   const [receber, setReceber] = useState(null); // { valor, quem, partes }
   const [salvando, setSalvando] = useState(false);
   const [desfazer, setDesfazer] = useState(null);
@@ -27,20 +36,49 @@ export default function ContaParcial({ mesa, itens, total, naoSalvo = 0, pagamen
   const nomeDe = (i) => nomes[i]?.trim() || `Pessoa ${i + 1}`;
   const pagosDe = (nome) => pagamentos.filter((p) => String(p.quem || "").trim() === nome);
 
-  // Divisão: quem ainda não pagou divide o que falta; quem escreveu um valor próprio paga esse valor.
+  // Igual para todos: quem ainda não pagou divide o que falta, em partes iguais.
   const linhas = Array.from({ length: pessoas }, (_, i) => {
     const nome = nomeDe(i);
     const pagos = pagosDe(nome);
     return { i, nome, pagos, pago: totalPago(pagos) };
   });
   const pendentes = linhas.filter((l) => l.pago === 0);
-  const fixos = pendentes.filter((l) => numero(proprio[l.i]) > 0);
-  const somaFixos = fixos.reduce((s, l) => s + c(numero(proprio[l.i])), 0);
-  const livres = pendentes.filter((l) => !(numero(proprio[l.i]) > 0));
-  const partesIguais = dividirIgual(Math.max(0, c(falta) - somaFixos) / 100, Math.max(1, livres.length));
-  const valorDe = (l) => (numero(proprio[l.i]) > 0 ? numero(proprio[l.i]) : partesIguais[livres.indexOf(l)] || 0);
-  const passou = somaFixos > c(falta);
-  const naoPaga = livres.length === 0 && pendentes.length > 0 && somaFixos < c(falta);
+  const partesIguais = dividirIgual(falta, Math.max(1, pendentes.length));
+  const valorIgual = (l) => partesIguais[pendentes.indexOf(l)] || 0;
+
+  // Pelo que cada um pediu: itens de cada nome + parte igual do que não tem nome.
+  const porPedido = useMemo(() => {
+    if (!nomesDosPedidos.length) return { linhas: [], semNome: 0 };
+    const consumo = Object.fromEntries(nomesDosPedidos.map((n) => [n, { cents: 0, itens: {} }]));
+    let semNome = 0;
+    itens.forEach((it) => {
+      const v = c(Number(it.preco || 0) * qtd(it));
+      const dono = donoDoItem(it);
+      if (dono && consumo[dono]) {
+        consumo[dono].cents += v;
+        consumo[dono].itens[it.nome] = (consumo[dono].itens[it.nome] || 0) + qtd(it);
+      } else semNome += v;
+    });
+    const parteSemNome = dividirIgual(semNome / 100, nomesDosPedidos.length);
+    return {
+      semNome: semNome / 100,
+      linhas: nomesDosPedidos.map((nome, k) => {
+        const pagos = pagosDe(nome);
+        const pago = totalPago(pagos);
+        const deve = (consumo[nome].cents + c(parteSemNome[k])) / 100;
+        return {
+          nome,
+          pagos,
+          pago,
+          deve,
+          resta: Math.max(0, (c(deve) - c(pago)) / 100),
+          resumo: Object.entries(consumo[nome].itens).map(([n, q]) => `${q}× ${n}`).join(", "),
+        };
+      }),
+    };
+    // pagosDe depende de pagamentos
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [itens, nomesDosPedidos, pagamentos]);
 
   const abrirReceber = (valor, quem = "") => {
     setReceber({ valor: moeda(Math.min(valor, falta)), quem, partes: {} });
@@ -128,50 +166,78 @@ export default function ContaParcial({ mesa, itens, total, naoSalvo = 0, pagamen
 
         {aba === "dividir" && (
           <>
-            <div className="cp-pessoas">
-              <span>Dividir entre</span>
-              <button type="button" aria-label="Menos uma pessoa" onClick={() => setPessoas((n) => Math.max(Math.max(2, linhas.filter((l) => l.pago > 0).length), n - 1))}>−</button>
-              <b aria-label="Pessoas">{pessoas}</b>
-              <button type="button" aria-label="Mais uma pessoa" onClick={() => setPessoas((n) => Math.min(30, n + 1))}>+</button>
-              <span>pessoas</span>
-            </div>
-            <p className="cp-dica">Alguém vai pagar só o que consumiu? Escreva o valor dele e o resto é dividido entre os outros.</p>
+            {temPorPedido && (
+              <div className="cp-modos" role="radiogroup" aria-label="Como dividir">
+                <button type="button" role="radio" aria-checked={modo === "pedido"} className={modo === "pedido" ? "ativo" : ""} onClick={() => setModo("pedido")}>Pelo que cada um pediu</button>
+                <button type="button" role="radio" aria-checked={modo === "igual"} className={modo === "igual" ? "ativo" : ""} onClick={() => setModo("igual")}>Igual para todos</button>
+              </div>
+            )}
 
-            <ul className="cp-divisao">
-              {linhas.map((l) => (
-                <li key={l.i} className={l.pago > 0 ? "pagou" : ""}>
-                  <input
-                    className="cp-nome"
-                    value={nomes[l.i] || ""}
-                    placeholder={`Pessoa ${l.i + 1}`}
-                    disabled={l.pago > 0}
-                    onChange={(e) => setNomes({ ...nomes, [l.i]: e.target.value })}
-                    aria-label={`Nome da pessoa ${l.i + 1}`}
-                  />
-                  {l.pago > 0 ? (
-                    <span className="cp-pagou">✓ Pagou R$ {moeda(l.pago)} <small>({textoFormas(l.pagos)})</small></span>
-                  ) : (
-                    <>
-                      <label className="cp-parte" title="Valor desta pessoa">
-                        R$
-                        <input
-                          inputMode="decimal"
-                          value={proprio[l.i] ?? ""}
-                          placeholder={moeda(valorDe(l))}
-                          onChange={(e) => setProprio({ ...proprio, [l.i]: e.target.value })}
-                          aria-label={`Valor que ${l.nome} vai pagar`}
-                        />
-                      </label>
-                      <button type="button" className="cp-btn verde mini" disabled={falta <= 0 || valorDe(l) <= 0} onClick={() => abrirReceber(valorDe(l), l.nome)}>
-                        Receber
-                      </button>
-                    </>
-                  )}
-                </li>
-              ))}
-            </ul>
-            {passou && <p className="cp-aviso">Os valores escritos passam do que falta (R$ {moeda(falta)}). Confira.</p>}
-            {naoPaga && <p className="cp-aviso">Ainda vão faltar R$ {moeda((c(falta) - somaFixos) / 100)}: apague o valor de alguém para ele dividir o resto.</p>}
+            {modo === "pedido" && temPorPedido ? (
+              <>
+                <p className="cp-dica">
+                  Calculado pelos pedidos feitos no QR Code de cada um.
+                  {porPedido.semNome > 0 && ` Os itens lançados sem nome (R$ ${moeda(porPedido.semNome)}) foram divididos igual entre todos.`}
+                </p>
+                <ul className="cp-divisao">
+                  {porPedido.linhas.map((l) => (
+                    <li key={l.nome} className={l.resta === 0 ? "pagou" : ""}>
+                      <div className="cp-quem">
+                        <b>{l.nome}</b>
+                        <small>{l.resumo || "Só a parte dos itens sem nome"}</small>
+                      </div>
+                      {l.resta === 0 ? (
+                        <span className="cp-pagou">✓ Pagou R$ {moeda(l.pago)} <small>({textoFormas(l.pagos)})</small></span>
+                      ) : (
+                        <>
+                          <span className="cp-valor-pessoa">
+                            R$ {moeda(l.resta)}
+                            {l.pago > 0 && <small>já pagou R$ {moeda(l.pago)}</small>}
+                          </span>
+                          <button type="button" className="cp-btn verde mini" disabled={falta <= 0} onClick={() => abrirReceber(l.resta, l.nome)}>
+                            Receber
+                          </button>
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            ) : (
+              <>
+                <div className="cp-pessoas">
+                  <span>Dividir entre</span>
+                  <button type="button" aria-label="Menos uma pessoa" onClick={() => setPessoas((n) => Math.max(Math.max(2, linhas.filter((l) => l.pago > 0).length), n - 1))}>−</button>
+                  <b aria-label="Pessoas">{pessoas}</b>
+                  <button type="button" aria-label="Mais uma pessoa" onClick={() => setPessoas((n) => Math.min(30, n + 1))}>+</button>
+                  <span>pessoas</span>
+                </div>
+                <ul className="cp-divisao">
+                  {linhas.map((l) => (
+                    <li key={l.i} className={l.pago > 0 ? "pagou" : ""}>
+                      <input
+                        className="cp-nome"
+                        value={nomes[l.i] || ""}
+                        placeholder={`Pessoa ${l.i + 1}`}
+                        disabled={l.pago > 0}
+                        onChange={(e) => setNomes({ ...nomes, [l.i]: e.target.value })}
+                        aria-label={`Nome da pessoa ${l.i + 1} (opcional)`}
+                      />
+                      {l.pago > 0 ? (
+                        <span className="cp-pagou">✓ Pagou R$ {moeda(l.pago)} <small>({textoFormas(l.pagos)})</small></span>
+                      ) : (
+                        <>
+                          <span className="cp-valor-pessoa">R$ {moeda(valorIgual(l))}</span>
+                          <button type="button" className="cp-btn verde mini" disabled={falta <= 0 || valorIgual(l) <= 0} onClick={() => abrirReceber(valorIgual(l), l.nome)}>
+                            Receber
+                          </button>
+                        </>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
           </>
         )}
 
