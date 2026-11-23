@@ -6,7 +6,7 @@
 
 // v2: pratos com "montar o prato" (pedido rápido do almoço); quem já abriu recebe o exemplo novo.
 // v3: cadastro por tipo (picolés com sabor, tapioca com recheio).
-export const STORAGE_KEY = "iftech_demo_mesas_v5";
+export const STORAGE_KEY = "iftech_demo_mesas_v6";
 
 class Timestamp {
   constructor(ms) {
@@ -405,4 +405,21 @@ export function writeBatch() {
   };
   return batch;
 }
+/** Transação: lê na hora e grava tudo junto no fim (número do pedido, impressão pelo computador). */
+export async function runTransaction(_db, fn) {
+  const ops = [];
+  const tx = {
+    get: (ref) => getDoc(ref),
+    set: (ref, value, options) => (ops.push(() => applySet(ref, value, options)), tx),
+    update: (ref, value) => (ops.push(() => applyUpdate(ref, value)), tx),
+    delete: (ref) => (ops.push(() => applyDelete(ref)), tx),
+  };
+  const resultado = await fn(tx);
+  if (ops.length) {
+    ops.forEach((op) => op());
+    committed();
+  }
+  return resultado;
+}
+
 export const connectFirestoreEmulator = () => {};

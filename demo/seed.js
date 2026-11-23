@@ -80,7 +80,13 @@ export function seedDemo() {
   const abertas = [
     [2, "Carlos (exemplo)", [item("Bife acebolado", 1), item("Frango grelhado", 1), item("Suco de laranja", 2)], 25],
     [5, "", [item("PF de carne", 3), item("Refrigerante lata", 3), item("Pudim", 1)], 15],
-    [7, "Equipe da obra (exemplo)", [item("Feijoada", 2), item("PF de frango", 2), item("Farofa", 1), item("Suco de maracujá", 4)], 8],
+    // Mesa 7: cada um pediu pelo QR Code com o próprio nome (a conta divide pelo que cada um pediu).
+    [7, "Equipe da obra (exemplo)", [
+      { ...item("Feijoada", 1), cliente: "Zé" }, { ...item("Suco de maracujá", 1), cliente: "Zé" },
+      { ...item("Feijoada", 1), cliente: "Paulo" }, { ...item("Suco de maracujá", 2), cliente: "Paulo" },
+      { ...item("PF de frango", 2), cliente: "Márcio" }, { ...item("Suco de maracujá", 1), cliente: "Márcio" },
+      item("Farofa", 1),
+    ], 8],
   ];
   abertas.forEach(([mesa, cliente, itens, minAtras], k) => {
     if (cliente) cols.mesas[String(mesa)].cliente = cliente;
