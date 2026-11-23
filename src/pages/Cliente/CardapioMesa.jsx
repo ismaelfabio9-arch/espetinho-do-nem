@@ -635,7 +635,8 @@ function CardapioMesa() {
   const contaMesa = pedidoMesaAberto && pedidoMesaAberto.totalItens > 0 ? pedidoMesaAberto : null;
   // Conta da mesa por pessoa (o nome que cada um pôs no QR Code).
   const contaPorPessoa = (contaMesa?.itens || []).reduce((acc, item) => {
-    const quem = String(item.cliente || "").trim() || "Mesa";
+    const nome = String(item.cliente || "").trim();
+    const quem = nome && nome.toLowerCase() !== "cliente" ? nome : "Mesa";
     (acc[quem] = acc[quem] || []).push(item);
     return acc;
   }, {});

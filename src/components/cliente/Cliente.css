@@ -113,3 +113,7 @@
 .cl-conta-pessoa b { font-size: 14px; }
 .cl-conta-linha { display: grid; grid-template-columns: 1fr auto; gap: 8px; font-size: 13.5px; color: #374151; }
 .cl-msg { position: fixed; left: 50%; top: 14px; transform: translateX(-50%); z-index: 9500; max-width: 92vw; padding: 12px 16px; border-radius: 14px; background: #111827; color: #fff; font-weight: 700; font-size: 14px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3); text-align: center; }
+
+/* O sistema pinta todo span/p/small de cinza (body span { color: var(--muted) }). Nas telas do cliente o texto
+   herda a cor de onde está; as partes que devem ser cinza têm a cor própria (classe vale mais que esta regra). */
+html body :where(.cl-pagina, .cl-folha-fundo) :is(span, p, small, b, strong) { color: inherit; }
