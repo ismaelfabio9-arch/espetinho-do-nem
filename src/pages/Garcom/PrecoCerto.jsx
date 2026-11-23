@@ -10,6 +10,7 @@ import { db } from "../../firebase";
 import { L } from "../../loja";
 import { ehCategoriaDeBebida, ehCategoriaDePrato, precosDoCardapio } from "../../utils/montagem";
 import { PESO_INGREDIENTES_PADRAO, contaDoProduto, pctDasContas, pctPorVenda, pesoIngredientes, precoBonito } from "../../utils/precificacao";
+import { daFicha as paraUnidadeDoInsumo, itensJuntos, unidadeDe } from "../../utils/insumos";
 
 const fmt = (v) => Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const R = (v) => (v < 0 ? `− R$ ${fmt(-v)}` : `R$ ${fmt(v)}`);
@@ -28,7 +29,9 @@ const LISTAS = {
   variaveis: ["Embalagens", "Entregador (motoboy)", "Taxa de aplicativo de entrega", "Divulgação e anúncios"],
 };
 
-export default function PrecoCerto({ produtos, custos, daFicha, vendas30 = 0 }) {
+export default function PrecoCerto({ produtos, custos, daFicha, vendas30 = 0, insumos = [], fichas = [] }) {
+  // Produtos que já têm ingredientes na ficha (mesmo sem preço): a porção rápida não mexe neles.
+  const comFicha = useMemo(() => new Set((fichas || []).filter((fi) => itensJuntos(fi).length > 0).map((fi) => fi.id)), [fichas]);
   const [salvo, setSalvo] = useState(null); // configuracoes/precificacao
   const [form, setForm] = useState(null);
   const [precos, setPrecos] = useState({}); // preço digitado (simula antes de salvar) { id: texto }
@@ -342,6 +345,9 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendas30 = 0 }) 
                         <span className="pc-total">= Lucro para você</span><b className={`pc-total ${c.lucro < 0 ? "fin-neg" : "pc-verde"}`}>{R(c.lucro)} ({fmtPct(c.margem)})</b>
                       </div>
                     )}
+                    {typeof daFicha?.[x.id] !== "number" && !comFicha.has(x.id) && (
+                      <PorcaoRapida produto={x} insumos={insumos} digitado={typeof custos?.[x.id] === "number" ? custos[x.id] : null} />
+                    )}
                     <div className="pc-preco">
                       {opcoes ? (
                         <small>Preço por opção ({opcoes.map((o) => `${o.nome} ${R(o.preco)}`).join(" · ")}): a conta usa o menor. Mude em Produtos → editar.</small>
@@ -427,3 +433,103 @@ function ItensDespesa({ nome, sugestoes, itens, aberto, abrir, total, mudar }) {
   );
 }
 
+
+const semAcento = (v) => String(v || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+const QTD_PADRAO = { kg: "150", L: "300", un: "1" };
+
+/**
+ * Porção de um ingrediente (acompanhamento, bebida comprada pronta): "150 g de Arroz".
+ * O custo é o da porção, pelo preço do ingrediente (comprei 5 kg por R$ 40 → 150 g = R$ 1,20),
+ * e não o preço do quilo. Grava a ficha do produto e apaga o custo digitado antes.
+ */
+function PorcaoRapida({ produto, insumos, digitado }) {
+  const ativos = (insumos || []).filter((i) => i.ativo !== false).sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"));
+  // Sugere o ingrediente de mesmo nome (Arroz → Arroz; Batata frita → Batata).
+  const sugerido = useMemo(() => {
+    const p = semAcento(produto.nome);
+    return ativos.find((i) => semAcento(i.nome) === p) || ativos.find((i) => p.includes(semAcento(i.nome)) || semAcento(i.nome).includes(p)) || null;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [produto.nome, insumos]);
+  const [aberto, setAberto] = useState(false);
+  const [insumoId, setInsumoId] = useState(sugerido?.id || "");
+  const ins = ativos.find((i) => i.id === insumoId) || null;
+  const u = unidadeDe(ins?.unidade);
+  const [qtd, setQtd] = useState(QTD_PADRAO[ins?.unidade] || "150");
+  const [salvando, setSalvando] = useState(false);
+  const [erro, setErro] = useState("");
+  const qtdNum = numDe(qtd);
+  const custo = ins && typeof ins.custo === "number" && qtdNum ? Math.round((qtdNum / u.fator) * ins.custo * 100) / 100 : null;
+
+  async function salvar() {
+    if (!ins) return setErro("Escolha o ingrediente.");
+    if (!(qtdNum > 0)) return setErro(`Escreva quanto vai na porção (em ${u.sub}).`);
+    setSalvando(true);
+    setErro("");
+    try {
+      const agora = new Date().toISOString();
+      await setDoc(doc(db, ...L(), "fichas", produto.id), { itens: [{ insumoId: ins.id, qtd: paraUnidadeDoInsumo(qtd, ins.unidade) }], nome: produto.nome, atualizadoEm: agora });
+      if (digitado !== null) await setDoc(doc(db, ...L(), "custos", produto.id), { custo: null, nome: produto.nome, atualizadoEm: agora }, { merge: true });
+    } catch {
+      setErro("Não foi possível salvar. Confira a internet.");
+      setSalvando(false);
+    }
+  }
+
+  if (!aberto)
+    return (
+      <div className="pc-porcao-chamada">
+        <span>
+          {digitado !== null
+            ? `O custo de ${R(digitado)} foi digitado à mão. É uma porção (ex.: 150 g de arroz)? Diga quanto vai e o custo sai certo.`
+            : "Sem custo ainda. É uma porção de um ingrediente (ex.: 150 g de arroz)?"}
+        </span>
+        <button type="button" className="ins-btn" onClick={() => setAberto(true)}>Quanto vai na porção?</button>
+      </div>
+    );
+
+  return (
+    <div className="pc-porcao">
+      <strong>Quanto vai em 1 {produto.nome}?</strong>
+      {ativos.length === 0 ? (
+        <p className="pc-porcao-dica">
+          Cadastre primeiro o ingrediente com o preço da compra (ex.: Arroz, comprei 5 kg por R$ 40) em <Link to="/cardapio?aba=ingredientes">Ingredientes</Link>.
+        </p>
+      ) : (
+        <>
+          <div className="pc-porcao-linha">
+            <label className="pc-input pc-porcao-qtd">
+              <input inputMode="decimal" value={qtd} onChange={(e) => setQtd(e.target.value)} aria-label={`Quantidade na porção, em ${u.sub}`} />
+              {u.sub}
+            </label>
+            <span>de</span>
+            <select
+              value={insumoId}
+              onChange={(e) => {
+                const novo = ativos.find((i) => i.id === e.target.value);
+                setInsumoId(e.target.value);
+                if (novo && novo.unidade !== ins?.unidade) setQtd(QTD_PADRAO[novo.unidade] || "1");
+              }}
+              aria-label="Ingrediente"
+            >
+              <option value="">Ingrediente…</option>
+              {ativos.map((i) => (
+                <option key={i.id} value={i.id}>{i.nome}</option>
+              ))}
+            </select>
+          </div>
+          {ins && typeof ins.custo !== "number" && <p className="pc-porcao-dica">Esse ingrediente está sem preço: ponha o preço da compra em <Link to="/cardapio?aba=ingredientes">Ingredientes</Link>.</p>}
+          {custo !== null && (
+            <p className="pc-porcao-dica">
+              {qtd} {u.sub} de {ins.nome} custam <b>{R(custo)}</b> (o {u.nomeLongo} sai a {R(ins.custo)}).
+            </p>
+          )}
+          {erro && <p className="cp-erro">{erro}</p>}
+          <div className="pc-porcao-botoes">
+            <button type="button" className="ins-btn" onClick={() => setAberto(false)}>Cancelar</button>
+            <button type="button" className="btn-verde" disabled={salvando} onClick={salvar}>{salvando ? "Salvando…" : "Salvar a porção"}</button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
