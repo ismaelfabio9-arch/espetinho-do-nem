@@ -144,7 +144,7 @@ export function gerarComprovanteHTML({ mesa, cliente, itens, total, formaPagamen
     <div class="linha-central pequeno">
       ${escapeHtml(config?.mensagemRodape || "Obrigado pela preferência!")}
     </div>
-    <div class="linha-central pequeno" style="margin-top:8px; opacity:.7;">
+    <div class="linha-central pequeno" style="margin-top:8px;">
       Comprovante de consumo — não é documento fiscal.
     </div>
   `;
@@ -179,17 +179,25 @@ export function imprimir(conteudoHTML, larguraPapel = "58mm") {
               width: ${largura}px;
               margin: 0 auto;
               padding: 10px 8px 24px;
-              font-family: 'Courier New', monospace;
-              font-size: 12px;
+              /* Impressora térmica pelo navegador: fonte fina (Courier) sai clara ou falhada.
+                 Arial no negrito máximo, com contorno, e preto puro sem clarear. */
+              font-family: Arial, Helvetica, sans-serif;
+              font-size: 14px;
+              line-height: 1.3;
+              font-weight: 900;
+              -webkit-text-stroke: 0.35px #000;
+              -webkit-font-smoothing: none;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
               color: #000;
               background: #fff;
             }
             .linha-central { text-align: center; }
-            .negrito { font-weight: 700; }
-            .grande { font-size: 15px; }
-            .pequeno { font-size: 10px; }
+            .negrito { font-weight: 900; }
+            .grande { font-size: 18px; }
+            .pequeno { font-size: 12px; }
             .separador {
-              border-top: 1px dashed #000;
+              border-top: 2px dashed #000;
               margin: 8px 0;
             }
             .linha-item {
