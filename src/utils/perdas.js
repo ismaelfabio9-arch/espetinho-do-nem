@@ -46,54 +46,70 @@ export function contaDaPerda({ ficha, opcao, qtdProduto, insumo, qtdInsumo }, in
   return { linhas, total, semPreco };
 }
 
+/** "2× Guisado de boi (Marmita M)" ou "Arroz 1 kg": como o item aparece no relatório. */
+export function descricaoItem(it) {
+  if (it.produto) return `${it.qtdProduto}× ${it.produto.nome}${it.opcao ? ` (${it.opcao})` : ""}`;
+  const u = it.insumo?.unidade;
+  const q = Number(it.qtdInsumo || 0);
+  const txt = u === "un" ? `${q} un` : q < 1 ? `${Math.round(q * 1000)} ${u === "L" ? "ml" : "g"}` : `${String(r3(q)).replace(".", ",")} ${u === "L" ? "L" : "kg"}`;
+  return `${it.insumo?.nome || ""} ${txt}`;
+}
+
 /**
- * Registra a saída. dados: { motivoId, obs, por, produto?, opcao?, qtdProduto?, ficha?, insumo?, qtdInsumo? }.
- * Devolve { perdaId, total }.
+ * Registra a saída: vários itens no mesmo lançamento (2 marmitas + 1 kg de arroz…), todos com o mesmo motivo.
+ * dados: { motivoId, obs, por, itens: [{ produto?, opcao?, qtdProduto?, ficha?, insumo?, qtdInsumo? }] }.
  */
 export async function registrarPerda(dados, insumosPorId) {
   const m = motivoDe(dados.motivoId);
-  const conta = contaDaPerda(dados, insumosPorId);
   const agora = new Date().toISOString();
   const perdaId = novoId();
   const obs = String(dados.obs || "").trim().slice(0, 120);
-  const produto = dados.produto || null;
-  const comum = {
-    tipo: "perda",
-    perdaId,
-    motivoId: m.id,
-    motivo: `${m.nome}${obs ? ` · ${obs}` : ""}`,
-    grupo: m.grupo,
-    ...(produto ? { produtoId: produto.id, produtoNome: produto.nome, qtdProduto: Number(dados.qtdProduto || 0), ...(dados.opcao ? { opcao: dados.opcao } : {}) } : {}),
-    em: agora,
-    por: dados.por || "",
-  };
+  const itens = dados.itens || [dados];
   const batch = writeBatch(db);
-  conta.linhas.forEach((l) => {
-    batch.update(doc(db, ...L(), "insumos", l.insumo.id), { quantidade: increment(-l.cru), atualizadoEm: agora });
-    batch.set(doc(collection(db, ...L(), "insumosMov")), {
-      ...comum,
-      insumoId: l.insumo.id,
-      nome: l.insumo.nome,
-      qtd: -l.cru,
-      ...(l.valor !== null ? { valorAjuste: -l.valor, custoNaHora: l.insumo.custo } : {}),
-      criadoEm: serverTimestamp(),
+  let total = 0;
+  // O mesmo ingrediente em dois itens: soma na hora de tirar do estoque.
+  const tirar = new Map();
+  itens.forEach((it) => {
+    const conta = contaDaPerda(it, insumosPorId);
+    total += conta.total;
+    const produto = it.produto || null;
+    const comum = {
+      tipo: "perda",
+      perdaId,
+      motivoId: m.id,
+      motivo: `${m.nome}${obs ? ` · ${obs}` : ""}`,
+      grupo: m.grupo,
+      itemDesc: descricaoItem(it),
+      ...(produto ? { produtoId: produto.id, produtoNome: produto.nome, qtdProduto: Number(it.qtdProduto || 0), ...(it.opcao ? { opcao: it.opcao } : {}) } : {}),
+      em: agora,
+      por: dados.por || "",
+    };
+    conta.linhas.forEach((l) => {
+      tirar.set(l.insumo.id, r3((tirar.get(l.insumo.id) || 0) + l.cru));
+      batch.set(doc(collection(db, ...L(), "insumosMov")), {
+        ...comum,
+        insumoId: l.insumo.id,
+        nome: l.insumo.nome,
+        qtd: -l.cru,
+        ...(l.valor !== null ? { valorAjuste: -l.valor, custoNaHora: l.insumo.custo } : {}),
+        criadoEm: serverTimestamp(),
+      });
     });
+    // Produto sem ficha: fica registrado mesmo assim, sem valor.
+    if (!conta.linhas.length && produto) batch.set(doc(collection(db, ...L(), "insumosMov")), { ...comum, insumoId: "", nome: produto.nome, qtd: 0, semFicha: true, criadoEm: serverTimestamp() });
   });
-  // Produto sem ficha (ou com ingredientes que não existem mais): fica registrado mesmo assim, sem valor.
-  if (!conta.linhas.length && produto) {
-    batch.set(doc(collection(db, ...L(), "insumosMov")), { ...comum, insumoId: "", nome: produto.nome, qtd: 0, semFicha: true, criadoEm: serverTimestamp() });
-  }
+  tirar.forEach((q, id) => batch.update(doc(db, ...L(), "insumos", id), { quantidade: increment(-q), atualizadoEm: agora }));
   await batch.commit();
   // Produto pronto com estoque do dia: também sai de lá.
-  if (produto) {
-    const ref = doc(db, ...L(), "estoque", produto.id);
+  for (const it of itens) {
+    if (!it.produto) continue;
+    const ref = doc(db, ...L(), "estoque", it.produto.id);
     const s = await getDoc(ref).catch(() => null);
     if (s?.exists() && Number(s.data().quantidade || 0) > 0) {
-      const antes = Number(s.data().quantidade || 0);
-      await updateDoc(ref, { quantidade: Math.max(0, antes - Number(dados.qtdProduto || 0)), atualizadoEm: agora }).catch(() => {});
+      await updateDoc(ref, { quantidade: Math.max(0, Number(s.data().quantidade || 0) - Number(it.qtdProduto || 0)), atualizadoEm: agora }).catch(() => {});
     }
   }
-  return { perdaId, total: conta.total };
+  return { perdaId, total: r2(total) };
 }
 
 const diaDe = (iso) => {
@@ -125,6 +141,7 @@ export function resumoSaidas(movs, de, ate) {
         qtdProduto: mv.qtdProduto || 0,
         opcao: mv.opcao || "",
         itens: [],
+        descricoes: [],
         valor: 0,
         semPreco: false,
         por: mv.por || "",
@@ -132,6 +149,7 @@ export function resumoSaidas(movs, de, ate) {
       porLanc.set(chave, l);
     }
     if (mv.insumoId) l.itens.push({ nome: mv.nome, insumoId: mv.insumoId, qtd: Math.abs(Number(mv.qtd || 0)) });
+    if (mv.itemDesc && !l.descricoes.includes(mv.itemDesc)) l.descricoes.push(mv.itemDesc);
     if (typeof mv.valorAjuste === "number") l.valor = r2(l.valor - mv.valorAjuste);
     else l.semPreco = true;
   });
