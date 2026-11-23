@@ -75,3 +75,10 @@
 @media (max-width: 420px) {
   .cp-divisao li .cp-quem { grid-column: 1 / -1; }
 }
+
+/* A janela da conta segue o tema do sistema (claro ou escuro), com as próprias cores:
+   outro estilo do sistema pinta toda .modal-card de escuro e o texto sumia nos quadros claros. */
+.modal-card.cp { background: var(--card) !important; color: var(--text) !important; border: 1px solid var(--border); text-align: left; }
+.modal-card.cp h2 { color: var(--text) !important; }
+.cp-placar b, .cp-quem b, .cp-valor-pessoa, .cp-itens, .cp-abas button, .cp-modos button.ativo, .cp-pessoas b { color: var(--text); }
+.cp-abas button.ativo { color: #fff; }
