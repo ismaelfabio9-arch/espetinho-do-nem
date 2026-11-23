@@ -16,11 +16,13 @@ const donoDoItem = (i) => {
   return n && n.toLowerCase() !== "cliente" ? n : "";
 };
 
-export default function ContaParcial({ mesa, itens, total, naoSalvo = 0, pagamentos = [], taxas, podeImprimir, onImprimir, onReceber, onTirar, onFechar }) {
+export default function ContaParcial({ mesa, itens, itensPorPessoa, total, naoSalvo = 0, pagamentos = [], taxas, podeImprimir, onImprimir, onReceber, onTirar, onFechar }) {
   // Quem já pagou (pelo nome gravado no pagamento): volta assim quando a tela abre de novo.
   const quemJaPagou = useMemo(() => [...new Set(pagamentos.map((p) => String(p.quem || "").trim()).filter(Boolean))], [pagamentos]);
   // Quem pediu pelo QR Code (o nome vai em cada item).
-  const nomesDosPedidos = useMemo(() => [...new Set(itens.map(donoDoItem).filter(Boolean))], [itens]);
+  // Itens como foram pedidos (sem juntar pelo nome), para saber de quem é cada um.
+  const brutos = itensPorPessoa || itens;
+  const nomesDosPedidos = useMemo(() => [...new Set(brutos.map(donoDoItem).filter(Boolean))], [brutos]);
   const temPorPedido = nomesDosPedidos.length > 0;
   const [aba, setAba] = useState(quemJaPagou.length ? "dividir" : "conta"); // conta | dividir
   const [modo, setModo] = useState(nomesDosPedidos.length >= 2 ? "pedido" : "igual"); // igual | pedido
@@ -51,7 +53,7 @@ export default function ContaParcial({ mesa, itens, total, naoSalvo = 0, pagamen
     if (!nomesDosPedidos.length) return { linhas: [], semNome: 0 };
     const consumo = Object.fromEntries(nomesDosPedidos.map((n) => [n, { cents: 0, itens: {} }]));
     let semNome = 0;
-    itens.forEach((it) => {
+    brutos.forEach((it) => {
       const v = c(Number(it.preco || 0) * qtd(it));
       const dono = donoDoItem(it);
       if (dono && consumo[dono]) {
@@ -78,7 +80,7 @@ export default function ContaParcial({ mesa, itens, total, naoSalvo = 0, pagamen
     };
     // pagosDe depende de pagamentos
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [itens, nomesDosPedidos, pagamentos]);
+  }, [brutos, nomesDosPedidos, pagamentos]);
 
   const abrirReceber = (valor, quem = "") => {
     setReceber({ valor: moeda(Math.min(valor, falta)), quem, partes: {} });

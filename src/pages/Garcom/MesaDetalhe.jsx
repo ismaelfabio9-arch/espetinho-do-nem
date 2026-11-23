@@ -41,6 +41,12 @@ import { baixarInsumos } from "../../utils/insumos";
 
 
 
+/** Quem pediu o item pelo QR Code ("" = lançado pelo garçom, sem nome). */
+const donoDoItem = (item) => {
+  const nome = String(item?.cliente || "").trim();
+  return nome && nome.toLowerCase() !== "cliente" ? nome : "";
+};
+
 function MesaDetalhe() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -236,6 +242,9 @@ if (pedidosDaMesa.length === 0) {
         tipo: "mesa",
         mesa: Number(id),
         itens: itensOrdenados,
+        // Os itens como foram pedidos, sem juntar: guardam quem pediu cada um pelo QR Code
+        // (para dividir a conta e para não perder o nome ao mexer na comanda).
+        itensBrutos: todosItens.map((item) => ({ ...item, qtd: Number(item.qtd ?? item.quantidade ?? 0) })),
         total: itensOrdenados.reduce(
           (soma, item) => soma + Number(item.preco || 0) * Number(item.qtd || 0),
           0
@@ -342,16 +351,18 @@ if (pedidosDaMesa.length === 0) {
   }
 
   async function salvarEdicaoSalvo(prato) {
-    const antigo = itensMesa.find((i) => i.nome === editandoSalvo);
+    const antigos = itensBrutosMesa.filter((i) => i.nome === editandoSalvo);
     setMontando(null);
     setEditandoSalvo(null);
-    if (!antigo) return;
-    const qtd = Number(antigo.qtd || 0);
-    const resto = itensMesa.filter((i) => i.nome !== editandoSalvo);
-    const igual = resto.find((i) => i.nome === prato.nome);
-    const novos = igual
-      ? resto.map((i) => (i === igual ? { ...i, qtd: Number(i.qtd || 0) + qtd } : i))
-      : [...resto, { ...antigo, ...prato, qtd, ...(antigo.cliente ? { cliente: antigo.cliente } : {}) }];
+    if (!antigos.length) return;
+    // Cada pessoa que pediu o prato continua com o dela (o nome do QR Code não se perde).
+    const novos = itensBrutosMesa.filter((i) => i.nome !== editandoSalvo).map((i) => ({ ...i }));
+    antigos.forEach((antigo) => {
+      const novo = { ...antigo, ...prato, qtd: Number(antigo.qtd || 0), ...(antigo.cliente ? { cliente: antigo.cliente } : {}) };
+      const igual = novos.find((i) => i.nome === novo.nome && donoDoItem(i) === donoDoItem(novo));
+      if (igual) igual.qtd = Number(igual.qtd || 0) + novo.qtd;
+      else novos.push(novo);
+    });
     setAlterouPedidoMesa(true);
     await atualizarPedidoMesa(novos);
     mostrarNotificacao("Prato alterado na comanda.");
@@ -425,6 +436,7 @@ if (pedidosDaMesa.length === 0) {
   const totalItens = itensPedido.reduce((soma, item) => soma + item.qtd, 0);
 
   const itensMesa = pedidoMesa?.itens || [];
+  const itensBrutosMesa = pedidoMesa?.itensBrutos || itensMesa;
 
   const totalMesa = itensMesa.reduce(
     (soma, item) => soma + Number(item.preco || 0) * Number(item.qtd || 0),
@@ -478,28 +490,30 @@ if (pedidosDaMesa.length === 0) {
     }
   }
 
+  // Ajustar a quantidade mexe nos itens como foram pedidos (cada um com o nome de quem pediu):
+  // o que o garçom põe a mais fica sem nome; o que tira sai primeiro do que não tem nome.
   async function aumentarItemMesa(itemSelecionado) {
-    const novosItens = itensMesa.map((item) =>
-      item.nome === itemSelecionado.nome
-        ? { ...item, qtd: Number(item.qtd || 0) + 1 }
-        : item
-    );
+    const novosItens = itensBrutosMesa.map((item) => ({ ...item }));
+    const semNome = novosItens.find((item) => item.nome === itemSelecionado.nome && !donoDoItem(item));
+    if (semNome) semNome.qtd = Number(semNome.qtd || 0) + 1;
+    else {
+      // eslint-disable-next-line no-unused-vars
+      const { cliente, quantidade, ...base } = novosItens.find((item) => item.nome === itemSelecionado.nome) || itemSelecionado;
+      novosItens.push({ ...base, qtd: 1 });
+    }
 
     setAlterouPedidoMesa(true);
     await atualizarPedidoMesa(novosItens);
   }
 
   async function diminuirItemMesa(itemSelecionado) {
-    const novosItens = itensMesa
-      .map((item) =>
-        item.nome === itemSelecionado.nome
-          ? { ...item, qtd: Number(item.qtd || 0) - 1 }
-          : item
-      )
-      .filter((item) => Number(item.qtd || 0) > 0);
+    const novosItens = itensBrutosMesa.map((item) => ({ ...item }));
+    const doNome = novosItens.filter((item) => item.nome === itemSelecionado.nome && Number(item.qtd || 0) > 0);
+    const tirar = doNome.find((item) => !donoDoItem(item)) || doNome[doNome.length - 1];
+    if (tirar) tirar.qtd = Number(tirar.qtd || 0) - 1;
 
     setAlterouPedidoMesa(true);
-    await atualizarPedidoMesa(novosItens);
+    await atualizarPedidoMesa(novosItens.filter((item) => Number(item.qtd || 0) > 0));
   }
 
   async function salvarPedido() {
@@ -527,8 +541,9 @@ if (pedidosDaMesa.length === 0) {
         const itensNovos = [...itensAntigos];
 
         itensPedido.forEach((novoItem) => {
+          // Junta só com o mesmo item da mesma pessoa (o que o garçom lança fica sem nome).
           const itemExistente = itensNovos.find(
-            (item) => item.nome === novoItem.nome
+            (item) => item.nome === novoItem.nome && donoDoItem(item) === donoDoItem(novoItem)
           );
 
           if (itemExistente) {
@@ -1138,6 +1153,7 @@ if (pedidosDaMesa.length === 0) {
         <ContaParcial
           mesa={id}
           itens={itensMesa}
+          itensPorPessoa={itensBrutosMesa}
           total={totalMesa}
           naoSalvo={total}
           pagamentos={pagamentosMesa}
