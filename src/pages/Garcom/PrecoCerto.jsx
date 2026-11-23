@@ -32,6 +32,16 @@ const LISTAS = {
 export default function PrecoCerto({ produtos, custos, daFicha, vendas30 = 0, insumos = [], fichas = [] }) {
   // Produtos que já têm ingredientes na ficha (mesmo sem preço): a porção rápida não mexe neles.
   const comFicha = useMemo(() => new Set((fichas || []).filter((fi) => itensJuntos(fi).length > 0 || fi.variaPor).map((fi) => fi.id)), [fichas]);
+  // Produto que já tem a ficha mas algum ingrediente está sem preço: quais faltam (para mostrar no lugar de "pôr os ingredientes").
+  const faltaPrecoDe = useMemo(() => {
+    const ins = Object.fromEntries((insumos || []).map((i) => [i.id, i]));
+    return Object.fromEntries(
+      (fichas || []).map((fi) => {
+        const ids = [...new Set([...itensJuntos(fi), ...(fi.variaPor?.itens || [])].map((it) => it.insumoId).filter(Boolean))];
+        return [fi.id, ids.filter((id) => typeof ins[id]?.custo !== "number").map((id) => ins[id]?.nome || "ingrediente apagado")];
+      })
+    );
+  }, [fichas, insumos]);
   // Produto com ingrediente que muda com o tamanho: custo de cada opção (peixe pequeno, médio, grande).
   const porOpcaoDe = useMemo(() => {
     const ins = Object.fromEntries((insumos || []).map((i) => [i.id, i]));
@@ -323,10 +333,17 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendas30 = 0, in
                     <div className="pc-linha pc-linha-fixa">
                       <span className="pc-nome">
                         <strong>{x.nome}</strong>
-                        {custo === null && (
+                        {custo === null && comFicha.has(x.id) && (faltaPrecoDe[x.id] || []).length > 0 ? (
                           <small>
-                            Sem custo: <Link to={`/cardapio?aba=produtos&editar=${encodeURIComponent(x.id)}`}>pôr os ingredientes</Link>
+                            Falta o preço de: {faltaPrecoDe[x.id].slice(0, 4).join(", ")}
+                            {faltaPrecoDe[x.id].length > 4 ? ` e mais ${faltaPrecoDe[x.id].length - 4}` : ""} · <Link to="/cardapio?aba=ingredientes">pôr os preços</Link>
                           </small>
+                        ) : (
+                          custo === null && (
+                            <small>
+                              Sem custo: <Link to={`/cardapio?aba=produtos&editar=${encodeURIComponent(x.id)}`}>pôr os ingredientes</Link>
+                            </small>
+                          )
                         )}
                         {soIngredientes && custo !== null && preco > 0 && (
                           <small>Ingredientes {R(custo)} = <b>{fmtPct((custo / preco) * 100)}</b> do preço · sobra <b>{R(preco - custo)}</b></small>
