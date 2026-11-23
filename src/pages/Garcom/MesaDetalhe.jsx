@@ -39,6 +39,7 @@ import { ajustarPartes, falta as faltaDaConta, textoPagamentos, totalPago as tot
 import { MONTAGEM_ALMOCO, emojiCategoria, pratosSemMontagem, sugestoesBebida, abreEscolha } from "../../utils/montagem";
 import { baixarInsumos } from "../../utils/insumos";
 import { meuAparelho } from "../../utils/sons";
+import { MOTIVOS_PEDIDO, registrar } from "../../utils/registro";
 import { useFotos } from "../../utils/fotos";
 
 
@@ -53,6 +54,9 @@ function MesaDetalhe() {
   const { id } = useParams();
   const navigate = useNavigate();
   const alterouTimer = useRef(null);
+  // Tirar algo já salvo na comanda pede o motivo (vai para o registro da dona).
+  const [pedirMotivo, setPedirMotivo] = useState(null); // { titulo, fazer(motivo) }
+  const [motivoOutro, setMotivoOutro] = useState("");
   const fotos = useFotos(useRecurso("fotos"));
 
   const [produtos, setProdutos] = useState([]);
@@ -369,6 +373,7 @@ if (pedidosDaMesa.length === 0) {
     });
     setAlterouPedidoMesa(true);
     await atualizarPedidoMesa(novos);
+    registrar({ area: "pedidos", acao: "Alterou prato da comanda", mesa: id, antes: editandoSalvo, depois: prato.nome, texto: prato.nomeBase || prato.nome });
     mostrarNotificacao("Prato alterado na comanda.");
     setMostrarPedidoMesa(true);
   }
@@ -525,9 +530,23 @@ if (pedidosDaMesa.length === 0) {
 
     setAlterouPedidoMesa(true);
     await atualizarPedidoMesa(novosItens);
+    registrar({ area: "pedidos", acao: "Acrescentou na comanda", mesa: id, texto: `+1 ${itemSelecionado.nome}`, valor: Number(itemSelecionado.preco || 0) });
   }
 
-  async function diminuirItemMesa(itemSelecionado) {
+  /** Tirar 1 de um item já salvo: pergunta o motivo antes. */
+  function diminuirItemMesa(itemSelecionado) {
+    const ultimo = Number(itemSelecionado.qtd) === 1;
+    setMotivoOutro("");
+    setPedirMotivo({
+      titulo: ultimo ? `Tirar ${itemSelecionado.nome} da comanda?` : `Tirar 1 ${itemSelecionado.nome}?`,
+      fazer: async (motivo) => {
+        await tirarItemMesa(itemSelecionado);
+        registrar({ area: "pedidos", acao: ultimo ? "Tirou da comanda" : "Diminuiu na comanda", mesa: id, texto: `−1 ${itemSelecionado.nome}`, valor: -Number(itemSelecionado.preco || 0), motivo });
+      },
+    });
+  }
+
+  async function tirarItemMesa(itemSelecionado) {
     const novosItens = itensBrutosMesa.map((item) => ({ ...item }));
     const doNome = novosItens.filter((item) => item.nome === itemSelecionado.nome && Number(item.qtd || 0) > 0);
     const tirar = doNome.find((item) => !donoDoItem(item)) || doNome[doNome.length - 1];
@@ -610,6 +629,7 @@ if (pedidosDaMesa.length === 0) {
         });
       }
 
+      registrar({ area: "pedidos", acao: !resultado.empty ? "Acrescentou pedido" : "Abriu a mesa", mesa: id, texto: itensPedido.map((i) => `${i.qtd}× ${i.nome}`).join(", "), valor: total });
       // Avisa os outros aparelhos da equipe (cozinha, caixa): som de pedido novo ou de acrescentou.
       avisarEquipe(!resultado.empty ? "acrescentou" : "mesa", !resultado.empty ? `Mesa ${id}: acrescentaram itens no pedido` : `Novo pedido na Mesa ${id}`);
 
@@ -819,6 +839,14 @@ if (pedidosDaMesa.length === 0) {
         }
       }
 
+      registrar({
+        area: "dinheiro",
+        acao: "Encerrou a mesa",
+        mesa: id,
+        texto: `Mesa ${id}${nomeCliente ? ` (${nomeCliente})` : ""}: R$ ${formatarMoeda(totalTodos)} · ${pagamentosFinal ? textoPagamentos(pagamentosFinal) : formaPagamento || "sem forma"}${troco > 0 ? ` · troco R$ ${formatarMoeda(troco)}` : ""}${taxaTotal ? ` · taxa do cartão R$ ${formatarMoeda(taxaTotal)}` : ""}`,
+        valor: totalTodos,
+        detalhes: resultado.docs.flatMap((d) => (d.data().itens || []).map((i) => `${i.qtd || i.quantidade}× ${i.nome} · R$ ${formatarMoeda(Number(i.preco || 0) * Number(i.qtd || i.quantidade || 0))}${i.cliente && i.cliente !== "Cliente" ? ` · ${i.cliente}` : ""}`)),
+      });
       // Controle da mesa no histórico: quem estava, quando abriu e fechou, quantos pedidos fez.
       const agoraIso = new Date().toISOString();
       const aberturas = resultado.docs.map((d) => d.data().salvoEm).filter(Boolean).sort();
@@ -1100,6 +1128,45 @@ if (pedidosDaMesa.length === 0) {
         </div>
       )}
 
+      {pedirMotivo && (
+        <div className="modal-overlay" onClick={() => setPedirMotivo(null)}>
+          <div className="modal-card motivo-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Motivo">
+            <h2>{pedirMotivo.titulo}</h2>
+            <p>Por quê? Fica no registro para a dona.</p>
+            <div className="motivo-ops">
+              {MOTIVOS_PEDIDO.map((m) => (
+                <button
+                  type="button"
+                  key={m}
+                  onClick={async () => {
+                    const f = pedirMotivo.fazer;
+                    setPedirMotivo(null);
+                    await f(m);
+                  }}
+                >
+                  {m}
+                </button>
+              ))}
+            </div>
+            <div className="motivo-outro">
+              <input placeholder="Outro motivo…" value={motivoOutro} maxLength={100} onChange={(e) => setMotivoOutro(e.target.value)} />
+              <button
+                type="button"
+                disabled={!motivoOutro.trim()}
+                onClick={async () => {
+                  const f = pedirMotivo.fazer;
+                  setPedirMotivo(null);
+                  await f(motivoOutro.trim());
+                }}
+              >
+                Tirar
+              </button>
+            </div>
+            <button type="button" className="modal-btn cancelar" onClick={() => setPedirMotivo(null)}>Cancelar</button>
+          </div>
+        </div>
+      )}
+
       {paraImprimir && (
         <div className="modal-overlay">
           <div className="modal-card">
@@ -1172,10 +1239,12 @@ if (pedidosDaMesa.length === 0) {
             const novos = partes.map((p, k) => ({ id: `p${Date.now()}${k}`, ...p, em: agora, por: auth.currentUser?.email || "" }));
             await setDoc(doc(db, ...L(), "mesas", String(id)), { numero: Number(id), pagamentos: [...pagamentosMesa, ...novos] }, { merge: true });
             mostrarNotificacao(`Recebido: ${textoPagamentos(partes)}${troco > 0 ? ` · Troco R$ ${formatarMoeda(troco)}` : ""}.`);
+            registrar({ area: "dinheiro", acao: "Recebeu parte da conta", mesa: id, texto: `Mesa ${id}: ${textoPagamentos(partes)}${troco > 0 ? ` · troco R$ ${formatarMoeda(troco)}` : ""}`, valor: partes.reduce((t, x) => t + Number(x.valor || 0), 0) });
           }}
           onTirar={async (p) => {
             await setDoc(doc(db, ...L(), "mesas", String(id)), { pagamentos: pagamentosMesa.filter((x) => x.id !== p.id) }, { merge: true });
             mostrarNotificacao("Pagamento desfeito.");
+            registrar({ area: "dinheiro", acao: "Desfez pagamento", mesa: id, texto: `Mesa ${id}: ${textoPagamentos([p])}`, valor: -Number(p.valor || 0) });
           }}
         />
       )}

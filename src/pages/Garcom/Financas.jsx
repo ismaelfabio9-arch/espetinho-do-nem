@@ -3,6 +3,7 @@ import useNomeLoja from "../../hooks/useNomeLoja";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, serverTimestamp } from "firebase/firestore";
+import { registrar } from "../../utils/registro";
 import { db } from "../../firebase";
 import { useTaxas } from "../../utils/taxas";
 import { GRUPOS, TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
@@ -368,6 +369,7 @@ function Lancamentos({ f, categorias }) {
         categoria: tipo.categoria ? form.categoria : "",
         criadoEm: serverTimestamp(),
       });
+      registrar({ area: "dinheiro", acao: "Lançou em Finanças", texto: `${tipo.nome || form.tipo}${form.descricao.trim() ? `: ${form.descricao.trim()}` : ""} · dia ${form.data.split("-").reverse().join("/")}`, valor: grupo.saida ? -valor : valor });
       setForm({ ...vazio, data: form.data, tipo: form.tipo, categoria: form.categoria });
     } catch {
       setErro("Não foi possível salvar. Confira a internet e tente de novo.");
@@ -443,7 +445,7 @@ function Lancamentos({ f, categorias }) {
                   <span className={`fin-valor ${gr.saida ? "" : "fin-pos"}`}>{gr.saida ? "−" : "+"} {R(d.valor)}</span>
                   {apagar === d.id ? (
                     <span className="fin-confirma">
-                      <button type="button" className="fin-btn-perigo" onClick={() => deleteDoc(doc(db, ...L(), "despesas", d.id)).finally(() => setApagar(null))}>Apagar</button>
+                      <button type="button" className="fin-btn-perigo" onClick={() => deleteDoc(doc(db, ...L(), "despesas", d.id)).then(() => registrar({ area: "dinheiro", acao: "Apagou de Finanças", texto: `${d.descricao || d.tipo} · dia ${String(d.data || "").split("-").reverse().join("/")}`, valor: d.valor })).finally(() => setApagar(null))}>Apagar</button>
                       <button type="button" onClick={() => setApagar(null)}>Não</button>
                     </span>
                   ) : (

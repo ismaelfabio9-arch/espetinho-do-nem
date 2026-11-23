@@ -14,6 +14,7 @@ import {
   orderBy,
   setDoc,
 } from "firebase/firestore";
+import { registrar } from "../../utils/registro";
 import { db } from "../../firebase";
 import "../../styles/Garcom/Pedidos.css";
 import { useConfigImpressora } from "../../hooks/useConfigImpressora";
@@ -152,6 +153,8 @@ function Pedidos() {
     await updateDoc(pedidoRef, {
       status: novoStatus,
     });
+    const p = pedidos.find((x) => x.id === id);
+    registrar({ area: "pedidos", acao: "Mudou o status", texto: p ? tituloPedido(p) : id, antes: p?.status || "", depois: novoStatus });
   }
 
   /** Comanda do pedido de casa com endereço, pagamento e troco (Bluetooth ou impressora do navegador). */
@@ -211,6 +214,14 @@ function Pedidos() {
     };
 
     await addDoc(collection(db, ...L(), "vendasDia"), vendaFinalizada);
+    registrar({
+      area: "dinheiro",
+      acao: "Finalizou pedido",
+      ...(pedido.mesa ? { mesa: pedido.mesa } : {}),
+      texto: `${tituloPedido(pedido)}: R$ ${formatarMoeda(pedido.total || 0)} · ${lista ? lista.map((x) => `${x.forma} R$ ${formatarMoeda(x.valor)}`).join(" + ") : forma || pedido.pagamento || "sem forma"}`,
+      valor: pedido.total || 0,
+      detalhes: (pedido.itens || []).map((i) => `${i.qtd || i.quantidade}× ${i.nome}`),
+    });
 
     await addDoc(collection(db, ...L(), "historicoMesas"), {
       ...vendaFinalizada,

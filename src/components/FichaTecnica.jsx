@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { addDoc, collection, doc, onSnapshot, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "../firebase";
 import { L } from "../loja";
+import { registrar } from "../utils/registro";
 import { custoDaFicha, custoPronto, custosPorOpcao, daFicha, daParaQuantos, itensJuntos, mostrarQtd, paraFicha, rendimentoDe, unidadeDe } from "../utils/insumos";
 import { tipoDe } from "../utils/montagem";
 import { lerValor } from "../utils/financas";
@@ -108,6 +109,8 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
           { nome: nome.slice(0, 60), ...(preco > 0 ? { custo: preco } : {}), ...(preco > 0 && preco !== editar.custo ? { custoEm: agora } : {}), minimo, rendimento, ...(trocouUnidade ? { unidade: f.unidade, quantidade } : {}), atualizadoEm: agora },
           { merge: true }
         );
+        if (preco > 0 && preco !== editar.custo)
+          registrar({ area: "comida", acao: "Mudou o preço do ingrediente", texto: nome, antes: typeof editar.custo === "number" ? `R$ ${editar.custo.toFixed(2).replace(".", ",")}` : "sem preço", depois: `R$ ${preco.toFixed(2).replace(".", ",")}` });
         if (trocouUnidade && quantidade !== antes)
           await addDoc(collection(db, ...L(), "insumosMov"), { insumoId: editar.id, nome, tipo: "contagem", qtd: quantidade - antes, antes, depois: quantidade, motivo: `Trocou a unidade para ${unidadeDe(f.unidade).nome}`, em: agora, por: quem(), criadoEm: serverTimestamp() });
         fechar();

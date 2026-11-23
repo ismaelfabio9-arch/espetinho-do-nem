@@ -1,5 +1,5 @@
 // As áreas do sistema (o resto fica no Painel, Pedidos, Mesas e Configurações):
-//   💵 Vendas: Caixa · Pedidos de hoje · Dias anteriores · Relatório
+//   💵 Vendas: Caixa · Pedidos de hoje · Dias anteriores · Relatório · O que foi mexido (registro, só o dono)
 //   🍔 Cardápio e estoque: Produtos (com os ingredientes de cada um) · Cardápio de hoje · Ingredientes (preço e estoque) · Estoque (contagem, perdas, histórico, do dia) · Preço certo
 //   💰 Dinheiro: Lucro e caixa · Despesas e compras (pages/Garcom/Financas.jsx)
 import Area from "../../components/Area";
@@ -15,6 +15,7 @@ import CardapioHoje from "./CardapioHoje";
 import Estoque from "./Estoque";
 import Insumos from "./Insumos";
 import Financas from "./Financas";
+import Registro from "./Registro";
 
 export function Vendas() {
   const caixa = useRecurso("financas");
@@ -28,6 +29,7 @@ export function Vendas() {
         { id: "hoje", nome: "Pedidos de hoje", tela: () => <HistoricoMesas /> },
         { id: "dias", nome: "Dias anteriores", tela: () => <Historico /> },
         { id: "relatorio", nome: "Relatório", recurso: "relatorios", tela: () => <RelatorioGerencial /> },
+        { id: "mexido", nome: "O que foi mexido", soDono: true, tela: () => <Registro /> },
       ]}
     />
   );

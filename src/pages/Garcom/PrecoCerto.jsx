@@ -6,11 +6,13 @@
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { registrar } from "../../utils/registro";
 import { db } from "../../firebase";
 import { L } from "../../loja";
 import { ehCategoriaDeBebida, ehCategoriaDePrato, precoOpcao, precosDoCardapio } from "../../utils/montagem";
 import { PESO_INGREDIENTES_PADRAO, contaDoProduto, pctDasContas, pctPorVenda, pesoIngredientes, precoBonito } from "../../utils/precificacao";
 import { custoPronto, custosPorOpcao, daFicha as paraUnidadeDoInsumo, itensJuntos, rendimentoDe, unidadeDe } from "../../utils/insumos";
+const brl = (v) => `R$ ${Number(v || 0).toFixed(2).replace(".", ",")}`;
 
 const fmt = (v) => Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const R = (v) => (v < 0 ? `− R$ ${fmt(-v)}` : `R$ ${fmt(v)}`);
@@ -158,6 +160,7 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendas30 = 0, in
     if (!(n > 0)) return;
     try {
       await updateDoc(doc(db, ...L(), "produtos", x.id), { preco: Math.round(n * 100) / 100 });
+      registrar({ area: "cardapio", acao: "Mudou o preço", texto: `${x.nome} (pelo Preço certo)`, antes: brl(x.preco), depois: brl(n) });
       setPrecos((p) => {
         const c = { ...p };
         delete c[x.id];

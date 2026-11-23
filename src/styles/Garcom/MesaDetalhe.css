@@ -995,3 +995,12 @@ body:not(.dark) .md-nome { background: #dcfce7; color: #166534; }
 }
 /* O sistema pinta todo span/p/small de cinza (App.css); no topo, na barra e na comanda o texto segue a cor. */
 html body :is(.md-topo, .md-barra, .md-comanda) :is(span, p, small, b, strong, h1, h2) { color: inherit; }
+/* Motivo ao tirar algo já salvo na comanda */
+.motivo-card { max-width: 440px; }
+.motivo-ops { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
+.motivo-ops button { padding: 12px 10px; border-radius: 12px; border: 1px solid var(--border, #2a2a2a); background: var(--card2, transparent); color: var(--text, #fff); font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; }
+.motivo-outro { display: flex; gap: 8px; margin-bottom: 12px; }
+.motivo-outro input { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--border, #2a2a2a); background: transparent; color: inherit; font: inherit; }
+.motivo-outro button { border: 0; border-radius: 12px; padding: 0 16px; background: #dc2626; color: #fff; font-weight: 800; cursor: pointer; }
+.motivo-outro button:disabled { opacity: 0.5; }
+.motivo-card .modal-btn.cancelar { width: 100%; }
