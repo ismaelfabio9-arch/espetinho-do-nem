@@ -224,8 +224,12 @@ function Produtos() {
   /** Fecha a tela; produto novo não salvo: apaga a foto e os ingredientes que já tinham sido postos. */
   function fecharFicha() {
     if (ficha?.novo && ficha.id) {
-      apagarFoto(ficha.id).catch(() => {});
-      deleteDoc(doc(db, ...L(), "fichas", ficha.id)).catch(() => {});
+      const id = ficha.id;
+      // Depois que a tela fecha (os ingredientes pendentes são gravados ao fechar): apaga tudo do rascunho.
+      setTimeout(() => {
+        apagarFoto(id).catch(() => {});
+        deleteDoc(doc(db, ...L(), "fichas", id)).catch(() => {});
+      }, 400);
     }
     setFicha(null);
   }
