@@ -749,6 +749,7 @@ function CardapioMesa() {
       {querMais && (
         <QuerMais
           sugestoes={querMais}
+          fotos={fotos}
           contagem={qtdNoPedido}
           onAdicionar={(i) => alterarQuantidade(i, 1)}
           total={total}
@@ -821,6 +822,8 @@ function CardapioMesa() {
             onMais={(c) => ajustarLinha(c, 1)}
             onMenos={(c) => ajustarLinha(c, -1)}
             onEditar={(l) => { setSacolaAberta(false); editarLinha(l); }}
+            fotos={fotos}
+            nomeBase={(l) => produtoPorId(l.produtoId)?.nome}
             podeEditar={(l) => !!produtoPorId(l.produtoId)}
           />
         </Folha>

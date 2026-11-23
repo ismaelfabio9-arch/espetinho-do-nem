@@ -211,30 +211,56 @@ export function Folha({ titulo, onFechar, children, rodape }) {
   );
 }
 
-/** Itens da sacola: − quantidade +, editar o prato montado e o valor de cada linha. */
-export function ItensSacola({ linhas, onMais, onMenos, onEditar, podeEditar = () => false }) {
+/** As escolhas do prato montado em lista curta: "Marmita P", "Feijão preto", "sem Cebola", "+ Ovo", "Obs.: pouco sal". */
+export function detalhesMontagem(m) {
+  if (!m) return [];
+  const esc = Object.values(m.escolhas || {}).flatMap((v) => (Array.isArray(v) ? v : v ? [v] : []));
+  return [
+    ...esc,
+    ...(m.tirar || []).map((t) => `sem ${t}`),
+    ...(m.extras || []).map((e) => `+ ${e}`),
+    ...(m.outros || []).map((o) => `+ ${o.nome}`),
+    ...(m.obs ? [`Obs.: ${m.obs}`] : []),
+  ];
+}
+
+/** Itens da sacola: foto, nome, as escolhas em lista, − quantidade +, editar e o valor de cada linha. */
+export function ItensSacola({ linhas, onMais, onMenos, onEditar, podeEditar = () => false, fotos = null, nomeBase = null }) {
   if (!linhas.length) return <p className="cl-vazio">A sacola está vazia. Toque nos produtos para pedir.</p>;
   return (
     <ul className="cl-itens">
-      {linhas.map((l) => (
-        <li key={l.chave}>
-          <div className="cl-item-txt">
-            <strong>{l.nome}</strong>
-            <small>R$ {moeda(l.preco)} cada</small>
-            {l.montagem && podeEditar(l) && (
-              <button type="button" className="cl-link" onClick={() => onEditar(l)}>
-                ✏️ Editar
-              </button>
-            )}
-          </div>
-          <div className="cl-qtd">
-            <button type="button" onClick={() => onMenos(l.chave)} aria-label={`Tirar 1 ${l.nome}`}>{l.quantidade === 1 ? "🗑️" : "−"}</button>
-            <b>{l.quantidade}</b>
-            <button type="button" onClick={() => onMais(l.chave)} aria-label={`Mais 1 ${l.nome}`}>+</button>
-          </div>
-          <strong className="cl-item-valor">R$ {moeda(l.preco * l.quantidade)}</strong>
-        </li>
-      ))}
+      {linhas.map((l) => {
+        const det = detalhesMontagem(l.montagem);
+        const foto = fotos?.[l.produtoId];
+        return (
+          <li key={l.chave} className={foto ? "com-foto" : ""}>
+            {foto && <img className="cl-item-foto" src={foto} alt="" loading="lazy" />}
+            <div className="cl-item-txt">
+              <strong>{(l.montagem && nomeBase?.(l)) || l.nome}</strong>
+              {det.length > 0 ? (
+                <ul className="cl-item-det">
+                  {det.map((d, k) => (
+                    <li key={k}>{d}</li>
+                  ))}
+                </ul>
+              ) : (
+                <small>R$ {moeda(l.preco)} cada</small>
+              )}
+              {l.montagem && podeEditar(l) && (
+                <button type="button" className="cl-link" onClick={() => onEditar(l)}>
+                  ✏️ Editar
+                </button>
+              )}
+            </div>
+            <div className="cl-qtd">
+              <button type="button" onClick={() => onMenos(l.chave)} aria-label={`Tirar 1 ${l.nome}`}>{l.quantidade === 1 ? "🗑️" : "−"}</button>
+              <b>{l.quantidade}</b>
+              <button type="button" onClick={() => onMais(l.chave)} aria-label={`Mais 1 ${l.nome}`}>+</button>
+            </div>
+            <strong className="cl-item-valor">R$ {moeda(l.preco * l.quantidade)}</strong>
+          </li>
+        );
+      })}
     </ul>
   );
 }
