@@ -6,7 +6,8 @@
 import { collection, doc, getDoc, increment, serverTimestamp, updateDoc, writeBatch } from "firebase/firestore";
 import { db } from "../firebase";
 import { L } from "../loja";
-import { itensDaOpcao, itensMontados, rendimentoDe } from "./insumos";
+import { itensDaOpcao, itensMontados, mostrarQtd, rendimentoDe } from "./insumos";
+import { registrar } from "./registro";
 
 export const MOTIVOS = [
   { id: "queimou", nome: "Queimou", emoji: "🔥", grupo: "perda" },
@@ -100,6 +101,14 @@ export async function registrarPerda(dados, insumosPorId) {
   });
   tirar.forEach((q, id) => batch.update(doc(db, ...L(), "insumos", id), { quantidade: increment(-q), atualizadoEm: agora }));
   await batch.commit();
+  registrar({
+    area: "comida",
+    acao: m.grupo === "saida" ? "Saída sem venda" : "Perda de alimento",
+    texto: itens.map(descricaoItem).join(" + "),
+    valor: -r2(total),
+    motivo: `${m.emoji} ${m.nome}${obs ? ` · ${obs}` : ""}`,
+    detalhes: [...tirar.entries()].map(([id, q]) => `Saiu ${insumosPorId[id]?.nome || "ingrediente"}: ${mostrarQtd(q, insumosPorId[id]?.unidade)}`),
+  });
   // Produto pronto com estoque do dia: também sai de lá.
   for (const it of itens) {
     if (!it.produto) continue;

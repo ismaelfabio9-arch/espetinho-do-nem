@@ -23,6 +23,7 @@ import { addDoc, collection, doc, getDoc, increment, serverTimestamp, updateDoc,
 import { db } from "../firebase";
 import { L } from "../loja";
 import { nomeProduto, qtdItem } from "./tipoVenda";
+import { registrar } from "./registro";
 
 export const UNIDADES = [
   { id: "kg", nome: "kg", sub: "g", fator: 1000, nomeLongo: "quilo" },
@@ -172,6 +173,39 @@ export function consumoDosItens(itens, fichas) {
  * Venda fechada: tira do estoque de insumos o que a ficha técnica de cada produto usa e avisa quando
  * um insumo chega no mínimo. Nunca lança erro (a venda já foi registrada; falhar aqui não pode travar o caixa).
  */
+/**
+ * Por que algo da ficha NÃO saiu numa venda: escolheu outra opção, o cliente tirou, foi para outro ingrediente;
+ * e o "a mais" que o cliente pediu. Para o registro da dona.
+ */
+export function notasDaVenda(itens, fichas, nomeDe) {
+  const notas = [];
+  (itens || []).forEach((item) => {
+    const ficha = fichas[item.produtoId];
+    const prod = nomeProduto(item);
+    if (!ficha) {
+      if (item.produtoId) notas.push(`${prod}: sem ficha de ingredientes, não baixou nada do estoque`);
+      return;
+    }
+    const m = item?.montagem || null;
+    const grupo = ficha?.variaPor?.grupo;
+    const esc = grupo ? m?.escolhas?.[grupo] : null;
+    itensDaOpcao(ficha, Array.isArray(esc) ? esc[0] : esc).forEach((l) => {
+      const se = l.se;
+      if (!se || !m) return;
+      const sai = linhaSai(l, m);
+      if (se.extra) {
+        if (sai) notas.push(`${prod}: pediu a mais ${se.extra} → saiu ${nomeDe(l.insumoId)}`);
+        return;
+      }
+      if (sai) return;
+      const v = se.grupo ? m.escolhas?.[se.grupo] : null;
+      const porque = se.grupo ? `escolheu ${[].concat(v || []).join(", ") || "outra opção"}` : `cliente tirou ${se.vem}`;
+      notas.push(`${prod}: ${nomeDe(l.insumoId)} não saiu (${porque})${l.passa ? ` → a quantidade foi para ${nomeDe(l.passa)}` : ""}`);
+    });
+  });
+  return [...new Set(notas)];
+}
+
 export async function baixarInsumos(itens, origem = "venda") {
   try {
     const ids = [...new Set((itens || []).map((i) => i.produtoId).filter(Boolean))];
@@ -185,7 +219,11 @@ export async function baixarInsumos(itens, origem = "venda") {
     );
     const consumo = consumoDosItens(itens, fichas);
     const insumoIds = Object.keys(consumo);
-    if (!insumoIds.length) return {};
+    if (!insumoIds.length) {
+      const semFicha = notasDaVenda(itens, fichas, (id) => id);
+      if (semFicha.length) registrar({ area: "comida", acao: "Venda sem baixa", texto: (itens || []).map((i) => `${qtdItem(i)}× ${nomeProduto(i)}`).join(", "), detalhes: semFicha });
+      return {};
+    }
     const antes = {};
     await Promise.all(
       insumoIds.map(async (id) => {
@@ -204,6 +242,18 @@ export async function baixarInsumos(itens, origem = "venda") {
       batch.set(doc(collection(db, ...L(), "insumosMov")), { insumoId: id, nome: antes[id].nome || "", tipo: origem, qtd: -consumo[id], motivo: nomes, em: agora, criadoEm: serverTimestamp() });
     }
     await batch.commit();
+    // Registro da dona: o que saiu, o que não saiu e por quê.
+    const nomeDe = (id) => antes[id]?.nome || "ingrediente";
+    registrar({
+      area: "comida",
+      acao: origem === "venda" ? "Venda baixou o estoque" : "Baixa do estoque",
+      texto: nomes,
+      detalhes: [
+        ...insumoIds.filter((id) => antes[id]).map((id) => `Saiu ${antes[id].nome}: ${mostrarQtd(consumo[id], antes[id].unidade)}`),
+        ...insumoIds.filter((id) => !antes[id]).map((id) => `Ingrediente apagado (${id}): não baixou`),
+        ...notasDaVenda(itens, fichas, nomeDe),
+      ],
+    });
     // Aviso quando passa do mínimo (só na venda que cruzou a linha).
     for (const id of insumoIds) {
       const a = antes[id];
@@ -228,6 +278,7 @@ export async function baixarInsumos(itens, origem = "venda") {
   }
 }
 
+const brl = (v) => `R$ ${Number(v || 0).toFixed(2).replace(".", ",")}`;
 /** Entrada de compra: soma no estoque e atualiza o custo pela média (estoque antigo + compra). */
 /**
  * Entrada de compra: soma no estoque e atualiza o preço. modo "media": média do que já tinha com a compra
@@ -247,6 +298,14 @@ export async function entradaInsumo(insumo, qtd, valorPago, por, modo = "media")
     atualizadoEm: agora,
   });
   await addDoc(collection(db, ...L(), "insumosMov"), { insumoId: insumo.id, nome: insumo.nome, tipo: "compra", qtd: q, valor, em: agora, por: por || "", criadoEm: serverTimestamp() });
+  const un = insumo.unidade === "un" ? "a unidade" : insumo.unidade === "L" ? "o litro" : "o quilo";
+  registrar({
+    area: "comida",
+    acao: "Compra",
+    texto: `${insumo.nome}: ${mostrarQtd(q, insumo.unidade)}${valor > 0 ? ` por ${brl(valor)}` : " (sem valor)"}`,
+    valor: valor > 0 ? -valor : undefined,
+    ...(custo !== null && custo !== insumo.custo ? { antes: typeof insumo.custo === "number" ? `${brl(insumo.custo)} ${un}` : "sem preço", depois: `${brl(custo)} ${un}${modo === "media" ? " (média)" : ""}` } : {}),
+  });
 }
 
 /** Preço por unidade depois da compra (null quando não muda: compra sem valor). */
@@ -273,10 +332,21 @@ export async function ajustarInsumo(insumo, tipo, qtd, motivo, por) {
     if (!(q > 0)) throw new Error("quantidade");
     await updateDoc(doc(db, ...L(), "insumos", insumo.id), { quantidade: increment(-q), atualizadoEm: agora });
     await addDoc(collection(db, ...L(), "insumosMov"), { insumoId: insumo.id, nome: insumo.nome, tipo: "perda", qtd: -q, ...valorMov(insumo, -q), motivo: motivo || "", em: agora, por: por || "", criadoEm: serverTimestamp() });
+    registrar({ area: "comida", acao: "Perda", texto: `${insumo.nome}: ${mostrarQtd(q, insumo.unidade)}`, valor: valorMov(insumo, -q).valorAjuste, motivo: motivo || "sem motivo informado" });
   } else {
     if (!(q >= 0)) throw new Error("quantidade");
     await updateDoc(doc(db, ...L(), "insumos", insumo.id), { quantidade: q, atualizadoEm: agora });
     await addDoc(collection(db, ...L(), "insumosMov"), { insumoId: insumo.id, nome: insumo.nome, tipo: "contagem", qtd: r3(q - atual), ...valorMov(insumo, q - atual), antes: atual, depois: q, motivo: motivo || "", em: agora, por: por || "", criadoEm: serverTimestamp() });
+    const dif = r3(q - atual);
+    registrar({
+      area: "comida",
+      acao: "Contagem",
+      texto: `${insumo.nome}: ${dif === 0 ? "bateu" : dif < 0 ? `faltou ${mostrarQtd(-dif, insumo.unidade)}` : `sobrou ${mostrarQtd(dif, insumo.unidade)}`}`,
+      antes: `sistema dizia ${mostrarQtd(atual, insumo.unidade)}`,
+      depois: `contou ${mostrarQtd(q, insumo.unidade)}`,
+      valor: valorMov(insumo, q - atual).valorAjuste,
+      motivo: motivo || (dif < 0 ? "faltou sem explicação" : ""),
+    });
   }
 }
 

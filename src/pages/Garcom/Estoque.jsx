@@ -10,6 +10,7 @@ import {
   serverTimestamp,
   writeBatch,
 } from "firebase/firestore";
+import { registrar } from "../../utils/registro";
 import { db } from "../../firebase";
 import { ordenarItensCategoria } from "../../utils/produtosOrdem";
 import "../../styles/Garcom/Estoque.css";
@@ -121,6 +122,8 @@ async function salvarEstoque(produto) {
     { merge: true }
   );
 
+  if (quantidade !== quantidadeAtual || minimo !== minimoAtual)
+    registrar({ area: "comida", acao: "Estoque do dia", texto: produto.nome, antes: `${quantidadeAtual} un (mínimo ${minimoAtual})`, depois: `${quantidade} un (mínimo ${minimo})` });
   setQuantidades((atual) => ({ ...atual, [produto.id]: "" }));
   setMinimos((atual) => ({ ...atual, [produto.id]: "" }));
 }
@@ -139,6 +142,7 @@ async function salvarEstoque(produto) {
       },
       { merge: true }
     );
+    registrar({ area: "comida", acao: "Zerou o estoque do dia", texto: produto.nome, antes: `${Number(estoque[produto.id]?.quantidade || 0)} un`, depois: "0 un" });
   }
 
   async function confirmarExcluirProduto() {
@@ -155,6 +159,7 @@ async function salvarEstoque(produto) {
       { merge: true }
     );
 
+    registrar({ area: "cardapio", acao: "Tirou do cardápio", texto: produtoParaExcluir.nome });
     setProdutoParaExcluir(null);
   }
 

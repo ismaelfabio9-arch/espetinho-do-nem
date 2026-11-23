@@ -10,6 +10,7 @@ import {
   getDoc,
   setDoc,
 } from "firebase/firestore";
+import { registrar } from "../../utils/registro";
 import { db } from "../../firebase";
 import "../../styles/Garcom/MesaDetalhe.css";
 import { ordenarGruposPorCategoria } from "../../utils/categorias";
@@ -348,6 +349,7 @@ function Viagem({ modo = "balcao", topo = null }) {
     setDadosEntrega({ ...d, erro: "", salvando: true });
     try {
       await addDoc(collection(db, ...L(), "pedidos"), dadosPedido);
+      registrar({ area: "pedidos", acao: dadosPedido.tipo === "entrega" ? "Pedido de entrega" : "Pedido no balcão", texto: `${dadosPedido.titulo || dadosPedido.cliente || "Balcão"}: ${(dadosPedido.itens || []).map((i) => `${i.qtd || i.quantidade}× ${i.nome}`).join(", ")}`, valor: dadosPedido.total || 0 });
       await baixarEstoque(itensPedido);
       await addDoc(collection(db, ...L(), "notificacoes"), {
         tipo: "pedido",
@@ -409,6 +411,7 @@ function Viagem({ modo = "balcao", topo = null }) {
 
     try {
       const salvo = await addDoc(collection(db, ...L(), "pedidos"), dadosPedido);
+      registrar({ area: "pedidos", acao: dadosPedido.tipo === "entrega" ? "Pedido de entrega" : "Pedido no balcão", texto: `${dadosPedido.titulo || dadosPedido.cliente || "Balcão"}: ${(dadosPedido.itens || []).map((i) => `${i.qtd || i.quantidade}× ${i.nome}`).join(", ")}`, valor: dadosPedido.total || 0 });
 
       // ✅ CORREÇÃO BUG 2: baixa estoque após salvar pedido viagem
       await baixarEstoque(itensPedido);

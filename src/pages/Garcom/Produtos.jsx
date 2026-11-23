@@ -9,6 +9,7 @@ import {
   setDoc,
   writeBatch,
 } from "firebase/firestore";
+import { registrar } from "../../utils/registro";
 import { Link, useSearchParams } from "react-router-dom";
 import { FichaDoProduto } from "../../components/FichaTecnica";
 import { db } from "../../firebase";
@@ -32,6 +33,7 @@ import { useSouDono } from "../../tenant";
 import EditorOpcoes, { erroDasOpcoes, indicePrecoCheio, opcoesParaEditar, opcoesParaSalvar, precoPelasOpcoes } from "../../components/EditorOpcoes";
 import { apagarFoto, useFotos } from "../../utils/fotos";
 import { MODELOS, TIPOS, lerMontagem, precosDoCardapio, temMontagem, textoMontagem, tipoDe, tipoInfo, tipoPelaCategoria } from "../../utils/montagem";
+const brl = (v) => `R$ ${Number(v || 0).toFixed(2).replace(".", ",")}`;
 
 
 // Lojas da IFTech (e a demonstração do site): categorias prontas, cardápios de exemplo e tipo nas categorias.
@@ -276,6 +278,7 @@ function Produtos() {
         // categoria pode já existir por corrida entre abas — ignora
       }
     }
+    registrar({ area: "cardapio", acao: "Produto novo", texto: `${nome} em ${categoria}`, depois: brl(preco) });
     return { id: produtoId, nome, categoria, preco, tipo, ...(montagem ? { montagem } : {}) };
   }
 
@@ -338,8 +341,14 @@ function Produtos() {
         batch.update(doc(db, ...L(), "produtos", produto.id), { ...muda, atualizadoEm: agora });
         if (muda.nome) batch.set(doc(db, ...L(), "estoque", produto.id), { nome: nomeTratado, atualizadoEm: agora }, { merge: true });
         await batch.commit();
+        if (muda.preco !== undefined) registrar({ area: "cardapio", acao: "Mudou o preço", texto: nomeTratado, antes: brl(produto.preco), depois: brl(preco) });
+        if (muda.nome) registrar({ area: "cardapio", acao: "Mudou o nome", texto: nomeTratado, antes: produto.nome, depois: nomeTratado });
+        if (muda.montagem !== undefined) registrar({ area: "cardapio", acao: "Mudou as opções", texto: `${nomeTratado}: o que vem, escolhas ou adicionais` });
       }
-      if (categoria !== produto.categoria) await moverProdutoParaCategoria(produto.id, categoria);
+      if (categoria !== produto.categoria) {
+        await moverProdutoParaCategoria(produto.id, categoria);
+        registrar({ area: "cardapio", acao: "Mudou de categoria", texto: nomeTratado, antes: produto.categoria, depois: categoria });
+      }
       setFicha(null);
     } catch (erro) {
       console.error("Erro ao salvar produto:", erro);
@@ -378,6 +387,7 @@ function Produtos() {
 
     await deleteDoc(doc(db, ...L(), "produtos", produtoParaExcluir.id));
     await deleteDoc(doc(db, ...L(), "estoque", produtoParaExcluir.id));
+    registrar({ area: "cardapio", acao: "Apagou produto", texto: `${produtoParaExcluir.nome} (${produtoParaExcluir.categoria || "sem categoria"})`, antes: brl(produtoParaExcluir.preco) });
 
     setProdutoParaExcluir(null);
   }

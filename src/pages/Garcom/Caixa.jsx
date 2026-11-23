@@ -3,6 +3,7 @@ import useNomeLoja from "../../hooks/useNomeLoja";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { addDoc, collection, doc, limit, onSnapshot, orderBy, query, serverTimestamp, updateDoc } from "firebase/firestore";
+import { registrar } from "../../utils/registro";
 import { auth, db } from "../../firebase";
 import { lerValor } from "../../utils/financas";
 import { resumoCaixa, vendasDoCaixa } from "../../utils/caixa";
@@ -89,6 +90,7 @@ function Abrir({ ultimo }) {
     setSalvando(true);
     try {
       await addDoc(collection(db, ...L(), "caixas"), { status: "aberto", abertoEm: new Date().toISOString(), abertoPor: quem(), valorInicial: lerValor(valor), criadoEm: serverTimestamp() });
+      registrar({ area: "dinheiro", acao: "Abriu o caixa", texto: `Caixa aberto com R$ ${lerValor(valor).toFixed(2).replace(".", ",")} de troco`, valor: lerValor(valor) });
     } catch {
       setErro("Não foi possível abrir. Confira a internet.");
       setSalvando(false);
@@ -168,6 +170,7 @@ function Movimento({ caixa, tipo, fechar }) {
     if (!v) return setErro("Informe o valor.");
     try {
       await addDoc(collection(db, ...L(), "caixaMov"), { caixaId: caixa.id, tipo, valor: v, motivo: motivo.trim().slice(0, 100), em: new Date().toISOString(), por: quem(), criadoEm: serverTimestamp() });
+      registrar({ area: "dinheiro", acao: tipo === "sangria" ? "Sangria" : "Suprimento", texto: tipo === "sangria" ? `Tirou R$ ${v.toFixed(2).replace(".", ",")} da gaveta` : `Pôs R$ ${v.toFixed(2).replace(".", ",")} na gaveta`, valor: tipo === "sangria" ? -v : v, motivo: motivo.trim() || "sem motivo informado" });
       fechar();
     } catch {
       setErro("Não foi possível salvar. Confira a internet.");
@@ -230,6 +233,15 @@ function Fechar({ caixa, r, cancelar }) {
         retiradoNoFechamento: Math.round((c - deixar) * 100) / 100,
         obs: obs.trim().slice(0, 200),
         resumo: { total: r.total, pedidos: r.pedidos, formas: r.formas, inicial: r.inicial, dinheiro: r.dinheiro, suprimentos: r.suprimentos, sangrias: r.sangrias, caiNaConta: r.caiNaConta, semForma: r.semForma },
+      });
+      const dif = difDe(dinheiro);
+      registrar({
+        area: "dinheiro",
+        acao: "Fechou o caixa",
+        texto: `Vendeu R$ ${Number(r.total || 0).toFixed(2).replace(".", ",")} em ${r.pedidos} pedidos · gaveta: tinha que ter R$ ${Number(r.esperado || 0).toFixed(2).replace(".", ",")}, contou R$ ${c.toFixed(2).replace(".", ",")}${dif ? ` (${dif > 0 ? "sobrou" : "faltou"} R$ ${Math.abs(dif).toFixed(2).replace(".", ",")})` : " (bateu)"}`,
+        valor: r.total,
+        motivo: obs.trim() || (dif ? "diferença sem explicação" : ""),
+        detalhes: linhas.map((f) => `${f.nome}: tinha que ter R$ ${Number(f.temQueTer || 0).toFixed(2).replace(".", ",")}${valorDe(f) !== null ? ` · conferido R$ ${Number(valorDe(f)).toFixed(2).replace(".", ",")}` : ""}`),
       });
     } catch {
       setErro("Não foi possível fechar. Confira a internet.");
