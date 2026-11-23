@@ -197,6 +197,21 @@ function Produtos() {
     setPondoPronta(false);
   }
 
+  /**
+   * Tipo sugerido para um produto novo: o que os produtos daquela categoria usam de verdade
+   * (produto sem opções conta como "pronto, sem perguntar"); categoria vazia: pelo nome dela.
+   */
+  function sugerirTipo(categoria) {
+    const daCategoria = produtos.filter((p) => (p.categoria || "").toLowerCase() === String(categoria || "").toLowerCase());
+    if (!daCategoria.length) return tipoDaCategoria(categoria);
+    const conta = {};
+    daCategoria.forEach((p) => {
+      const t = temMontagem(p) ? tipoDe(p) : "simples";
+      conta[t] = (conta[t] || 0) + 1;
+    });
+    return Object.entries(conta).sort((a, b) => b[1] - a[1])[0][0];
+  }
+
   // "+ Produto" abre direto a mesma tela de editar, em branco: nome, preço, categoria e como o cliente pede.
   function abrirNovo() {
     setNomesIngredientes(null);
@@ -962,7 +977,7 @@ function Produtos() {
         const produto = ficha.novo ? { id: null, nome: ficha.nome, categoria: ficha.categoria } : produtos.find((p) => p.id === ficha.id) || (ficha.aviso ? { id: ficha.id, nome: ficha.nome, categoria: ficha.categoria } : null);
         if (!produto) return null;
         const escolherCategoria = (categoria) =>
-          setFicha({ ...ficha, categoria, erro: "", ...(ficha.novo && !ficha.tipoEscolhido && categoria !== NOVA_CATEGORIA ? { tipo: tipoDaCategoria(categoria) } : {}) });
+          setFicha({ ...ficha, categoria, erro: "", ...(ficha.novo && !ficha.tipoEscolhido && categoria !== NOVA_CATEGORIA ? { tipo: sugerirTipo(categoria) } : {}) });
         return (
           <div className="modal-overlay prod-ficha-fundo" onClick={() => !ficha.salvando && setFicha(null)}>
             <div className="prod-ficha" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={ficha.novo ? "Novo produto" : `Editar ${produto.nome}`}>
