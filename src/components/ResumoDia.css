@@ -46,3 +46,5 @@ html body .rd-bt a.w { background: #25d366 !important; border-color: #25d366 !im
   .rd-card { margin: 10px 0; }
   .rd-big b { font-size: 44px; }
 }
+.rd-aviso { margin: 10px 16px 0; padding: 10px 12px; border-radius: 12px; background: #3a2a07; color: #fde68a !important; font-size: 13.5px; }
+@media (min-width: 900px) { .rd-aviso { grid-column: 1 / -1; margin: 6px 0 0; } }

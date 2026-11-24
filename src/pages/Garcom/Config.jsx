@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import {
   collection,
+  getDoc,
   getDocs,
   addDoc,
   deleteDoc,
@@ -27,6 +28,8 @@ import WhatsLojaConfig from "../../components/WhatsLojaConfig";
 import SonsConfig from "../../components/SonsConfig";
 import ResumoDia, { calcularResumoDia } from "../../components/ResumoDia";
 import { registrar } from "../../utils/registro";
+import { baixarInsumos } from "../../utils/insumos";
+import { textoDoItem } from "../../utils/montagem";
 import "../../components/QuerMais.css";
 
 // Prato montado ("Peito empanado — feijão preto, …") conta no relatório como o prato.
@@ -64,10 +67,70 @@ function Config() {
     mostrarMensagem("Notificações limpas com sucesso!");
   }
 
+  /** Fecha as mesas abertas (encerrar o dia). Devolve quantas fechou. */
+  async function fecharMesasAbertas() {
+    const pedidosSnap = await getDocs(collection(db, ...L(), "pedidos"));
+    const porMesa = {};
+    pedidosSnap.docs.forEach((d) => {
+      const p = d.data();
+      if (p.tipo !== "mesa" || !p.mesa) return;
+      (porMesa[p.mesa] = porMesa[p.mesa] || []).push({ id: d.id, ...p });
+    });
+    let n = 0;
+    for (const [mesa, docs] of Object.entries(porMesa)) {
+      const itens = docs.flatMap((d) => d.itens || []);
+      const total = Math.round(itens.reduce((s, i) => s + Number(i.preco || 0) * Number(i.qtd || i.quantidade || 0), 0) * 100) / 100;
+      const mesaRef = doc(db, ...L(), "mesas", String(mesa));
+      const mesaSnap = await getDoc(mesaRef).catch(() => null);
+      const mesaDados = mesaSnap?.exists() ? mesaSnap.data() : {};
+      const pagos = (mesaDados.pagamentos || []).map(({ valor, forma }) => ({ valor: Number(valor || 0), forma }));
+      const jaPago = Math.round(pagos.reduce((s, p) => s + p.valor, 0) * 100) / 100;
+      const falta = Math.max(0, Math.round((total - jaPago) * 100) / 100);
+      const pagamentos = [...pagos, ...(falta > 0 ? [{ valor: falta, forma: "Sem forma de pagamento" }] : [])];
+      const agora = new Date().toISOString();
+      if (itens.length) {
+        await addDoc(collection(db, ...L(), "vendasDia"), {
+          origem: "mesa",
+          mesa: Number(mesa),
+          cliente: mesaDados.cliente || "",
+          titulo: `Mesa ${mesa}`,
+          formaPagamento: pagamentos.length === 1 ? pagamentos[0].forma : "Dividido",
+          ...(pagamentos.length > 1 ? { pagamentos } : {}),
+          itens,
+          total,
+          totalItens: itens.reduce((s, i) => s + Number(i.qtd || i.quantidade || 0), 0),
+          sessaoMesa: `${mesa}-${Date.now()}`,
+          abertaEm: docs.map((d) => d.salvoEm).filter(Boolean).sort()[0] || agora,
+          fechadaEm: agora,
+          fechadaNoEncerramento: true,
+          finalizadoEm: agora,
+          criadoEm: serverTimestamp(),
+        });
+        baixarInsumos(itens);
+        registrar({
+          area: "dinheiro",
+          acao: "Mesa fechada no encerramento",
+          mesa,
+          texto: `Mesa ${mesa}${mesaDados.cliente ? ` (${mesaDados.cliente})` : ""} estava aberta: R$ ${total.toFixed(2).replace(".", ",")}${falta > 0 ? ` · R$ ${falta.toFixed(2).replace(".", ",")} sem forma de pagamento` : ""}`,
+          valor: total,
+          motivo: "O dia foi encerrado com a mesa aberta",
+          detalhes: itens.map(textoDoItem),
+        });
+        n++;
+      }
+      for (const d of docs) await deleteDoc(doc(db, ...L(), "pedidos", d.id));
+      await setDoc(mesaRef, { numero: Number(mesa), cliente: "", pagamentos: [] }, { merge: true });
+    }
+    return n;
+  }
+
   async function confirmarEncerrarDia() {
     setEncerrando(true);
 
     try {
+      // Mesas que ficaram abertas: fecham agora e entram nas vendas do dia (o que já foi pago com a forma;
+      // o resto como "sem forma de pagamento"). Ficam no registro para a dona saber.
+      const fechadas = await fecharMesasAbertas();
       const vendasSnapshot = await getDocs(collection(db, ...L(), "vendasDia"));
 
       const vendasDia = vendasSnapshot.docs.map((documento) => ({
@@ -175,7 +238,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
         }
       });
 
-      const resumo = calcularResumoDia(vendasDia);
+      const resumo = { ...calcularResumoDia(vendasDia), fechadasNoEncerramento: fechadas };
       registrar({ area: "dinheiro", acao: "Encerrou o dia", texto: `Total do dia R$ ${resumo.total.toFixed(2).replace(".", ",")} em ${resumo.pedidos} pedidos`, valor: resumo.total, detalhes: resumo.formas.map((f) => `${f.forma}: R$ ${f.valor.toFixed(2).replace(".", ",")}`) });
       mostrarMensagem("✅ Dia encerrado com sucesso! Estoque zerado.");
       setModalEncerrarDia(false);
@@ -384,9 +447,10 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
             <h2>Encerrar o dia?</h2>
 
             <p>
-              Isso vai salvar o relatório no histórico, zerar as vendas do dia,
-              limpar o histórico das mesas, zerar o estoque e devolver as mesas
-              à posição original.
+              Isso vai fechar as mesas que ainda estão abertas (entram no total;
+              o que não foi pago fica como "sem forma de pagamento"), salvar o
+              relatório no histórico, zerar as vendas do dia, limpar o histórico
+              das mesas, zerar o estoque e devolver as mesas à posição original.
             </p>
 
             <strong>Essa ação não pode ser desfeita.</strong>

@@ -1,6 +1,6 @@
 // Resumo do dia (aparece ao encerrar o dia, na loja que liga "resumo-no-fechamento"): total vendido, pedidos,
 // mesas, balcão, ticket médio, os mais vendidos e como pagaram. Imprimir, mandar no WhatsApp e fechar.
-import { imprimir } from "../utils/print";
+import { gerarResumoDiaHTML, imprimir } from "../utils/print";
 import { useConfigImpressora } from "../hooks/useConfigImpressora";
 import "./ResumoDia.css";
 
@@ -67,9 +67,7 @@ export default function ResumoDia({ resumo: r, loja = "", onFechar }) {
   const configImpressora = useConfigImpressora();
   const maior = Math.max(1, ...r.produtos.map((p) => p.total));
   function imprimirResumo() {
-    const linhas = textoResumo(r, loja).replace(/\*/g, "").split("\n");
-    const html = `<html><head><meta charset="utf-8"><style>body{font-family:monospace;font-size:13px;margin:0;padding:6px}div{white-space:pre-wrap}</style></head><body>${linhas.map((l) => `<div>${l.replace(/</g, "&lt;") || "&nbsp;"}</div>`).join("")}</body></html>`;
-    imprimir(html, configImpressora?.larguraPapel || "58mm");
+    imprimir(gerarResumoDiaHTML(r, configImpressora), configImpressora?.larguraPapel || "58mm");
   }
   return (
     <div className="rd-fundo" role="dialog" aria-modal="true" aria-label="Resumo do dia">
@@ -88,6 +86,9 @@ export default function ResumoDia({ resumo: r, loja = "", onFechar }) {
           <div><small>Balcão / viagem</small><b>{r.balcao}</b></div>
           <div><small>Ticket médio</small><b>{R(r.ticket)}</b></div>
         </div>
+        {r.fechadasNoEncerramento > 0 && (
+          <p className="rd-aviso">🔒 {r.fechadasNoEncerramento} {r.fechadasNoEncerramento === 1 ? "mesa estava aberta e foi fechada" : "mesas estavam abertas e foram fechadas"} ao encerrar o dia. O que não foi pago aparece como "Sem forma de pagamento".</p>
+        )}
         <div className="rd-card rd-mais">
           <h3>🏆 Mais vendidos</h3>
           {r.produtos.length === 0 && <p className="rd-vazio">Nenhuma venda hoje.</p>}
