@@ -4,7 +4,7 @@ import { Fragment, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, serverTimestamp } from "firebase/firestore";
 import { registrar } from "../../utils/registro";
-import { db } from "../../firebase";
+import { auth, db } from "../../firebase";
 import { useTaxas } from "../../utils/taxas";
 import { useRecurso } from "../../recursos";
 import { TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
@@ -354,8 +354,12 @@ const LISTAS_SAIDA = [
 const LISTAS_ENTRADA = [{ nome: "Entradas fora as vendas", grupos: ["entrada"] }];
 
 /** Formulário de lançamento (Dinheiro → Hoje e Despesas e compras). duasColunas: no notebook, as listas lado a lado. */
-export function NovoLancamento({ categorias = [], onSalvo, tipoInicial = "", valorInicial = "", descricaoInicial = "", titulo = "Novo lançamento" }) {
-  const vazio = { data: isoDia(), tipo: tipoInicial, valor: valorInicial, descricao: descricaoInicial, categoria: "" };
+/**
+ * caixa e disponivel (Dinheiro → Hoje): mostra "Pagou com" — caixa da loja (a soma do mês, não mexe na gaveta),
+ * gaveta de hoje (vira sangria da gaveta junto) ou Pix (sai do Pix do caixa).
+ */
+export function NovoLancamento({ categorias = [], onSalvo, tipoInicial = "", valorInicial = "", descricaoInicial = "", titulo = "Novo lançamento", caixa = null, disponivel = null, fornecedores = [] }) {
+  const vazio = { data: isoDia(), tipo: tipoInicial, valor: valorInicial, descricao: descricaoInicial, categoria: "", fornecedor: "", pagoCom: "loja" };
   const [form, setForm] = useState(vazio);
   const [lado, setLado] = useState(tipoInicial && grupoDe(tipoInicial).saida === false ? "entrada" : "saida");
   const [erro, setErro] = useState("");
@@ -371,6 +375,9 @@ export function NovoLancamento({ categorias = [], onSalvo, tipoInicial = "", val
     if (!valor) return setErro("Informe o valor.");
     if (!form.data) return setErro("Informe a data.");
     if (!form.descricao.trim()) return setErro("Escreva o motivo (o que foi).");
+    const daGaveta = grupo.saida && caixa && (form.pagoCom === "gaveta" || form.pagoCom === "pix");
+    const origem = form.pagoCom === "pix" ? "Pix" : "Dinheiro";
+    if (daGaveta && disponivel && valor > disponivel[origem]) return setErro(`${origem === "Pix" ? "No Pix" : "Na gaveta"} tem R$ ${fmt(disponivel[origem])}. Escolha outra forma de pagar.`);
     setSalvando(true);
     setErro("");
     try {
@@ -381,10 +388,16 @@ export function NovoLancamento({ categorias = [], onSalvo, tipoInicial = "", val
         valor,
         descricao: form.descricao.trim().slice(0, 120),
         categoria: tipo.categoria ? form.categoria : "",
+        ...(tipo.grupo === "compra" && form.fornecedor.trim() ? { fornecedor: form.fornecedor.trim().slice(0, 60) } : {}),
+        ...(grupo.saida && caixa ? { pagoCom: form.pagoCom } : {}),
         criadoEm: serverTimestamp(),
       });
+      // Pagou com a gaveta ou o Pix do caixa: a sangria entra junto (não precisa lançar duas vezes).
+      if (daGaveta) {
+        await addDoc(collection(db, ...L(), "caixaMov"), { caixaId: caixa.id, tipo: "sangria", origem, valor, motivo: `${tipo.nome}: ${form.descricao.trim()}`.slice(0, 100), lancamento: true, em: new Date().toISOString(), por: auth.currentUser?.email || "", criadoEm: serverTimestamp() });
+      }
       registrar({ area: "dinheiro", acao: "Lançou em Finanças", texto: `${tipo.nome || form.tipo}${form.descricao.trim() ? `: ${form.descricao.trim()}` : ""} · dia ${form.data.split("-").reverse().join("/")}`, valor: grupo.saida ? -valor : valor });
-      setForm({ ...vazio, tipo: "", valor: "", descricao: "", data: form.data });
+      setForm({ ...vazio, tipo: "", valor: "", descricao: "", fornecedor: "", data: form.data });
       onSalvo?.();
     } catch {
       setErro("Não foi possível salvar. Confira a internet e tente de novo.");
@@ -428,6 +441,15 @@ export function NovoLancamento({ categorias = [], onSalvo, tipoInicial = "", val
           Motivo
           <input placeholder={tipo?.grupo === "compra" ? "Ex.: carne e frango no atacado" : "Ex.: conta de luz de novembro"} maxLength={120} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
         </label>
+        {tipo?.grupo === "compra" && (
+          <label className="nl-largo">
+            Fornecedor
+            <input list="nl-fornecedores" placeholder="Opcional · ex.: açougue do Zé, Coca-Cola" maxLength={60} value={form.fornecedor} onChange={(e) => setForm({ ...form, fornecedor: e.target.value })} />
+            <datalist id="nl-fornecedores">
+              {fornecedores.map((f) => <option key={f} value={f} />)}
+            </datalist>
+          </label>
+        )}
         {tipo?.categoria && categorias.length > 0 && (
           <label className="nl-largo">
             Categoria do cardápio
@@ -440,6 +462,19 @@ export function NovoLancamento({ categorias = [], onSalvo, tipoInicial = "", val
           </label>
         )}
       </div>
+      {caixa && lado === "saida" && (
+        <div className="nl-pago">
+          <div className="nl-lab">Pagou com</div>
+          <div className="nl-seg">
+            {[["loja", "Caixa da loja"], ["gaveta", "Gaveta de hoje"], ["pix", "Pix"]].map(([id, nome]) => (
+              <button type="button" key={id} className={form.pagoCom === id ? "on" : ""} onClick={() => setForm({ ...form, pagoCom: id })}>
+                {nome}
+                {disponivel && id !== "loja" && <small>R$ {fmt(id === "pix" ? disponivel.Pix : disponivel.Dinheiro)}</small>}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       {grupo?.id === "fixa" && <p className="nl-aviso">Despesa fixa: entra também no Preço certo, nas despesas fixas do mês.</p>}
       {grupo?.id === "compra" && <p className="nl-aviso">Compra vira estoque: entra no lucro só quando o produto é vendido.</p>}
       {erro && <p className="fin-erro">{erro}</p>}

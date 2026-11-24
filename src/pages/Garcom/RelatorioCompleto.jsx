@@ -7,7 +7,7 @@ import { db } from "../../firebase";
 import { L } from "../../loja";
 import useNomeLoja from "../../hooks/useNomeLoja";
 import { useTaxas } from "../../utils/taxas";
-import { calcularFinancas, isoDia, juntarVendas, periodo } from "../../utils/financas";
+import { calcularFinancas, isoDia, juntarVendas, periodo, tipoDe } from "../../utils/financas";
 import { custoDaFicha } from "../../utils/insumos";
 import { resumoSaidas } from "../../utils/perdas";
 import { useOcorrencias } from "../../utils/ocorrencias";
@@ -116,6 +116,14 @@ export default function RelatorioCompleto() {
       gasto[m.insumoId || m.nome] = gasto[m.insumoId || m.nome] || { nome: m.nome, qtd: 0, u: unid[m.insumoId] || "kg" };
       gasto[m.insumoId || m.nome].qtd += Math.abs(Number(m.qtd || 0));
     });
+    // Compras por fornecedor no período.
+    const porForn = {};
+    (lancamentos || []).forEach((d) => {
+      if (tipoDe(d.tipo).grupo !== "compra" || !dentro(String(d.data || ""))) return;
+      const n = d.fornecedor || "Sem fornecedor";
+      porForn[n] = (porForn[n] || 0) + Number(d.valor || 0);
+    });
+    const fornecedores = Object.entries(porForn).map(([nome, valor]) => ({ nome, valor: Math.round(valor * 100) / 100 })).sort((a, b) => b.valor - a.valor);
     const oc = ocorrencias || [];
     const de_ = (t) => oc.filter((o) => o.tipo === t);
     return {
@@ -123,6 +131,7 @@ export default function RelatorioCompleto() {
       porTipo,
       gaveta,
       saidas,
+      fornecedores,
       maisGasto: Object.values(gasto).sort((a, b) => b.qtd - a.qtd).slice(0, 6),
       acabou: de_("acabou"),
       mexido: { tirou: de_("tirou"), saiu: de_("saiuDiferente"), cortesia: de_("cortesia"), cancelou: de_("cancelou") },
@@ -211,6 +220,14 @@ export default function RelatorioCompleto() {
               <Ln a="Saída de alimento" b={R(rel.saidas.total)} />
               <Ln a="Lucro estimado" b={R(rel.f.lucro)} total />
             </section>
+
+            {rel.fornecedores.length > 0 && (
+              <section className="rc-card">
+                <h3>Compras por fornecedor</h3>
+                {rel.fornecedores.map((x) => <Ln key={x.nome} a={x.nome} b={R(x.valor)} />)}
+                <Ln a="Total de compras" b={R(rel.fornecedores.reduce((t, x) => t + x.valor, 0))} total />
+              </section>
+            )}
 
             <section className="rc-card">
               <h3>Comida</h3>
