@@ -356,6 +356,42 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
     }
     botaoVoltar();
 
+    // Celular: a tela de impressão do Android/iPhone abre por cima da aba do cupom. Quando a pessoa
+    // imprime (ou cancela) e volta, a aba fica visível de novo: aí fecha sozinha e volta ao sistema.
+    // Também fecha se a pessoa voltar direto para o sistema (a aba do cupom ficaria esquecida aberta).
+    var fechou = false;
+    function fecharUmaVez() {
+      if (fechou) return;
+      fechou = true;
+      voltarAoSistema();
+    }
+    function fecharAoVoltar() {
+      var saiu = false;
+      try {
+        janela.document.addEventListener("visibilitychange", function () {
+          if (janela.document.hidden) saiu = true;
+          else if (saiu) setTimeout(fecharUmaVez, 600);
+        });
+        janela.addEventListener("blur", function () {
+          saiu = true;
+        });
+        janela.addEventListener("focus", function () {
+          if (saiu) setTimeout(fecharUmaVez, 600);
+        });
+      } catch (e) {
+        // fica o botão Voltar
+      }
+      function sistemaDeVolta() {
+        if (document.visibilityState === "visible" && !janela.closed) setTimeout(fecharUmaVez, 300);
+      }
+      document.addEventListener("visibilitychange", sistemaDeVolta);
+      window.addEventListener("focus", sistemaDeVolta);
+      setTimeout(function () {
+        document.removeEventListener("visibilitychange", sistemaDeVolta);
+        window.removeEventListener("focus", sistemaDeVolta);
+      }, 10 * 60 * 1000);
+    }
+
     var disparado = false;
     function disparar() {
       if (disparado) return;
@@ -363,10 +399,11 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
       try {
         janela.focus();
         var inicio = Date.now();
+        if (!quadro) fecharAoVoltar();
         janela.print();
         resolve(true);
         // No computador o print() espera a pessoa imprimir ou cancelar: aí já fecha sozinho.
-        // No celular ele volta na hora (a tela de impressão abre por cima): fica o botão Voltar.
+        // No celular ele volta na hora (a tela de impressão abre por cima): fecha quando a pessoa volta dela.
         if (!quadro && Date.now() - inicio > 700) setTimeout(voltarAoSistema, 300);
       } catch (e) {
         resolve(false);
