@@ -57,3 +57,21 @@ html body .dh-loja .dh-neg { color: #dc2626; }
 .dh-loja .dh-meta { width: 100%; display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
 .dh-meta i { display: block; height: 6px; border-radius: 3px; background: var(--d-linha); overflow: hidden; }
 .dh-meta i b { display: block; height: 100%; background: #16a34a; border-radius: 3px; }
+/* Caixa do dia e caixa do mês */
+.dh-caixas { display: grid; grid-template-columns: 1fr; gap: 8px; margin-bottom: 10px; }
+.dh-caixas .dh-loja { margin-bottom: 0; }
+.dh-qual { --d-txt: #111827; --d-mute: #6b7280; --d-linha: #e5e7eb; display: flex; flex-direction: column; gap: 8px; }
+body.dark .dh-qual { --d-txt: #f4f4f5; --d-mute: #a1a1aa; --d-linha: #2a2b2f; }
+.dh-qual h2 { margin: 0 0 4px; }
+.dh-qual > button:not(.ins-btn) { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 13px 14px; border-radius: 12px; border: 1px solid var(--d-linha); background: transparent; color: var(--d-txt); font: inherit; cursor: pointer; }
+.dh-qual > button b { font-size: 16px; }
+html body .dh-qual > button span { font-size: 13px; color: var(--d-mute); }
+.dh-entrada { display: flex; flex-direction: column; gap: 10px; }
+.dh-entrada > b { font-size: 17px; }
+.dh-entrada input { width: 100%; box-sizing: border-box; padding: 12px 13px; border-radius: 10px; border: 1px solid var(--d-linha); background: var(--d-card); color: var(--d-txt); font: inherit; font-size: 16px; }
+.dh-entrada-qtd { display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center; }
+.dh-entrada-qtd .cx-origem { margin: 0; grid-template-columns: repeat(2, 64px); }
+@media (min-width: 900px) {
+  .dh-caixas { grid-template-columns: 1fr 1fr; }
+  .dh-acoes { grid-template-columns: repeat(5, 1fr) 1.3fr; }
+}

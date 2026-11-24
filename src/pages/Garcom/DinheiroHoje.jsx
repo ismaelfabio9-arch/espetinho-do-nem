@@ -7,7 +7,10 @@ import { db } from "../../firebase";
 import { L } from "../../loja";
 import { useSouDono } from "../../tenant";
 import { registrar } from "../../utils/registro";
-import { calcularFinancas, isoDia, juntarVendas, periodo, tipoDe, grupoDe } from "../../utils/financas";
+import { isoDia, lerValor, periodo, tipoDe, grupoDe } from "../../utils/financas";
+import { movCaixaLoja, useCaixaLoja } from "../../utils/caixaLoja";
+import { entradaInsumo, mostrarQtd } from "../../utils/insumos";
+import { auth } from "../../firebase";
 import { resumoSaidas } from "../../utils/perdas";
 import { registrarOcorrencia, useOcorrencias } from "../../utils/ocorrencias";
 import RegistrarPerda from "../../components/RegistrarPerda";
@@ -46,18 +49,14 @@ export default function DinheiroHoje() {
   const vendasHoje = useLista(() => collection(db, ...L(), "vendasDia"), []);
   const taxas = useTaxas();
   const ocorrencias = useOcorrencias(dia);
+  // Caixa do mês: só o que a dona deixa para a loja (fechamentos e reforços) menos sangrias e pagamentos.
+  const caixaMes = useCaixaLoja();
   // Lançamentos do mês (só o dono lê): os de hoje vão para a lista; o mês inteiro dá o caixa da loja.
   const mes = periodo("mes");
   const [despesasMes, setDespesasMes] = useState([]);
-  const [diasFechados, setDiasFechados] = useState([]);
   useEffect(() => {
     if (!souDono) return undefined;
-    const a = onSnapshot(query(collection(db, ...L(), "despesas"), where("data", ">=", mes.de)), (s) => setDespesasMes(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => setDespesasMes([]));
-    const b = onSnapshot(collection(db, ...L(), "relatorioGerencial"), (s) => setDiasFechados(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => setDiasFechados([]));
-    return () => {
-      a();
-      b();
-    };
+    return onSnapshot(query(collection(db, ...L(), "despesas"), where("data", ">=", mes.de)), (s) => setDespesasMes(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => setDespesasMes([]));
   }, [souDono, mes.de]);
   const despesas = useMemo(() => despesasMes.filter((d) => d.data === dia), [despesasMes, dia]);
   const [metaDona, setMetaDona] = useState(0);
@@ -67,6 +66,8 @@ export default function DinheiroHoje() {
 
   const [acaoPedida, setAcao] = useState(params.get("acao") || ""); // sangria | suprimento | perda | acabou | lancar
   const [pedirSenha, janelaSenha, precisaSenha] = useComSenha();
+  const [qualCaixa, setQualCaixa] = useState("");
+  useEffect(() => setQualCaixa(""), [acaoPedida]);
   const lib = useLiberado();
   // Sangria, reforço e lançamento mexem com dinheiro: pedem a senha da dona.
   const comDinheiro = (a) => a === "sangria" || a === "suprimento" || a === "lancar";
@@ -92,22 +93,18 @@ export default function DinheiroHoje() {
   const linhas = useMemo(() => {
     const l = [];
     (movsCaixa || []).filter((m) => !m.lancamento).forEach((m) => l.push({ id: `c${m.id}`, em: m.em, titulo: m.tipo === "sangria" ? `Sangria${m.origem && m.origem !== "Dinheiro" ? ` do ${m.origem === "Pix" ? "Pix" : "cartão"}` : ""}` : "Reforço", sub: [m.motivo, quemCurto(m.por)].filter(Boolean).join(" · "), valor: m.tipo === "sangria" ? -Number(m.valor || 0) : Number(m.valor || 0) }));
+    (movsIns || []).filter((m) => m.tipo === "compra").forEach((m) => l.push({ id: `e${m.id}`, em: m.em, titulo: "Entrada de alimento", sub: [`${m.nome} ${mostrarQtd(Number(m.qtd || 0), m.unidade)}`, quemCurto(m.por)].filter(Boolean).join(" · "), valor: null }));
     resumoSaidas(movsIns || [], dia, dia).lista.forEach((s) => l.push({ id: `p${s.id}`, em: s.em, titulo: "Saída de alimento", sub: [s.descricoes.join(" + ") || s.itens.map((i) => i.nome).join(", "), String(s.motivo || "").split(" · ")[0], quemCurto(s.por)].filter(Boolean).join(" · "), valor: s.valor ? -s.valor : null }));
     (ocorrencias || []).forEach((o) => l.push({ id: `o${o.id}`, em: o.em, titulo: { acabou: "Acabou", tirou: "Tirou da comanda", saiuDiferente: "Saiu diferente", cortesia: "Cortesia", cancelou: "Pedido cancelado" }[o.tipo] || "Ocorrência", sub: [o.texto, o.motivo, quemCurto(o.por)].filter(Boolean).join(" · "), valor: typeof o.valor === "number" && o.tipo !== "saiuDiferente" ? -o.valor : null }));
+    (caixaMes?.lista || []).filter((m) => m.dia === dia && m.origem !== "pagamento").forEach((m) => l.push({ id: `l${m.id}`, em: m.em, titulo: m.origem === "fechamento" ? "Caixa do mês · do fechamento" : m.tipo === "saida" ? "Caixa do mês · sangria" : "Caixa do mês · reforço", sub: [m.motivo, quemCurto(m.por)].filter(Boolean).join(" · "), valor: m.tipo === "saida" ? -Number(m.valor || 0) : Number(m.valor || 0) }));
     (despesas || []).forEach((d) => {
       const t = tipoDe(d.tipo);
       const em = d.criadoEm?.toDate ? d.criadoEm.toDate().toISOString() : `${dia}T00:00:00`;
       l.push({ id: `d${d.id}`, em, titulo: t.nome, sub: d.descricao || grupoDe(d.tipo).nome, valor: grupoDe(d.tipo).saida ? -Number(d.valor || 0) : Number(d.valor || 0) });
     });
     return l.sort((a, b) => String(b.em).localeCompare(String(a.em)));
-  }, [movsCaixa, movsIns, ocorrencias, despesas, dia]);
+  }, [movsCaixa, movsIns, ocorrencias, despesas, dia, caixaMes]);
 
-  // Caixa da loja: tudo o que entrou no mês (vendas sem a maquininha + entradas) menos tudo o que saiu (compras, despesas, retiradas).
-  const caixaLoja = useMemo(() => {
-    if (!souDono || vendasHoje === null) return null;
-    const f = calcularFinancas({ vendas: juntarVendas(diasFechados, vendasHoje), produtos: [], custos: {}, lancamentos: despesasMes, taxas, de: mes.de, ate: mes.ate });
-    return { saldo: f.saldoCaixa, entrou: f.entrouCaixa, saiu: f.saiuCaixa };
-  }, [souDono, diasFechados, vendasHoje, despesasMes, taxas, mes.de, mes.ate]);
   const resumoAberto = aberto && vendasHoje ? resumoCaixa(aberto, vendasDoCaixa(aberto, [], vendasHoje), movsCaixa || [], taxas) : null;
 
   const carregando = caixas === null || movsCaixa === null || movsIns === null || ocorrencias === null;
@@ -116,24 +113,34 @@ export default function DinheiroHoje() {
     <div className="container dh">
       {janelaSenha}
       {lib && <BarraLiberado quem={lib.quem} />}
-      {souDono && caixaLoja && (
-        <div className="dh-loja">
-          <div>
-            <span>Caixa da loja · {new Date().toLocaleDateString("pt-BR", { month: "long" }).replace(/^./, (x) => x.toUpperCase())}</span>
-            <b className={caixaLoja.saldo < 0 ? "dh-neg" : ""}>{precisaSenha ? "R$ •••" : `${caixaLoja.saldo < 0 ? "− " : ""}R$ ${fmt(Math.abs(caixaLoja.saldo))}`}</b>
-          </div>
-          {!precisaSenha && <small>entrou R$ {fmt(caixaLoja.entrou)} · saiu R$ {fmt(caixaLoja.saiu)}</small>}
-          {!precisaSenha && metaDona > 0 && (
-            <div className="dh-meta">
-              <small>Dona tirou R$ {fmt(tiradoMes)} de R$ {fmt(metaDona)} no mês</small>
-              <i><b style={{ width: `${Math.min(100, (tiradoMes / metaDona) * 100)}%` }} /></i>
+      {souDono && (
+        <div className="dh-caixas">
+          <div className="dh-loja">
+            <div>
+              <span>Caixa do dia (gaveta)</span>
+              <b>{precisaSenha ? "R$ •••" : resumoAberto ? `R$ ${fmt(resumoAberto.esperado)}` : "fechado"}</b>
             </div>
-          )}
+            {!precisaSenha && resumoAberto && <small>abriu com R$ {fmt(resumoAberto.inicial)} · vendas em dinheiro R$ {fmt(resumoAberto.dinheiro)}</small>}
+          </div>
+          <div className="dh-loja">
+            <div>
+              <span>Caixa do mês</span>
+              <b className={caixaMes && caixaMes.saldo < 0 ? "dh-neg" : ""}>{precisaSenha || !caixaMes ? "R$ •••" : `${caixaMes.saldo < 0 ? "− " : ""}R$ ${fmt(Math.abs(caixaMes.saldo))}`}</b>
+            </div>
+            {!precisaSenha && caixaMes && <small>este mês: entrou R$ {fmt(caixaMes.entrou)} · saiu R$ {fmt(caixaMes.saiu)}</small>}
+            {!precisaSenha && metaDona > 0 && (
+              <div className="dh-meta">
+                <small>Dona tirou R$ {fmt(tiradoMes)} de R$ {fmt(metaDona)} no mês</small>
+                <i><b style={{ width: `${Math.min(100, (tiradoMes / metaDona) * 100)}%` }} /></i>
+              </div>
+            )}
+          </div>
         </div>
       )}
       <div className="dh-acoes">
-        <button type="button" onClick={() => abrir("sangria")}><b>Sangria</b><span>Tirar dinheiro da gaveta</span></button>
-        <button type="button" onClick={() => abrir("suprimento")}><b>Reforço</b><span>Pôr dinheiro na gaveta</span></button>
+        <button type="button" onClick={() => abrir("sangria")}><b>Sangria</b><span>Tirar dinheiro de um caixa</span></button>
+        <button type="button" onClick={() => abrir("suprimento")}><b>Reforço</b><span>Pôr dinheiro num caixa</span></button>
+        <button type="button" onClick={() => abrir("entrada")}><b>Entrada de alimento</b><span>Chegou mercadoria</span></button>
         <button type="button" onClick={() => abrir("perda")}><b>Saída de alimento</b><span>Queimou, caiu, estragou</span></button>
         <button type="button" onClick={() => abrir("acabou")}><b>Acabou</b><span>Produto acabou hoje</span></button>
         {souDono && (
@@ -173,24 +180,36 @@ export default function DinheiroHoje() {
                 <button type="button" onClick={() => abrir("lancar")}>Entrar com a senha</button>
               </div>
             ) : (
-              <NovoLancamento categorias={categorias} onSalvo={() => setAcao("")} caixa={aberto} disponivel={resumoAberto ? disponivelParaTirar(resumoAberto) : null} fornecedores={fornecedores} />
+              <NovoLancamento categorias={categorias} onSalvo={() => setAcao("")} caixa={aberto} disponivel={resumoAberto ? disponivelParaTirar(resumoAberto) : null} saldoMes={caixaMes?.saldo ?? null} fornecedores={fornecedores} />
             )}
           </div>
         )}
       </div>
 
-      {(acao === "sangria" || acao === "suprimento") &&
+      {(acao === "sangria" || acao === "suprimento") && !qualCaixa && (
+        <div className="ins-modal" role="dialog" aria-modal="true" aria-label="Qual caixa" onClick={() => setAcao("")}>
+          <div className="ins-modal-caixa dh-qual" onClick={(e) => e.stopPropagation()}>
+            <h2>{acao === "sangria" ? "Sangria: tirar de qual caixa?" : "Reforço: pôr em qual caixa?"}</h2>
+            <button type="button" onClick={() => setQualCaixa("dia")}><b>Caixa do dia</b><span>Gaveta{resumoAberto ? ` · tem R$ ${fmt(resumoAberto.esperado)}` : " · fechado"}</span></button>
+            <button type="button" onClick={() => setQualCaixa("mes")}><b>Caixa do mês</b><span>Dinheiro guardado da loja{caixaMes ? ` · tem R$ ${fmt(caixaMes.saldo)}` : ""}</span></button>
+            <button type="button" className="ins-btn" onClick={() => setAcao("")}>Cancelar</button>
+          </div>
+        </div>
+      )}
+      {(acao === "sangria" || acao === "suprimento") && qualCaixa === "dia" &&
         (caixas === null ? null : aberto ? (
           <Movimento caixa={aberto} tipo={acao} r={resumoAberto} fechar={() => setAcao("")} />
         ) : (
           <div className="ins-modal" role="dialog" aria-modal="true" aria-label="Abrir o caixa" onClick={() => setAcao("")}>
             <div className="ins-modal-caixa dh-abrir" onClick={(e) => e.stopPropagation()}>
-              <p className="dh-aviso">O caixa está fechado. Abra com o troco da gaveta para lançar a {acao === "sangria" ? "sangria" : "reforço"}.</p>
+              <p className="dh-aviso">O caixa do dia está fechado. Abra com o troco da gaveta para lançar a {acao === "sangria" ? "sangria" : "reforço"}.</p>
               <Abrir ultimo={ultimoFechado} onAberto={() => {}} />
               <button type="button" className="ins-btn" onClick={() => setAcao("")}>Cancelar</button>
             </div>
           </div>
         ))}
+      {(acao === "sangria" || acao === "suprimento") && qualCaixa === "mes" && <MovMes tipo={acao} saldo={caixaMes?.saldo || 0} fechar={() => setAcao("")} />}
+      {acao === "entrada" && <EntradaAlimento fechar={() => setAcao("")} />}
       {acao === "perda" && <RegistrarPerda fechar={() => setAcao("")} />}
       {acao === "acabou" && <Acabou produtos={produtos || []} fechar={() => setAcao("")} />}
     </div>
@@ -232,6 +251,118 @@ function Acabou({ produtos, fechar }) {
           {lista.length === 0 && <li className="dh-vazio">Nenhum produto.</li>}
         </ul>
         <button type="button" className="ins-btn" onClick={fechar}>Fechar</button>
+      </div>
+    </div>
+  );
+}
+
+/** Sangria ou reforço do caixa do mês (dinheiro guardado da loja), com motivo. */
+function MovMes({ tipo, saldo, fechar }) {
+  const [valor, setValor] = useState("");
+  const [motivo, setMotivo] = useState("");
+  const [erro, setErro] = useState("");
+  async function salvar(e) {
+    e.preventDefault();
+    const v = lerValor(valor);
+    if (!v) return setErro("Informe o valor.");
+    if (!motivo.trim()) return setErro("Escreva o motivo.");
+    if (tipo === "sangria" && v > saldo) return setErro(`No caixa do mês tem R$ ${fmt(saldo)}.`);
+    try {
+      await movCaixaLoja({ tipo: tipo === "sangria" ? "saida" : "entrada", valor: v, motivo: motivo.trim(), origem: tipo === "sangria" ? "sangria" : "reforco" });
+      registrar({ area: "dinheiro", acao: tipo === "sangria" ? "Sangria do caixa do mês" : "Reforço no caixa do mês", texto: `${tipo === "sangria" ? "Tirou" : "Pôs"} R$ ${fmt(v)}`, valor: tipo === "sangria" ? -v : v, motivo: motivo.trim() });
+      fechar();
+    } catch {
+      setErro("Não foi possível salvar. Confira a internet.");
+    }
+  }
+  return (
+    <div className="ins-modal" role="dialog" aria-modal="true" aria-label="Caixa do mês" onClick={fechar}>
+      <form className="ins-modal-caixa" onClick={(e) => e.stopPropagation()} onSubmit={salvar}>
+        <h2>{tipo === "sangria" ? "Tirar do caixa do mês" : "Pôr no caixa do mês"}</h2>
+        <p className="dh-aviso">Tem R$ {fmt(saldo)} no caixa do mês.</p>
+        <div className="fin-campos">
+          <label>Valor (R$)<input autoFocus inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} /></label>
+          <label>Motivo<input placeholder={tipo === "sangria" ? "Ex.: pagar fornecedor" : "Ex.: dinheiro guardado de outubro"} value={motivo} onChange={(e) => setMotivo(e.target.value)} /></label>
+        </div>
+        {erro && <p className="fin-erro">{erro}</p>}
+        <div className="ins-modal-botoes">
+          <button type="button" className="ins-btn" onClick={fechar}>Cancelar</button>
+          <button className="btn-verde">Salvar</button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+const MEDIDAS = { kg: [["kg", 1], ["g", 1000]], L: [["litro", 1], ["ml", 1000]], un: [["un", 1]] };
+
+/** Chegou mercadoria: escolhe o ingrediente, a quantidade (kg, g, un) e, se quiser, quanto pagou. */
+function EntradaAlimento({ fechar }) {
+  const insumos = useLista(() => collection(db, ...L(), "insumos"), []);
+  const [busca, setBusca] = useState("");
+  const [ins, setIns] = useState(null);
+  const [qtd, setQtd] = useState("");
+  const [medida, setMedida] = useState("");
+  const [valor, setValor] = useState("");
+  const [erro, setErro] = useState("");
+  const [feito, setFeito] = useState("");
+  const lista = (insumos || []).filter((i) => !busca.trim() || semAcento(i.nome).includes(semAcento(busca))).sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR")).slice(0, 40);
+  async function salvar(e) {
+    e.preventDefault();
+    const n = Number(String(qtd).replace(",", "."));
+    if (!(n > 0)) return setErro("Informe a quantidade.");
+    const div = (MEDIDAS[ins.unidade] || MEDIDAS.un).find(([m]) => m === medida)?.[1] || 1;
+    try {
+      await entradaInsumo(ins, n / div, lerValor(valor), auth.currentUser?.email || "");
+      setFeito(`${ins.nome}: entrou ${qtd} ${medida}.`);
+      setIns(null);
+      setQtd("");
+      setValor("");
+      setErro("");
+    } catch {
+      setErro("Não foi possível salvar. Confira a internet.");
+    }
+  }
+  return (
+    <div className="ins-modal" role="dialog" aria-modal="true" aria-label="Entrada de alimento" onClick={fechar}>
+      <div className="ins-modal-caixa dh-acabou" onClick={(e) => e.stopPropagation()}>
+        <h2>Entrada de alimento</h2>
+        {feito && <p className="dh-ok">{feito}</p>}
+        {!ins ? (
+          <>
+            <input className="dh-busca" autoFocus placeholder="Buscar ingrediente" value={busca} onChange={(e) => setBusca(e.target.value)} />
+            <ul className="dh-prods">
+              {lista.map((i) => (
+                <li key={i.id}>
+                  <button type="button" onClick={() => { setIns(i); setMedida((MEDIDAS[i.unidade] || MEDIDAS.un)[0][0]); }}>
+                    <span>{i.nome}</span>
+                    <small>tem {mostrarQtd(Number(i.quantidade || 0), i.unidade)}</small>
+                  </button>
+                </li>
+              ))}
+              {insumos !== null && lista.length === 0 && <li className="dh-vazio">Nenhum ingrediente.</li>}
+            </ul>
+            <button type="button" className="ins-btn" onClick={fechar}>Fechar</button>
+          </>
+        ) : (
+          <form onSubmit={salvar} className="dh-entrada">
+            <b>{ins.nome}</b>
+            <div className="dh-entrada-qtd">
+              <input autoFocus inputMode="decimal" placeholder="Quantidade" value={qtd} onChange={(e) => setQtd(e.target.value)} />
+              <div className="cx-origem">
+                {(MEDIDAS[ins.unidade] || MEDIDAS.un).map(([m]) => (
+                  <button type="button" key={m} className={medida === m ? "on" : ""} onClick={() => setMedida(m)}><b>{m}</b></button>
+                ))}
+              </div>
+            </div>
+            <input inputMode="decimal" placeholder="Quanto pagou (opcional)" value={valor} onChange={(e) => setValor(e.target.value)} />
+            {erro && <p className="fin-erro">{erro}</p>}
+            <div className="ins-modal-botoes">
+              <button type="button" className="ins-btn" onClick={() => setIns(null)}>Voltar</button>
+              <button className="btn-verde">Dar entrada</button>
+            </div>
+          </form>
+        )}
       </div>
     </div>
   );
