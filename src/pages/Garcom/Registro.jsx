@@ -38,7 +38,7 @@ export default function Registro() {
   const [pessoa, setPessoa] = useState("");
   const [busca, setBusca] = useState("");
   const [soAtencao, setSoAtencao] = useState(false);
-  const [aberto, setAberto] = useState(null);
+  const [aberta, setAberto] = useState(null);
   const [lista, setLista] = useState(null);
   const f = faixa(per);
 
@@ -88,17 +88,30 @@ export default function Registro() {
     return [...m.entries()];
   }, [filtrada]);
 
-  return (
-    <div className="relatorio-documento reg">
-      <div className="reg-topo">
-        <h2>📋 O que foi mexido</h2>
-        <button type="button" className="ins-btn reg-imprimir" onClick={() => window.print()}>🖨️ Imprimir</button>
-      </div>
-      <p className="fin-explica">Tudo o que aconteceu na loja: quem fez, quando, o que mudou e o motivo. Ninguém da equipe consegue apagar nem mudar este registro.</p>
+  const contaArea = (id) => (lista || []).filter((r) => r.area === id).length;
+  const nAtencao = (lista || []).filter((r) => ATENCAO.test(r.acao)).length;
+  const quem = (por) => {
+    const t = String(por || "").trim();
+    if (!t) return "sem nome";
+    if (t.startsWith("Cliente")) return t;
+    return t.split("@")[0];
+  };
+  const naoSaiu = (r) => (r.detalhes || []).filter((d) => /não saiu|sem ficha|não baixou/i.test(d)).length;
+  const ehBaixa = (r) => /baixou o estoque|sem baixa|baixa do estoque/i.test(r.acao);
 
-      <div className="fin-periodos">
+  return (
+    <div className="reg">
+      <div className="reg-topo">
+        <div>
+          <h2>📋 O que foi mexido</h2>
+          <p>Quem fez, quando, o que mudou e o motivo. Ninguém da equipe apaga nem muda.</p>
+        </div>
+        <button type="button" className="reg-imprimir" onClick={() => window.print()} aria-label="Imprimir">🖨️</button>
+      </div>
+
+      <div className="reg-faixa" role="group" aria-label="Período">
         {PERIODOS.map((p) => (
-          <button key={p.id} className={per === p.id ? "ativo" : ""} onClick={() => setPer(p.id)}>{p.nome}</button>
+          <button key={p.id} className={per === p.id ? "on" : ""} onClick={() => setPer(p.id)}>{p.nome}</button>
         ))}
       </div>
 
@@ -114,27 +127,26 @@ export default function Registro() {
         </div>
       )}
 
-      <div className="reg-filtros">
-        <div className="fin-periodos reg-areas">
-          <button className={!area ? "ativo" : ""} onClick={() => setArea("")}>Tudo</button>
-          {Object.entries(AREAS).map(([id, a]) => (
-            <button key={id} className={area === id ? "ativo" : ""} onClick={() => setArea(id)}>
-              {a.emoji} {a.nome}
-            </button>
-          ))}
-        </div>
-        <div className="reg-linha">
-          <input type="search" placeholder="🔍 Buscar: mesa 4, arroz, sangria…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+      <div className="reg-faixa reg-areas" role="group" aria-label="Área">
+        <button className={!area && !soAtencao ? "on" : ""} onClick={() => { setArea(""); setSoAtencao(false); }}>Tudo <i>{(lista || []).length}</i></button>
+        <button className={`atencao${soAtencao ? " on" : ""}`} onClick={() => setSoAtencao((v) => !v)}>⚠️ Atenção <i>{nAtencao}</i></button>
+        {Object.entries(AREAS).map(([id, a]) => (
+          <button key={id} className={area === id ? "on" : ""} onClick={() => setArea(area === id ? "" : id)}>
+            {a.emoji} {a.nome.split(" ")[0]} <i>{contaArea(id)}</i>
+          </button>
+        ))}
+      </div>
+
+      <div className="reg-linha">
+        <input type="search" placeholder="🔍 Buscar: mesa 4, arroz, sangria…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+        {pessoas.length > 1 && (
           <select value={pessoa} onChange={(e) => setPessoa(e.target.value)} aria-label="Quem fez">
-            <option value="">Todas as pessoas</option>
+            <option value="">Todos</option>
             {pessoas.map((p) => (
-              <option key={p} value={p}>{p}</option>
+              <option key={p} value={p}>{quem(p)}</option>
             ))}
           </select>
-        </div>
-        <label className="reg-atencao">
-          <input type="checkbox" checked={soAtencao} onChange={(e) => setSoAtencao(e.target.checked)} /> Só o que precisa de atenção (dinheiro que saiu, item tirado, perda, preço mudado…)
-        </label>
+        )}
       </div>
 
       {lista === null ? (
@@ -149,33 +161,51 @@ export default function Registro() {
               {itens.map((r) => {
                 const a = AREAS[r.area] || AREAS.pedidos;
                 const atencao = ATENCAO.test(r.acao);
-                const abre = (r.detalhes || []).length > 0;
+                const det = r.detalhes || [];
+                const aberto = aberta === r.id;
+                const nao = naoSaiu(r);
+                const baixa = ehBaixa(r);
                 return (
-                  <li key={r.id} className={`reg-item${atencao ? " atencao" : ""}`} onClick={() => abre && setAberto(aberto === r.id ? null : r.id)}>
-                    <span className="reg-hora">{new Date(r.em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
-                    <span className="reg-ico" title={a.nome} aria-hidden="true">{a.emoji}</span>
+                  <li key={r.id} className={`reg-item area-${r.area}${atencao ? " atencao" : ""}${aberto ? " aberto" : ""}`} onClick={() => setAberto(aberto ? null : r.id)}>
+                    <span className="reg-ico" aria-hidden="true">{a.emoji}</span>
                     <div className="reg-txt">
-                      <strong>
-                        {r.acao}
-                        {r.mesa ? <em> · Mesa {r.mesa}</em> : null}
-                      </strong>
-                      {r.texto && <span>{r.texto}</span>}
+                      <div className="reg-l1">
+                        <strong>
+                          {baixa ? "Baixa do estoque" : r.acao}
+                          {r.mesa ? <em> · Mesa {r.mesa}</em> : null}
+                        </strong>
+                        {typeof r.valor === "number" && r.valor !== 0 && <span className={`reg-valor ${r.valor < 0 ? "neg" : ""}`}>{r.valor < 0 ? "−" : ""}{R(r.valor)}</span>}
+                      </div>
+                      {r.texto && !baixa && <p className="reg-texto">{r.texto}</p>}
+                      {baixa && (
+                        <p className="reg-texto">
+                          {det.filter((d) => d.startsWith("Saiu ")).length} ingredientes saíram
+                          {nao > 0 && <b className="reg-nao"> · {nao} {nao === 1 ? "coisa não saiu" : "coisas não saíram"}</b>}
+                        </p>
+                      )}
                       {(r.antes || r.depois) && (
-                        <span className="reg-mudou">
+                        <p className="reg-mudou">
                           {r.antes ? <s>{r.antes}</s> : null} {r.antes && r.depois ? "→" : ""} {r.depois ? <b>{r.depois}</b> : null}
-                        </span>
+                        </p>
                       )}
-                      {r.motivo && <span className="reg-motivo">Por quê: {r.motivo}</span>}
-                      <small>{r.por || "sem nome"}{r.aparelho && !/^[a-z0-9]{8}$/.test(r.aparelho) ? ` · ${r.aparelho}` : ""}{abre ? ` · ${aberto === r.id ? "▲ esconder" : `▼ ver ${r.detalhes.length} detalhe${r.detalhes.length > 1 ? "s" : ""}`}` : ""}</small>
-                      {aberto === r.id && abre && (
-                        <ul className="reg-det">
-                          {r.detalhes.map((d, k) => (
-                            <li key={k} className={/não saiu|sem ficha|não baixou/i.test(d) ? "nao" : ""}>{d}</li>
-                          ))}
-                        </ul>
+                      {r.motivo && <p className="reg-motivo">💬 {r.motivo}</p>}
+                      {aberto && (
+                        <div className="reg-mais">
+                          {baixa && r.texto && <p className="reg-texto-todo">{r.texto}</p>}
+                          {det.length > 0 && (
+                            <ul className="reg-det">
+                              {det.map((d, k) => (
+                                <li key={k} className={/não saiu|sem ficha|não baixou/i.test(d) ? "nao" : ""}>{d}</li>
+                              ))}
+                            </ul>
+                          )}
+                        </div>
                       )}
+                      <small className="reg-rodape">
+                        {new Date(r.em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · {quem(r.por)}
+                        {det.length > 0 || (r.texto || "").length > 90 ? <span className="reg-ver"> · {aberto ? "▲ menos" : "▼ ver tudo"}</span> : null}
+                      </small>
                     </div>
-                    {typeof r.valor === "number" && r.valor !== 0 && <span className={`reg-valor ${r.valor < 0 ? "neg" : ""}`}>{r.valor < 0 ? "−" : ""}{R(r.valor)}</span>}
                   </li>
                 );
               })}
