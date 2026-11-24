@@ -67,7 +67,9 @@ export default function DinheiroHoje() {
   const [acaoPedida, setAcao] = useState(params.get("acao") || ""); // sangria | suprimento | perda | acabou | lancar
   const [pedirSenha, janelaSenha, precisaSenha] = useComSenha();
   const [qualCaixa, setQualCaixa] = useState("");
-  useEffect(() => setQualCaixa(""), [acaoPedida]);
+  useEffect(() => {
+    if (!acaoPedida) setQualCaixa("");
+  }, [acaoPedida]);
   const lib = useLiberado();
   // Sangria, reforço e lançamento mexem com dinheiro: pedem a senha da dona.
   const comDinheiro = (a) => a === "sangria" || a === "suprimento" || a === "lancar";
@@ -121,6 +123,12 @@ export default function DinheiroHoje() {
               <b>{precisaSenha ? "R$ •••" : resumoAberto ? `R$ ${fmt(resumoAberto.esperado)}` : "fechado"}</b>
             </div>
             {!precisaSenha && resumoAberto && <small>abriu com R$ {fmt(resumoAberto.inicial)} · vendas em dinheiro R$ {fmt(resumoAberto.dinheiro)}</small>}
+            {!precisaSenha && resumoAberto && (
+              <small>
+                {resumoAberto.formas.filter((x) => x.nome !== "Dinheiro" && x.temQueTer > 0).map((x) => `${x.nome} R$ ${fmt(x.temQueTer)}`).join(" · ") || "sem Pix nem cartão ainda"}
+              </small>
+            )}
+            {caixas !== null && !aberto && <button type="button" className="dh-abrir-bt" onClick={() => pedirSenha(() => { setQualCaixa("dia"); setAcao("suprimento"); })}>Abrir o caixa do dia</button>}
           </div>
           <div className="dh-loja">
             <div>

@@ -323,9 +323,9 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
       <div className="config-areas">
         <span>Procurando caixa, histórico, produtos, estoque ou finanças? Ficam aqui:</span>
         <div>
-          <Link to="/vendas">Vendas</Link>
+          {!dinheiroCompleto && <Link to="/vendas">Vendas</Link>}
           <Link to="/cardapio">Cardápio e estoque</Link>
-          {financasLigado && souDono && <Link to="/dinheiro">Dinheiro</Link>}
+          {((financasLigado && souDono) || dinheiroCompleto) && <Link to="/dinheiro">Dinheiro</Link>}
         </div>
       </div>
 
