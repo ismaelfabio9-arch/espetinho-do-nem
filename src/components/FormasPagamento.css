@@ -13,3 +13,23 @@
 .fp-linha { color: var(--text, #111827); border: 1px solid var(--border, #e5e7eb); }
 .fp-forma, .fp-valor { color: var(--text, #111827); }
 .fp-valor input { color: var(--text, #111827); }
+
+/* Janela "Como foi pago?" da tela de Pedidos: acompanha o tema (clara no claro, escura no escuro), igual à da mesa. */
+html body .modal-card.pagar-card { background: #ffffff !important; color: #111827 !important; border: 1px solid #e5e7eb !important; }
+html body .modal-card.pagar-card :is(h2, p, strong, span, small, label) { color: inherit; }
+html body .modal-card.pagar-card .modal-total-encerrar { color: #4b5563 !important; }
+html body .pagar-card .formas-pagamento button { background: #f9fafb !important; border: 1px solid #d1d5db !important; color: #111827 !important; }
+html body .pagar-card .formas-pagamento button.ativo { background: #22c55e !important; border-color: #22c55e !important; color: #fff !important; }
+html body .pagar-card .modal-btn.cancelar { background: #f3f4f6 !important; color: #111827 !important; border: 1px solid #e5e7eb !important; }
+html body.dark .modal-card.pagar-card { background: #171717 !important; color: #f3f4f6 !important; border-color: #2b2b2b !important; }
+html body.dark .modal-card.pagar-card .modal-total-encerrar { color: #a1a1aa !important; }
+html body.dark .pagar-card .formas-pagamento button { background: #101010 !important; border-color: #333 !important; color: #fff !important; }
+html body.dark .pagar-card .formas-pagamento button.ativo { background: #22c55e !important; border-color: #22c55e !important; }
+html body.dark .pagar-card .modal-btn.cancelar { background: #27272a !important; color: #fff !important; border-color: #333 !important; }
+
+/* Tema escuro: linhas do valor e o "Valor completo" legíveis (em todas as janelas de pagamento). */
+html body.dark .fp-linha { background: #1f1f22 !important; border-color: #333 !important; color: #f3f4f6 !important; }
+html body.dark .fp-forma, html body.dark .fp-valor { color: #f3f4f6 !important; }
+html body.dark .fp-valor input { background: #0f0f10 !important; border-color: #3a3a3e !important; color: #fff !important; }
+html body.dark .fp-status { background: rgba(220, 38, 38, 0.15) !important; color: #fca5a5 !important; }
+html body.dark .fp-status.ok { background: rgba(22, 163, 74, 0.16) !important; color: #4ade80 !important; }
