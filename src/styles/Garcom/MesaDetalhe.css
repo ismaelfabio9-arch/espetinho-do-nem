@@ -995,12 +995,26 @@ body:not(.dark) .md-nome { background: #dcfce7; color: #166534; }
 }
 /* O sistema pinta todo span/p/small de cinza (App.css); no topo, na barra e na comanda o texto segue a cor. */
 html body :is(.md-topo, .md-barra, .md-comanda) :is(span, p, small, b, strong, h1, h2) { color: inherit; }
-/* Motivo ao tirar algo já salvo na comanda */
-.motivo-card { max-width: 440px; }
-.motivo-ops { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0; }
-.motivo-ops button { padding: 12px 10px; border-radius: 12px; border: 1px solid var(--border, #2a2a2a); background: var(--card2, transparent); color: var(--text, #fff); font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; }
-.motivo-outro { display: flex; gap: 8px; margin-bottom: 12px; }
-.motivo-outro input { flex: 1; min-width: 0; padding: 11px 12px; border-radius: 12px; border: 1px solid var(--border, #2a2a2a); background: transparent; color: inherit; font: inherit; }
-.motivo-outro button { border: 0; border-radius: 12px; padding: 0 16px; background: #dc2626; color: #fff; font-weight: 800; cursor: pointer; }
-.motivo-outro button:disabled { opacity: 0.5; }
-.motivo-card .modal-btn.cancelar { width: 100%; }
+/* Tirar algo já salvo na comanda: o item, o motivo e confirmar */
+html body .modal-card.motivo-card { --m-txt: #111827; --m-mute: #6b7280; --m-box: #f6f7f9; --m-linha: #e5e7eb; --m-sel: #fde8e8; --m-sel-txt: #b91c1c; max-width: 440px; width: calc(100% - 32px); padding: 20px; border-radius: 16px; text-align: left; color: var(--m-txt); }
+html body.dark .modal-card.motivo-card { --m-txt: #f4f4f5; --m-mute: #a1a1aa; --m-box: #202125; --m-linha: #2a2b2f; --m-sel: #3a1517; --m-sel-txt: #fca5a5; background: #17181a; border-color: #2a2b2f; }
+html body .motivo-card :is(span, strong, h2) { color: inherit; }
+.motivo-topo { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+html body .motivo-card .motivo-topo h2 { margin: 0; font-size: 19px; font-weight: 700; color: var(--m-txt); }
+.motivo-x { border: 0; background: transparent; color: var(--m-mute); font-size: 26px; line-height: 1; padding: 0 4px; cursor: pointer; }
+.motivo-item { background: var(--m-box); border: 1px solid var(--m-linha); border-radius: 12px; padding: 12px 14px; }
+.motivo-item-l1 { display: flex; justify-content: space-between; gap: 12px; font-size: 16px; }
+.motivo-item-l1 strong { font-weight: 700; }
+.motivo-item-l1 strong:last-child { white-space: nowrap; }
+.motivo-item-det { margin-top: 6px; display: flex; flex-direction: column; gap: 3px; font-size: 13.5px; }
+html body .motivo-card .motivo-item-det span { color: var(--m-mute); }
+.motivo-lab { font-size: 12px; font-weight: 600; color: var(--m-mute); text-transform: uppercase; letter-spacing: 0.05em; margin: 16px 0 8px; }
+.motivo-ops { display: flex; flex-wrap: wrap; gap: 8px; }
+.motivo-ops button { font: inherit; font-size: 14px; font-weight: 500; padding: 9px 13px; border-radius: 999px; border: 1px solid var(--m-linha); background: transparent; color: var(--m-txt); cursor: pointer; }
+.motivo-ops button.on { border-color: #dc2626; background: var(--m-sel); color: var(--m-sel-txt); font-weight: 600; }
+.motivo-outro-campo { width: 100%; box-sizing: border-box; margin-top: 10px; font: inherit; font-size: 15px; padding: 11px 13px; border-radius: 10px; border: 1px solid var(--m-linha); background: transparent; color: var(--m-txt); }
+.motivo-outro-campo::placeholder { color: var(--m-mute); }
+.motivo-botoes { display: grid; grid-template-columns: 1fr 1.4fr; gap: 10px; margin-top: 18px; }
+html body .motivo-card .motivo-botoes .modal-btn.cancelar { width: 100%; margin: 0; padding: 13px; border-radius: 12px; font-size: 15px; font-weight: 700; background: var(--m-box); color: var(--m-txt); border: 1px solid var(--m-linha); }
+.motivo-tirar { border: 0; border-radius: 12px; padding: 13px; font: inherit; font-size: 15px; font-weight: 700; background: #dc2626; color: #fff; cursor: pointer; }
+.motivo-tirar:disabled { opacity: 0.45; cursor: not-allowed; }

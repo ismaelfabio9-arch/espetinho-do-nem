@@ -55,8 +55,9 @@ function MesaDetalhe() {
   const navigate = useNavigate();
   const alterouTimer = useRef(null);
   // Tirar algo já salvo na comanda pede o motivo (vai para o registro da dona).
-  const [pedirMotivo, setPedirMotivo] = useState(null); // { titulo, fazer(motivo) }
+  const [pedirMotivo, setPedirMotivo] = useState(null); // { nome, preco, detalhes, fazer(motivo) }
   const [motivoOutro, setMotivoOutro] = useState("");
+  const [motivoEscolhido, setMotivoEscolhido] = useState("");
   const fotos = useFotos(useRecurso("fotos"));
   // Função por loja (pedido do Chef Baguette): depois de salvar o pedido, volta para o Painel.
   const voltarAoSalvar = useRecurso("voltar-ao-salvar");
@@ -541,8 +542,13 @@ if (pedidosDaMesa.length === 0) {
   function diminuirItemMesa(itemSelecionado) {
     const ultimo = Number(itemSelecionado.qtd) === 1;
     setMotivoOutro("");
+    setMotivoEscolhido("");
+    const [nomeLido, ...doNome] = String(itemSelecionado.nome || "").split(" — ");
+    const det = detalhesMontagem(itemSelecionado.montagem);
     setPedirMotivo({
-      titulo: ultimo ? `Tirar ${itemSelecionado.nome} da comanda?` : `Tirar 1 ${itemSelecionado.nome}?`,
+      nome: itemSelecionado.nomeBase || nomeLido,
+      preco: Number(itemSelecionado.preco || 0),
+      detalhes: det.length ? det : doNome.join(" — ").split(/,\s*(?![^()]*\))/).filter(Boolean),
       fazer: async (motivo) => {
         await tirarItemMesa(itemSelecionado);
         registrar({ area: "pedidos", acao: ultimo ? "Tirou da comanda" : "Diminuiu na comanda", mesa: id, texto: `−${textoDoItem({ ...itemSelecionado, qtd: 1 })}`, valor: -Number(itemSelecionado.preco || 0), motivo });
@@ -1136,39 +1142,49 @@ if (pedidosDaMesa.length === 0) {
 
       {pedirMotivo && (
         <div className="modal-overlay" onClick={() => setPedirMotivo(null)}>
-          <div className="modal-card motivo-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Motivo">
-            <h2>{pedirMotivo.titulo}</h2>
-            <p>Motivo</p>
+          <div className="modal-card motivo-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Tirar da comanda">
+            <div className="motivo-topo">
+              <h2>Tirar da comanda</h2>
+              <button type="button" className="motivo-x" data-fechar onClick={() => setPedirMotivo(null)} aria-label="Fechar">×</button>
+            </div>
+            <div className="motivo-item">
+              <div className="motivo-item-l1">
+                <strong>1x {pedirMotivo.nome}</strong>
+                <strong>R$ {formatarMoeda(pedirMotivo.preco)}</strong>
+              </div>
+              {pedirMotivo.detalhes.length > 0 && (
+                <div className="motivo-item-det">
+                  {pedirMotivo.detalhes.map((d, i) => (
+                    <span key={i}>{d.charAt(0).toUpperCase() + d.slice(1)}</span>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="motivo-lab">Motivo</div>
             <div className="motivo-ops">
               {MOTIVOS_PEDIDO.map((m) => (
-                <button
-                  type="button"
-                  key={m}
-                  onClick={async () => {
-                    const f = pedirMotivo.fazer;
-                    setPedirMotivo(null);
-                    await f(m);
-                  }}
-                >
+                <button type="button" key={m} className={motivoEscolhido === m ? "on" : ""} onClick={() => { setMotivoEscolhido(m); setMotivoOutro(""); }}>
                   {m}
                 </button>
               ))}
             </div>
-            <div className="motivo-outro">
-              <input placeholder="Outro" value={motivoOutro} maxLength={100} onChange={(e) => setMotivoOutro(e.target.value)} />
+            <input className="motivo-outro-campo" placeholder="Outro motivo" value={motivoOutro} maxLength={100} onChange={(e) => { setMotivoOutro(e.target.value); setMotivoEscolhido(""); }} />
+            <div className="motivo-botoes">
+              <button type="button" className="modal-btn cancelar" onClick={() => setPedirMotivo(null)}>Cancelar</button>
               <button
                 type="button"
-                disabled={!motivoOutro.trim()}
+                className="motivo-tirar"
+                disabled={!(motivoEscolhido || motivoOutro.trim())}
                 onClick={async () => {
                   const f = pedirMotivo.fazer;
+                  const motivo = motivoEscolhido || motivoOutro.trim();
                   setPedirMotivo(null);
-                  await f(motivoOutro.trim());
+                  await f(motivo);
                 }}
               >
-                Tirar
+                Tirar item
               </button>
             </div>
-            <button type="button" className="modal-btn cancelar" onClick={() => setPedirMotivo(null)}>Cancelar</button>
           </div>
         </div>
       )}
