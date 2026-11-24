@@ -46,3 +46,5 @@ html body .dh-prods button small { color: var(--d-mute); font-size: 12px; }
 html body .dh-trava span { color: var(--d-mute); font-size: 14px; }
 .dh-trava button { margin-top: 6px; border: 0; border-radius: 10px; background: #16a34a; color: #fff; font: inherit; font-weight: 700; padding: 11px 16px; cursor: pointer; }
 .dh .sd-barra { padding: 0 0 8px; }
+.dh-abrir .relatorio-documento { border: 0 !important; padding: 0 !important; margin: 0 0 10px !important; background: transparent !important; box-shadow: none !important; }
+.dh-abrir > .ins-btn { width: 100%; }
