@@ -36,6 +36,8 @@ export const RECURSOS = {
   fotos: false,
   // Pedido de um cliente (Chef Baguette): depois de salvar o pedido da mesa, volta para o Painel.
   "voltar-ao-salvar": false,
+  // Pedido do Chef Baguette: painel sem o total do dia; o resumo do dia aparece ao encerrar o dia.
+  "resumo-no-fechamento": false,
   beta: false,
 };
 

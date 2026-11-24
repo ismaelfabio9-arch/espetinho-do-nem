@@ -76,6 +76,8 @@ function Dashboard() {
     });
   }
   const valor = (v) => (ocultar ? "R$ ••••" : `R$ ${formatarMoeda(v)}`);
+  // Loja com "resumo-no-fechamento": o painel não mostra valores (o resumo aparece ao encerrar o dia).
+  const resumoNoFechamento = useRecurso("resumo-no-fechamento");
 
   useEffect(() => {
     const pedidosRef = query(collection(db, ...L(), "pedidos"), orderBy("salvoEm", "desc"));
@@ -593,6 +595,7 @@ function Dashboard() {
 
       <AvisoCaixa />
 
+      {!resumoNoFechamento && (
       <section className="summary-ref">
         <div className="summary-main-ref">
           <div className="icon-circle-ref green">
@@ -636,6 +639,7 @@ function Dashboard() {
           </div>
         </div>
       </section>
+      )}
 
       {viagemLigado && (
         <nav className="novo-rapido-ref" aria-label="Novo pedido">
@@ -720,7 +724,7 @@ function Dashboard() {
                 )}
               </div>
 
-              <strong>{valor(mesa.total)}</strong>
+              <strong className={resumoNoFechamento && mesa.status !== "livre" ? "mesa-aberta-txt" : undefined}>{resumoNoFechamento ? (mesa.status === "livre" ? "Livre" : "Aberta") : valor(mesa.total)}</strong>
               <small>{mesa.totalItens} itens</small>
             </article>
           );

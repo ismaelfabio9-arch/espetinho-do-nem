@@ -25,6 +25,8 @@ import { useCaixaAberto } from "../../components/AvisoCaixa";
 import "../../styles/Garcom/AvisoCaixa.css";
 import WhatsLojaConfig from "../../components/WhatsLojaConfig";
 import SonsConfig from "../../components/SonsConfig";
+import ResumoDia, { calcularResumoDia } from "../../components/ResumoDia";
+import { registrar } from "../../utils/registro";
 import "../../components/QuerMais.css";
 
 // Prato montado ("Peito empanado — feijão preto, …") conta no relatório como o prato.
@@ -41,6 +43,9 @@ function Config() {
   const [mensagem, setMensagem] = useState("");
   const [encerrando, setEncerrando] = useState(false);
   const [modalEncerrarDia, setModalEncerrarDia] = useState(false);
+  // Loja com "resumo-no-fechamento" (Chef Baguette): o resumo do dia aparece ao encerrar o dia.
+  const resumoNoFechamento = useRecurso("resumo-no-fechamento");
+  const [resumoDia, setResumoDia] = useState(null);
 
   function mostrarMensagem(texto) {
     setMensagem(texto);
@@ -170,8 +175,11 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
         }
       });
 
+      const resumo = calcularResumoDia(vendasDia);
+      registrar({ area: "dinheiro", acao: "Encerrou o dia", texto: `Total do dia R$ ${resumo.total.toFixed(2).replace(".", ",")} em ${resumo.pedidos} pedidos`, valor: resumo.total, detalhes: resumo.formas.map((f) => `${f.forma}: R$ ${f.valor.toFixed(2).replace(".", ",")}`) });
       mostrarMensagem("✅ Dia encerrado com sucesso! Estoque zerado.");
       setModalEncerrarDia(false);
+      if (resumoNoFechamento) setResumoDia(resumo);
     } catch (erro) {
       console.error("Erro ao encerrar dia:", erro);
       mostrarMensagem("Erro ao encerrar o dia.");
@@ -365,6 +373,8 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
         </label>
       </div>
       )}
+
+      {resumoDia && <ResumoDia resumo={resumoDia} loja={nomeLoja} onFechar={() => setResumoDia(null)} />}
 
       {modalEncerrarDia && souDono && (
         <div className="modal-fechar-dia">

@@ -1,0 +1,30 @@
+.rd-fundo { position: fixed; inset: 0; z-index: 100001; background: #0a0a0a; overflow-y: auto; color: #f4f4f5; }
+.rd { max-width: 560px; margin: 0 auto; padding: 0 0 calc(20px + env(safe-area-inset-bottom, 0px)); }
+.rd :is(h1, h3, small, span, b, p, div) { color: inherit; }
+.rd-cab { padding: 18px 16px 4px; }
+.rd-cab small { color: #a1a1aa !important; text-transform: none; }
+.rd-cab h1 { margin: 2px 0 0; font-size: 24px; }
+.rd-card { margin: 10px 16px; background: #151515; border: 1px solid #2a2a2a; border-radius: 18px; padding: 14px; }
+.rd-big { text-align: center; padding: 18px 14px; }
+.rd-big small, .rd-big span { color: #a1a1aa !important; }
+.rd-big b { display: block; font-size: 38px; color: #22c55e !important; margin: 4px 0; }
+.rd-tres { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 0 16px; }
+.rd-tres div { background: #151515; border: 1px solid #2a2a2a; border-radius: 14px; padding: 10px 6px; text-align: center; }
+.rd-tres small { display: block; color: #a1a1aa !important; font-size: 11.5px; }
+.rd-tres b { font-size: 17px; }
+.rd h3 { margin: 0 0 10px; font-size: 15px; }
+.rd-lin { display: flex; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid #222; font-size: 14px; }
+.rd-lin:first-of-type { border-top: 0; }
+.rd-n { flex: none; width: 22px; height: 22px; border-radius: 50%; background: #16a34a; display: grid; place-items: center; font-size: 12px; font-weight: 800; }
+.rd-nm { flex: 1; min-width: 0; }
+.rd-q { color: #a1a1aa !important; font-size: 13px; }
+.rd-lin b { min-width: 84px; text-align: right; }
+.rd-bar { height: 6px; border-radius: 99px; background: #222; margin-top: 4px; overflow: hidden; }
+.rd-bar i { display: block; height: 100%; background: #22c55e; border-radius: 99px; }
+.rd-fp { display: flex; justify-content: space-between; padding: 6px 0; font-size: 14px; }
+.rd-fp span { color: #d4d4d8 !important; }
+.rd-vazio { color: #a1a1aa !important; }
+.rd-bt { display: flex; gap: 8px; margin: 12px 16px 0; }
+.rd-bt > * { flex: 1; display: grid; place-items: center; text-align: center; padding: 14px 8px; border-radius: 14px; font: inherit; font-weight: 800; font-size: 14px; border: 1px solid #2a2a2a; background: #151515; color: #f4f4f5 !important; cursor: pointer; text-decoration: none; }
+html body .rd-bt a.w { background: #25d366 !important; border-color: #25d366 !important; color: #fff !important; }
+.rd-bt .v { background: #16a34a; border-color: #16a34a; color: #fff !important; }
