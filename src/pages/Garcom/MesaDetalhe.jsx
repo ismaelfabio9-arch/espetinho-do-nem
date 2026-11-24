@@ -58,6 +58,9 @@ function MesaDetalhe() {
   const [pedirMotivo, setPedirMotivo] = useState(null); // { titulo, fazer(motivo) }
   const [motivoOutro, setMotivoOutro] = useState("");
   const fotos = useFotos(useRecurso("fotos"));
+  // Função por loja (pedido do Chef Baguette): depois de salvar o pedido, volta para o Painel.
+  const voltarAoSalvar = useRecurso("voltar-ao-salvar");
+  const voltarAoPainel = () => setTimeout(() => navigate("/"), 700);
 
   const [produtos, setProdutos] = useState([]);
   const [categoriaAberta, setCategoriaAberta] = useState("");
@@ -675,8 +678,9 @@ if (pedidosDaMesa.length === 0) {
       if (configImpressora.habilitada && imprimirLigado) {
         // "Imprimir automaticamente" ligado na configuração: tenta direto; se o celular bloquear, pergunta.
         const impresso = configImpressora.autoImprimirPedido ? await imprimirComandaAgora(itensImpressos, totalImpresso) : false;
-        if (!impresso) setParaImprimir({ itens: itensImpressos, total: totalImpresso, alterado: false });
-      }
+        if (!impresso) setParaImprimir({ itens: itensImpressos, total: totalImpresso, alterado: false, voltar: voltarAoSalvar });
+        else if (voltarAoSalvar) voltarAoPainel();
+      } else if (voltarAoSalvar) voltarAoPainel();
     } catch (erro) {
       console.error("Erro ao salvar pedido da mesa:", erro);
       mostrarNotificacao("Erro ao salvar no Firebase.");
@@ -703,6 +707,7 @@ if (pedidosDaMesa.length === 0) {
     if (!p) return;
     const abriu = await imprimirComandaAgora(p.itens, p.total, p.alterado ? "PEDIDO ALTERADO: esta é a comanda completa da mesa." : "");
     if (!abriu) mostrarNotificacao("O celular bloqueou a janela de impressão. Libere as janelas (pop-ups) do site e tente de novo.");
+    else if (p.voltar) voltarAoPainel();
   }
 
   function fecharPedidoMesa() {
@@ -1178,7 +1183,15 @@ if (pedidosDaMesa.length === 0) {
                 : `Imprimir ${paraImprimir.itens.reduce((s, i) => s + Number(i.qtd || 0), 0)} item(ns) na cozinha?`}
             </p>
             <div className="modal-acoes">
-              <button type="button" className="modal-btn cancelar" onClick={() => setParaImprimir(null)}>
+              <button
+                type="button"
+                className="modal-btn cancelar"
+                onClick={() => {
+                  const voltar = paraImprimir?.voltar;
+                  setParaImprimir(null);
+                  if (voltar) voltarAoPainel();
+                }}
+              >
                 Agora não
               </button>
               <button type="button" className="modal-btn confirmar" onClick={confirmarImpressaoCozinha} data-atalho="F1">

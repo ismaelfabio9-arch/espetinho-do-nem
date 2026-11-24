@@ -34,6 +34,8 @@ export const RECURSOS = {
   custos: false,
   // Foto de cada produto no cardápio: planos Completo e Premium.
   fotos: false,
+  // Pedido de um cliente (Chef Baguette): depois de salvar o pedido da mesa, volta para o Painel.
+  "voltar-ao-salvar": false,
   beta: false,
 };
 
