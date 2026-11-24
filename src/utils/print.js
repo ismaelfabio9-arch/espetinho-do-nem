@@ -113,6 +113,33 @@ export function gerarComandaHTML({ numeroPedido, mesa, titulo, cliente, itens, t
   `;
 }
 
+/** Resumo do dia (ao encerrar o dia): total, pedidos, mais vendidos e como pagaram. r = calcularResumoDia(). */
+export function gerarResumoDiaHTML(r, config) {
+  const agora = new Date();
+  const linha = (a, b, cls = "") => `<div class="linha-item ${cls}"><span>${escapeHtml(a)}</span><span>${escapeHtml(b)}</span></div>`;
+  return `
+    ${cabecalho(config)}
+    <div class="linha-central negrito grande">RESUMO DO DIA</div>
+    <div class="linha-central pequeno">${escapeHtml(r.data)}${r.de ? ` · ${escapeHtml(r.de)} às ${escapeHtml(r.ate)}` : ""}</div>
+    <div class="separador"></div>
+    <div class="linha-central pequeno">TOTAL VENDIDO</div>
+    <div class="linha-central negrito" style="font-size:24px">R$ ${formatarMoeda(r.total)}</div>
+    <div class="separador"></div>
+    ${linha("Pedidos", String(r.pedidos))}
+    ${linha("Itens vendidos", String(r.itens))}
+    ${linha("Mesas atendidas", String(r.mesas))}
+    ${linha("Balcão / viagem", String(r.balcao))}
+    ${linha("Ticket médio", `R$ ${formatarMoeda(r.ticket)}`)}
+    <div class="separador"></div>
+    <div class="linha-central negrito">MAIS VENDIDOS</div>
+    ${r.produtos.length ? r.produtos.slice(0, 20).map((p, k) => `<div class="linha-item"><span>${k + 1}. ${escapeHtml(p.qtd)}x ${escapeHtml(p.nome)}</span><span>${formatarMoeda(p.total)}</span></div>`).join("") : '<div class="linha-central pequeno">Nenhuma venda</div>'}
+    ${r.formas.length ? `<div class="separador"></div><div class="linha-central negrito">COMO PAGARAM</div>${r.formas.map((f) => linha(f.forma, `R$ ${formatarMoeda(f.valor)}`)).join("")}` : ""}
+    ${r.fechadasNoEncerramento ? `<div class="separador"></div><div class="pequeno">${escapeHtml(r.fechadasNoEncerramento)} mesa(s) fechada(s) no encerramento do dia sem forma de pagamento.</div>` : ""}
+    <div class="separador"></div>
+    <div class="linha-central pequeno">Impresso em ${agora.toLocaleDateString("pt-BR")} ${agora.toLocaleTimeString("pt-BR")}</div>
+  `;
+}
+
 /** Documento 2 — Comprovante de consumo (entregue ao cliente). */
 export function gerarComprovanteHTML({ mesa, cliente, itens, total, formaPagamento, config, taxaCartao = 0, taxaPct = 0 }) {
   const agora = new Date();
