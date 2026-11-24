@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { db } from "../../firebase";
 import { ordenarGruposPorCategoria } from "../../utils/categorias";
+import { disponivelAgora, useMinuto } from "../../utils/horario";
 import "../../styles/Cliente/CardapioMesa.css";
 import {
   collection,
@@ -69,6 +70,7 @@ function CardapioMesa() {
   const estoqueLigado = useRecurso("estoque");
   const [estoque, setEstoque] = useState({});
   const [categoriasDocs, setCategoriasDocs] = useState([]);
+  const minuto = useMinuto();
 
   function formatarMoeda(valor) {
     return Number(valor || 0).toFixed(2).replace(".", ",");
@@ -118,7 +120,7 @@ function CardapioMesa() {
       }));
 
       // Fora do cardápio de hoje também não aparece para o cliente.
-      const produtosAtivos = lista.filter((produto) => produto.ativo !== false && produto.foraHoje !== true);
+      const produtosAtivos = lista.filter((produto) => disponivelAgora(produto, categoriasDocs));
 
       const grupos = produtosAtivos.reduce((resultado, produto) => {
         if (!resultado[produto.categoria]) {
@@ -146,7 +148,7 @@ function CardapioMesa() {
     });
 
     return () => cancelarProdutos();
-  }, [categoriasDocs]);
+  }, [categoriasDocs, minuto]);
 
   useEffect(() => {
     const nomeSalvo = localStorage.getItem(`mesa_${mesa}_cliente`);

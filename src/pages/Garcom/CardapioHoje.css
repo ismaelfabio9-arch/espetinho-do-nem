@@ -18,3 +18,29 @@
 .hoje-pronto { position: fixed; left: 16px; right: 16px; bottom: calc(16px + env(safe-area-inset-bottom, 0px)); max-width: 520px; margin: 0 auto; display: block; text-align: center; background: #16a34a; color: #fff; text-decoration: none; border-radius: 14px; padding: 15px; font-weight: 800; font-size: 17px; z-index: 50; }
 body.dark .hoje-item { background: #161616; border-color: #262626; color: #f3f4f6; }
 body.dark .hoje-chave.off { background: #3a3a3a; }
+/* Horário da categoria e dias do produto (cardápio automático) */
+.hoje-cat-topo h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
+html body .hoje-cat-topo .hoje-hr { font-size: 11.5px; letter-spacing: 0; text-transform: none; font-weight: 600; color: #6b7280; border: 1px solid #d1d5db; border-radius: 999px; padding: 1px 8px; }
+html body .hoje-cat-topo .hoje-hr.on { color: #15803d; border-color: #86efac; }
+.hoje-linha { position: relative; }
+.hoje-linha .hoje-item { padding-right: 112px; }
+.hoje-dias-bt { position: absolute; right: 66px; top: 50%; transform: translateY(calc(-50% + 4px)); background: none; border: 0; color: #6b7280; font-size: 12px; font-weight: 700; cursor: pointer; padding: 6px; }
+.hoje-linha .hoje-editar { margin-top: 6px; }
+.hoje-editar { margin-top: 8px; padding: 12px; border: 1px dashed #d1d5db; border-radius: 12px; display: flex; flex-direction: column; gap: 10px; }
+.hoje-horas { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.hoje-horas label { display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; font-weight: 600; }
+.hoje-horas input { padding: 10px; border-radius: 10px; border: 1px solid #d1d5db; font: inherit; font-size: 16px; background: transparent; color: inherit; }
+html body .hoje-editar .hoje-nota { color: #6b7280; font-size: 12.5px; }
+.hoje-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.hoje-chips button { border: 1px solid #d1d5db; background: transparent; color: inherit; border-radius: 999px; padding: 6px 11px; font: inherit; font-size: 13px; cursor: pointer; }
+.hoje-chips button.on { background: #16a34a; border-color: #16a34a; color: #fff; }
+.hoje-bts { display: flex; justify-content: flex-end; gap: 8px; }
+.hoje-bts button { border: 1px solid #d1d5db; background: transparent; color: inherit; border-radius: 10px; padding: 9px 14px; font: inherit; font-weight: 700; font-size: 14px; cursor: pointer; }
+.hoje-bts button.ok { background: #16a34a; border-color: #16a34a; color: #fff; }
+.hoje-bts button:disabled { opacity: 0.5; }
+body.dark .hoje-editar, body.dark .hoje-horas input, body.dark .hoje-chips button, body.dark .hoje-bts button { border-color: #333; }
+body.dark .hoje-cat-topo .hoje-hr { border-color: #333; color: #a1a1aa !important; }
+body.dark .hoje-cat-topo .hoje-hr.on { border-color: #166534; color: #4ade80 !important; }
+@media (min-width: 900px) {
+  .hoje-page { max-width: 760px; }
+}
