@@ -1,5 +1,5 @@
 /* O que foi mexido (registro da dona) */
-.reg { --rg-card: var(--card, #151515); --rg-linha: var(--border, rgba(127, 127, 127, 0.25)); --rg-mute: #9ca3af; margin: 0 auto; max-width: 900px; padding: 4px 0 24px; }
+.reg { --rg-card: var(--card, #151515); --rg-linha: var(--border, rgba(127, 127, 127, 0.25)); --rg-mute: #9ca3af; margin: 0 auto; max-width: 900px; padding: 4px 16px 24px; box-sizing: border-box; overflow-x: hidden; }
 body:not(.dark) .reg { --rg-card: #fff; --rg-mute: #6b7280; }
 html body .reg :is(span, small, p, b, strong, h2, h3, em, i, li) { color: inherit; }
 .reg-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
