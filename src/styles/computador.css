@@ -55,3 +55,4 @@
 .olho-btn:hover { background: rgba(127, 127, 127, 0.12); }
 .summary-text-ref .olho-linha { display: inline-flex !important; align-items: center; gap: 10px; }
 .summary-text-ref .olho-btn { flex: none; position: static !important; margin: 0 0 0 4px !important; width: 30px; height: 30px; min-width: 0; box-shadow: none; }
+.mesa-aberta-txt { color: #22c55e !important; }
