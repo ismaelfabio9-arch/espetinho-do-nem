@@ -77,7 +77,9 @@ function Pedidos() {
 
   function tituloPedido(pedido) {
     if (pedido.tipo !== "mesa") {
-      return pedido.titulo || "Pedido Viagem";
+      if (pedido.titulo) return pedido.titulo;
+      if (pedido.tipo === "entrega") return `${pedido.modo === "retirada" ? "Retirada" : "Entrega"}${pedido.numero ? ` #${pedido.numero}` : ""}${pedido.cliente ? ` · ${pedido.cliente}` : ""}`;
+      return "Pedido Viagem";
     }
 
     const cliente = nomesMesas[String(pedido.mesa)];
