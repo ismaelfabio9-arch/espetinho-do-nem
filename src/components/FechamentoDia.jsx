@@ -128,7 +128,8 @@ export default function FechamentoDia({ onCancelar, onConfirmar, encerrando }) {
   };
   useEffect(() => {
     if (esperado !== null && div === null) {
-      const d = dividir(meta.gavetaPadrao || 0);
+      // Fica na gaveta: o mesmo do último fechamento ou, na primeira vez, o troco com que abriu hoje.
+      const d = dividir(meta.gavetaPadrao || Number(f?.gaveta?.inicial || 0));
       setDiv({ gaveta: String(d.gaveta).replace(".", ","), caixa: String(d.caixa).replace(".", ","), dona: String(d.dona).replace(".", ",") });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
