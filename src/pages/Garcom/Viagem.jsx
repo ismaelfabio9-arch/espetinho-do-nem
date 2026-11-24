@@ -15,6 +15,7 @@ import { textoDoItem } from "../../utils/montagem";
 import { db } from "../../firebase";
 import "../../styles/Garcom/MesaDetalhe.css";
 import { ordenarGruposPorCategoria } from "../../utils/categorias";
+import { disponivelAgora, useMinuto } from "../../utils/horario";
 import { ordenarItensCategoria } from "../../utils/produtosOrdem";
 import PedidoRapido from "../../components/PedidoRapido";
 import MontarPrato from "../../components/MontarPrato";
@@ -45,6 +46,7 @@ function Viagem({ modo = "balcao", topo = null }) {
   const [dadosEntrega, setDadosEntrega] = useState(null);
   const [produtos, setProdutos] = useState([]);
   const [categoriasDocs, setCategoriasDocs] = useState([]);
+  const minuto = useMinuto();
   // Prato com montagem aberto na janela "Montar o prato" (igual às mesas).
   const [montando, setMontando] = useState(null);
   // Prato que já está no pedido atual: pergunta se edita ou acrescenta mais um.
@@ -77,7 +79,7 @@ function Viagem({ modo = "balcao", topo = null }) {
       }));
 
       const produtosAtivos = listaProdutos.filter(
-        (produto) => produto.ativo !== false && produto.foraHoje !== true
+        (produto) => disponivelAgora(produto, categoriasDocs)
       );
 
       const grupos = produtosAtivos.reduce((resultado, produto) => {
@@ -110,7 +112,7 @@ function Viagem({ modo = "balcao", topo = null }) {
     });
 
     return () => cancelar();
-  }, [categoriasDocs]);
+  }, [categoriasDocs, minuto]);
 
   const linhasDoProduto = (id) =>
     Object.values(pedido)

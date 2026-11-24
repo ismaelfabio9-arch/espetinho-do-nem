@@ -8,6 +8,7 @@ import { L, getLoja } from "../../loja";
 import useNomeLoja from "../../hooks/useNomeLoja";
 import { mesasApi } from "../../tenant";
 import { ordenarGruposPorCategoria } from "../../utils/categorias";
+import { disponivelAgora, useMinuto } from "../../utils/horario";
 import MontarPrato from "../../components/MontarPrato";
 import PratoNoPedido from "../../components/PratoNoPedido";
 import { BarraSacola, CardapioCliente, ClienteTopo, Folha, ItensSacola } from "../../components/cliente/Cliente";
@@ -42,6 +43,7 @@ export default function CardapioOnline() {
   const estoqueLigado = useRecurso("estoque");
   const taxas = useTaxas();
   const [categoriasDocs, setCategoriasDocs] = useState([]);
+  const minuto = useMinuto();
   const [produtos, setProdutos] = useState([]);
   const [estoque, setEstoque] = useState({});
   const [carrinho, setCarrinho] = useState({});
@@ -75,7 +77,7 @@ export default function CardapioOnline() {
         const grupos = {};
         s.docs
           .map((d) => ({ id: d.id, ...d.data() }))
-          .filter((p) => p.ativo !== false && p.foraHoje !== true)
+          .filter((p) => disponivelAgora(p, categoriasDocs))
           .forEach((p) => {
             // Produto sem categoria ou sem nome não pode derrubar a página (tela preta).
             const cat = String(p.categoria || "").trim() || "Outros";
@@ -84,7 +86,7 @@ export default function CardapioOnline() {
           });
         setProdutos(ordenarGruposPorCategoria(Object.values(grupos), categoriasDocs));
       }),
-    [categoriasDocs]
+    [categoriasDocs, minuto]
   );
 
   const linhas = Object.values(carrinho);

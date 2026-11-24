@@ -17,6 +17,7 @@ import {
 } from "firebase/firestore";
 import { auth, db } from "../../firebase";
 import { ordenarGruposPorCategoria, trocarOrdemCategorias } from "../../utils/categorias";
+import { disponivelAgora, useMinuto } from "../../utils/horario";
 import { ordenarItensCategoria, moverItemCategoria } from "../../utils/produtosOrdem";
 import { useConfigImpressora } from "../../hooks/useConfigImpressora";
 import {
@@ -84,6 +85,7 @@ function MesaDetalhe() {
   const [encerrando, setEncerrando] = useState(false);
   const [mostrarModalEncerrarMesa, setMostrarModalEncerrarMesa] = useState(false);
   const [categoriasDocs, setCategoriasDocs] = useState([]);
+  const minuto = useMinuto();
   const [etapaEncerrar, setEtapaEncerrar] = useState("opcoes"); // opcoes | pagamento
   // Formas de pagamento ao encerrar (pode ser mais de uma): { Pix: "30,00", Dinheiro: "50,00" }
   const [partesEncerrar, setPartesEncerrar] = useState({});
@@ -153,7 +155,7 @@ function MesaDetalhe() {
 
       // Fora do cardápio de hoje também não aparece para lançar.
       const produtosAtivos = listaProdutos.filter(
-        (produto) => produto.ativo !== false && produto.foraHoje !== true
+        (produto) => disponivelAgora(produto, categoriasDocs)
       );
 
       const grupos = produtosAtivos.reduce((resultado, produto) => {
@@ -186,7 +188,7 @@ function MesaDetalhe() {
     });
 
     return () => cancelar();
-  }, [categoriasDocs]);
+  }, [categoriasDocs, minuto]);
 
   useEffect(() => {
     const pedidosRef = collection(db, ...L(), "pedidos");

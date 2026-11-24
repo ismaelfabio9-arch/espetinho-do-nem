@@ -17,6 +17,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../firebase";
 import { slugify } from "./texto";
+import { categoriaNoHorario } from "./horario";
 
 // Categoria virtual usada quando um produto fica sem categoria
 // (ex: categoria excluída sem migração de produtos). Não existe
@@ -84,7 +85,16 @@ export function ordenarGruposPorCategoria(grupos, categoriasDocs) {
   // Dentro da categoria: a ordem do produto quando tem (ex.: a do cardápio impresso); sem ordem, como estava.
   const pos = (i) => (typeof i?.ordem === "number" ? i.ordem : 9999);
   const comItens = grupos.map((g) => (Array.isArray(g.itens) && g.itens.some((i) => typeof i?.ordem === "number") ? { ...g, itens: [...g.itens].sort((x, y) => pos(x) - pos(y)) } : g));
+  // Categoria com horário que está valendo agora (Almoço de manhã, Pizzas à noite) vem primeiro.
+  const agora = new Date();
+  const noHorario = {};
+  categoriasDocs.forEach((c) => {
+    noHorario[c.nome] = categoriaNoHorario(c, agora);
+  });
   return comItens.sort((a, b) => {
+    const hA = noHorario[a.categoria] ? 0 : 1;
+    const hB = noHorario[b.categoria] ? 0 : 1;
+    if (hA !== hB) return hA - hB;
     const ordemA = ordemPorNome[a.categoria] ?? 9999;
     const ordemB = ordemPorNome[b.categoria] ?? 9999;
 
