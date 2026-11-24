@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import "./InstallApp.css";
 
-import { canPromptInstall, detectDevice, isInAppBrowser, onInstallAvailabilityChange, promptInstall } from "../utils/installPrompt";
+import { canPromptInstall, detectDevice, isFirefox, isInAppBrowser, onInstallAvailabilityChange, promptInstall } from "../utils/installPrompt";
 
 const TABS = [
   { id: "iphone", label: "iPhone" },
@@ -9,7 +9,35 @@ const TABS = [
   { id: "computador", label: "Computador" },
 ];
 
+function StepsFirefox({ device }) {
+  if (device === "iphone")
+    return (
+      <ol className="install-steps">
+        <li>Toque nos <strong>três risquinhos ☰</strong>, embaixo da tela.</li>
+        <li>Toque em <strong>Compartilhar</strong> e depois em <strong>“Adicionar à Tela de Início”</strong>.</li>
+        <li>Toque em <strong>“Adicionar”</strong>.</li>
+      </ol>
+    );
+  if (device === "android")
+    return (
+      <ol className="install-steps">
+        <li>Toque nos <strong>três pontinhos ⋮</strong>.</li>
+        <li>Toque em <strong>“Adicionar à tela inicial”</strong> (ou <strong>“Instalar”</strong>) e confirme.</li>
+      </ol>
+    );
+  return (
+    <>
+      <p className="install-warning">O Firefox no computador não instala o sistema como app. Use um destes jeitos:</p>
+      <ol className="install-steps">
+        <li><strong>Atalho na área de trabalho:</strong> diminua a janela do Firefox, clique no <strong>cadeado</strong> do lado do endereço e arraste até a área de trabalho. O ícone abre o sistema direto.</li>
+        <li><strong>Como app:</strong> abra o mesmo endereço no <strong>Google Chrome</strong> ou no <strong>Microsoft Edge</strong> (o Edge já vem no Windows) e instale por lá.</li>
+      </ol>
+    </>
+  );
+}
+
 function Steps({ device }) {
+  if (isFirefox()) return <StepsFirefox device={device} />;
   if (device === "iphone")
     return (
       <ol className="install-steps">

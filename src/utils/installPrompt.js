@@ -56,3 +56,8 @@ export function detectDevice() {
 export function isInAppBrowser() {
   return /Instagram|FBAN|FBAV|FB_IAB|WhatsApp|Line\//i.test(navigator.userAgent);
 }
+
+/** Firefox (computador, Android ou iPhone). */
+export function isFirefox() {
+  return /Firefox|FxiOS/.test(navigator.userAgent);
+}
