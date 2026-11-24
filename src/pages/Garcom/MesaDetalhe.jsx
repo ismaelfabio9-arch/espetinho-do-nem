@@ -40,6 +40,7 @@ import { MONTAGEM_ALMOCO, detalhesMontagem, textoDoItem, emojiCategoria, pratosS
 import { baixarInsumos } from "../../utils/insumos";
 import { meuAparelho } from "../../utils/sons";
 import { MOTIVOS_PEDIDO, registrar } from "../../utils/registro";
+import { registrarOcorrencia } from "../../utils/ocorrencias";
 import { useFotos } from "../../utils/fotos";
 
 
@@ -94,6 +95,9 @@ function MesaDetalhe() {
   const [editando, setEditando] = useState(null); // nome da linha do pedido que está sendo editada
   // Prato já salvo na comanda sendo editado (pelo "Ver pedido"): o nome da linha na comanda.
   const [editandoSalvo, setEditandoSalvo] = useState(null);
+  // Saiu diferente: a cozinha errou e o cliente ficou com o prato. { nome } enquanto escolhe o que saiu; depois { nome, prato } pede o motivo.
+  const [saiuDif, setSaiuDif] = useState(null);
+  const [saiuMotivo, setSaiuMotivo] = useState("");
   const [organizarAberto, setOrganizarAberto] = useState(false);
   // Depois de salvar (ou de alterar o pedido em "Ver pedido"): pergunta se imprime na cozinha.
   // A janela de impressão só abre direito quando nasce de um toque, por isso o botão.
@@ -362,6 +366,34 @@ if (pedidosDaMesa.length === 0) {
     setMontando(produto);
   }
 
+  /** A cozinha errou e o cliente ficou com o prato: marca o que saiu de verdade (o preço não muda). */
+  function saiuDiferente(item) {
+    const produto = produtoPorId(item.produtoId);
+    if (!produto) return;
+    setMostrarPedidoMesa(false);
+    setSaiuMotivo("");
+    setSaiuDif({ nome: item.nome });
+    setMontando(produto);
+  }
+
+  async function confirmarSaiuDiferente(motivo) {
+    const { nome, prato } = saiuDif;
+    setSaiuDif(null);
+    const antigo = itensMesa.find((i) => i.nome === nome);
+    const antes = detalhesMontagem(antigo?.saiuDiferente?.pedido || antigo?.montagem);
+    const depois = detalhesMontagem(prato.montagem);
+    const novos = itensBrutosMesa.map((i) =>
+      i.nome === nome ? { ...i, montagem: prato.montagem, saiuDiferente: { pedido: i.saiuDiferente?.pedido || i.montagem || null, motivo, em: new Date().toISOString() } } : { ...i }
+    );
+    await atualizarPedidoMesa(novos);
+    const nomeBase = antigo?.nomeBase || String(nome).split(" — ")[0];
+    const trocas = `pediu ${antes.filter((x) => !depois.includes(x)).join(", ") || "—"}, saiu ${depois.filter((x) => !antes.includes(x)).join(", ") || "—"}`;
+    registrarOcorrencia({ tipo: "saiuDiferente", texto: `${nomeBase}: ${trocas}`, motivo, mesa: id, valor: Number(antigo?.preco || 0) });
+    registrar({ area: "pedidos", acao: "Saiu diferente (cliente ficou)", mesa: id, texto: nomeBase, antes: antes.join(", "), depois: depois.join(", "), motivo });
+    mostrarNotificacao("Marcado o que saiu. O estoque baixa pelo que saiu.");
+    setMostrarPedidoMesa(true);
+  }
+
   async function salvarEdicaoSalvo(prato) {
     const antigos = itensBrutosMesa.filter((i) => i.nome === editandoSalvo);
     setMontando(null);
@@ -385,6 +417,11 @@ if (pedidosDaMesa.length === 0) {
   /** Prato montado (e as bebidas escolhidas junto) entram no pedido atual. */
   function adicionarMontado({ prato, bebidas, qtd: quantos = 1 }) {
     if (editandoSalvo) return void salvarEdicaoSalvo(prato);
+    if (saiuDif) {
+      setMontando(null);
+      setSaiuDif({ ...saiuDif, prato });
+      return;
+    }
     setPedido((atual) => {
       const novo = { ...atual };
       // Editando: a linha antiga sai e a nova fica com a mesma quantidade.
@@ -559,6 +596,7 @@ if (pedidosDaMesa.length === 0) {
       fazer: async (motivo) => {
         await tirarItemMesa(itemSelecionado);
         registrar({ area: "pedidos", acao: ultimo ? "Tirou da comanda" : "Diminuiu na comanda", mesa: id, texto: `−${textoDoItem({ ...itemSelecionado, qtd: 1 })}`, valor: -Number(itemSelecionado.preco || 0), motivo });
+        registrarOcorrencia({ tipo: /cortesia/i.test(motivo) ? "cortesia" : "tirou", texto: textoDoItem({ ...itemSelecionado, qtd: 1 }), valor: Number(itemSelecionado.preco || 0), motivo, mesa: id });
       },
     });
   }
@@ -1114,14 +1152,21 @@ if (pedidosDaMesa.length === 0) {
                     <strong>{partesItem(item).nome}</strong>
                     {partesItem(item).detalhes.length > 0 && (
                       <span className="pm-det">
-                        {partesItem(item).detalhes.map((d, i) => <span key={i}>{d}</span>)}
+                        {partesItem(item).detalhes.map((d, i) => <span key={i} className={item.saiuDiferente && !detalhesMontagem(item.saiuDiferente.pedido).some((x) => x.toLowerCase() === d.toLowerCase()) ? "pm-troca" : undefined}>{d}</span>)}
+                        {item.saiuDiferente && detalhesMontagem(item.saiuDiferente.pedido).filter((x) => !partesItem(item).detalhes.some((d) => d.toLowerCase() === x.toLowerCase())).map((x, i) => <span key={`p${i}`} className="pm-pedido">{x.charAt(0).toUpperCase() + x.slice(1)}</span>)}
                       </span>
                     )}
                     <span className="pm-cada">R$ {formatarMoeda(item.preco)} cada</span>
+                    {item.saiuDiferente && <span className="pm-saiu">Saiu diferente · cliente ficou</span>}
                     {produtoPorId(item.produtoId) && abreEscolha(produtoPorId(item.produtoId), montarLigado) && (
-                      <button type="button" className="pm-editar" onClick={() => editarSalvo(item)}>
-                        Editar
-                      </button>
+                      <span className="pm-botoes">
+                        <button type="button" className="pm-editar" onClick={() => editarSalvo(item)}>
+                          Editar
+                        </button>
+                        <button type="button" className="pm-editar pm-dif" onClick={() => saiuDiferente(item)}>
+                          Saiu diferente
+                        </button>
+                      </span>
                     )}
                   </div>
                   <div className="pm-lado">
@@ -1146,6 +1191,34 @@ if (pedidosDaMesa.length === 0) {
             <button type="button" className="pm-ok" onClick={fecharPedidoMesa}>
               Pronto
             </button>
+          </div>
+        </div>
+      )}
+
+      {saiuDif?.prato && (
+        <div className="modal-overlay" onClick={() => { setSaiuDif(null); setMostrarPedidoMesa(true); }}>
+          <div className="modal-card motivo-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Saiu diferente">
+            <div className="motivo-topo">
+              <h2>Saiu diferente</h2>
+              <button type="button" className="motivo-x" data-fechar onClick={() => { setSaiuDif(null); setMostrarPedidoMesa(true); }} aria-label="Fechar">×</button>
+            </div>
+            <div className="motivo-item">
+              <div className="motivo-item-l1"><strong>{partesItem(itensMesa.find((i) => i.nome === saiuDif.nome) || {}).nome}</strong></div>
+              <div className="motivo-item-det">
+                {detalhesMontagem(saiuDif.prato.montagem).map((d, i) => <span key={i}>{d.charAt(0).toUpperCase() + d.slice(1)}</span>)}
+              </div>
+            </div>
+            <p className="motivo-nota">O cliente ficou com o prato: o preço continua o mesmo e o estoque baixa pelo que saiu.</p>
+            <div className="motivo-lab">Motivo</div>
+            <div className="motivo-ops">
+              {["Saiu errado da cozinha", "Acabou o ingrediente", "Pedido trocado"].map((m) => (
+                <button type="button" key={m} className={saiuMotivo === m ? "on" : ""} onClick={() => setSaiuMotivo(m)}>{m}</button>
+              ))}
+            </div>
+            <div className="motivo-botoes">
+              <button type="button" className="modal-btn cancelar" onClick={() => { setSaiuDif(null); setMostrarPedidoMesa(true); }}>Cancelar</button>
+              <button type="button" className="motivo-tirar motivo-salvar" disabled={!saiuMotivo} onClick={() => confirmarSaiuDiferente(saiuMotivo)}>Salvar</button>
+            </div>
           </div>
         </div>
       )}
@@ -1329,16 +1402,16 @@ if (pedidosDaMesa.length === 0) {
 
       {montando && (
         <MontarPrato
-          key={editandoSalvo ? `s:${editandoSalvo}` : editando || "novo"}
+          key={saiuDif ? `d:${saiuDif.nome}` : editandoSalvo ? `s:${editandoSalvo}` : editando || "novo"}
           produto={montando}
           foto={fotos[montando.id] || null}
           fotos={fotos}
-          bebidas={editando || editandoSalvo ? [] : sugestoesBebida(produtos)}
+          bebidas={editando || editandoSalvo || saiuDif ? [] : sugestoesBebida(produtos)}
           permitirOutros
-          inicial={editandoSalvo ? itensMesa.find((i) => i.nome === editandoSalvo)?.montagem || null : editando ? pedido[editando]?.montagem : null}
-          textoBotao={editando || editandoSalvo ? "Salvar alteração" : "Adicionar"}
+          inicial={saiuDif ? itensMesa.find((i) => i.nome === saiuDif.nome)?.montagem || null : editandoSalvo ? itensMesa.find((i) => i.nome === editandoSalvo)?.montagem || null : editando ? pedido[editando]?.montagem : null}
+          textoBotao={saiuDif ? "Isso foi o que saiu" : editando || editandoSalvo ? "Salvar alteração" : "Adicionar"}
           onAdicionar={adicionarMontado}
-          onFechar={() => { setMontando(null); setEditando(null); if (editandoSalvo) { setEditandoSalvo(null); setMostrarPedidoMesa(true); } }}
+          onFechar={() => { setMontando(null); setEditando(null); if (saiuDif) { setSaiuDif(null); setMostrarPedidoMesa(true); } if (editandoSalvo) { setEditandoSalvo(null); setMostrarPedidoMesa(true); } }}
         />
       )}
 
@@ -1578,6 +1651,13 @@ if (pedidosDaMesa.length === 0) {
               <span className="md-com-txt">
                 <span className="md-com-nome">{item.qtd}× {partesItem(item).nome}</span>
                 {partesItem(item).detalhes.map((d, i) => <span key={i} className="md-com-det">{d}</span>)}
+                {item.saiuDiferente && <span className="md-com-saiu">Saiu diferente</span>}
+                {item.montagem && produtoPorId(item.produtoId) && (
+                  <span className="md-com-links">
+                    <button type="button" className="md-com-link" onClick={() => editarSalvo(item)}>Editar</button>
+                    <button type="button" className="md-com-link" onClick={() => saiuDiferente(item)}>Saiu diferente</button>
+                  </span>
+                )}
               </span>
               <span className="md-com-qtd">
                 <button type="button" onClick={() => diminuirItemMesa(item)} aria-label={Number(item.qtd) === 1 ? `Tirar ${item.nome}` : `Menos 1 ${item.nome}`}>{Number(item.qtd) === 1 ? "🗑" : "−"}</button>
