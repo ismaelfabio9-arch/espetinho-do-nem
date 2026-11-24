@@ -28,3 +28,9 @@
 .rd-bt > * { flex: 1; display: grid; place-items: center; text-align: center; padding: 14px 8px; border-radius: 14px; font: inherit; font-weight: 800; font-size: 14px; border: 1px solid #2a2a2a; background: #151515; color: #f4f4f5 !important; cursor: pointer; text-decoration: none; }
 html body .rd-bt a.w { background: #25d366 !important; border-color: #25d366 !important; color: #fff !important; }
 .rd-bt .v { background: #16a34a; border-color: #16a34a; color: #fff !important; }
+.rd-fundo { overflow-x: hidden; }
+.rd, .rd * { box-sizing: border-box; }
+.rd { width: 100%; }
+.rd-tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.rd-card { min-width: 0; }
+.rd-lin b { min-width: 0; white-space: nowrap; }
