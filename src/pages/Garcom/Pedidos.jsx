@@ -350,7 +350,7 @@ function Pedidos() {
           {pedido.obs && <p>📝 {pedido.obs}</p>}
           {pedido.taxaEntrega > 0 && (
             <p>
-              Itens R$ {formatarMoeda(pedido.subtotal)} + entrega R$ {formatarMoeda(pedido.taxaEntrega)}
+              Itens R$ {formatarMoeda(Number.isFinite(Number(pedido.subtotal)) && pedido.subtotal !== undefined ? pedido.subtotal : Number(pedido.total || 0) - Number(pedido.taxaEntrega || 0))} + entrega R$ {formatarMoeda(pedido.taxaEntrega)}
             </p>
           )}
         </div>
@@ -394,7 +394,7 @@ function Pedidos() {
 
   const modalPagamento = pagarPedido && (
     <div className="modal-overlay" onClick={() => setPagarPedido(null)}>
-      <div className="modal-card" role="dialog" aria-label="Como foi pago?" onClick={(e) => e.stopPropagation()}>
+      <div className="modal-card pagar-card" role="dialog" aria-label="Como foi pago?" onClick={(e) => e.stopPropagation()}>
         <div className="modal-icon">💳</div>
         <h2>Como foi pago?</h2>
         <p className="modal-total-encerrar">
