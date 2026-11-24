@@ -24,7 +24,7 @@ import { baixarInsumos } from "../../utils/insumos";
 import { AVISO_PARCIAL, temPagamentoParcial } from "../../utils/contaMesa";
 import useNomeLoja from "../../hooks/useNomeLoja";
 import { linkWhats, mostrarFone, numeroWhats } from "../../utils/contato";
-import FormasPagamento, { resolverPartes } from "../../components/FormasPagamento";
+import FormasPagamento, { FORMAS, resolverPartes } from "../../components/FormasPagamento";
 import "../../components/QuerMais.css";
 
 // Painel: separa os pedidos em Mesas, Balcão (viagem) e Entregas. No computador, uma coluna para cada.
@@ -184,8 +184,10 @@ function Pedidos() {
       window.alert(AVISO_PARCIAL(pedido.mesa));
       return;
     }
-    if (pedido.tipo === "entrega" && pedido.pagamento) return removerPedido(pedido);
-    setPartesPagar({});
+    // Sempre pergunta como foi pago. Pedido de entrega já vem com a forma que o cliente escolheu marcada
+    // (se pagou de outro jeito na hora, é só trocar).
+    const escolhida = FORMAS.find((f) => f.toLowerCase() === String(pedido.pagamento || "").toLowerCase());
+    setPartesPagar(escolhida ? { [escolhida]: Number(pedido.total || 0).toFixed(2).replace(".", ",") } : {});
     setPagarPedido(pedido);
   }
 
@@ -396,6 +398,12 @@ function Pedidos() {
         <p className="modal-total-encerrar">
           {tituloPedido(pagarPedido)} · Total: <strong>R$ {formatarMoeda(pagarPedido.total)}</strong>
         </p>
+        {pagarPedido.pagamento && (
+          <p className="modal-total-encerrar">
+            O cliente disse que ia pagar com <strong>{pagarPedido.pagamento}</strong>
+            {pagarPedido.troco ? ` (troco para R$ ${formatarMoeda(pagarPedido.troco)})` : ""}. Confira e confirme.
+          </p>
+        )}
         <FormasPagamento valor={Number(pagarPedido.total || 0)} partes={partesPagar} onChange={setPartesPagar} />
         <div className="modal-acoes">
           <button type="button" className="modal-btn cancelar" onClick={() => setPagarPedido(null)}>
