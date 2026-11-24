@@ -62,6 +62,7 @@ function MesaDetalhe() {
   const fotos = useFotos(useRecurso("fotos"));
   // Função por loja (pedido do Chef Baguette): depois de salvar o pedido, volta para o Painel.
   const voltarAoSalvar = useRecurso("voltar-ao-salvar");
+  const dinheiroCompleto = useRecurso("dinheiro-completo");
   const voltarAoPainel = () => setTimeout(() => navigate("/"), 700);
 
   const [produtos, setProdutos] = useState([]);
@@ -1163,9 +1164,11 @@ if (pedidosDaMesa.length === 0) {
                         <button type="button" className="pm-editar" onClick={() => editarSalvo(item)}>
                           Editar
                         </button>
-                        <button type="button" className="pm-editar pm-dif" onClick={() => saiuDiferente(item)}>
-                          Saiu diferente
-                        </button>
+                        {dinheiroCompleto && (
+                          <button type="button" className="pm-editar pm-dif" onClick={() => saiuDiferente(item)}>
+                            Saiu diferente
+                          </button>
+                        )}
                       </span>
                     )}
                   </div>
@@ -1655,7 +1658,7 @@ if (pedidosDaMesa.length === 0) {
                 {item.montagem && produtoPorId(item.produtoId) && (
                   <span className="md-com-links">
                     <button type="button" className="md-com-link" onClick={() => editarSalvo(item)}>Editar</button>
-                    <button type="button" className="md-com-link" onClick={() => saiuDiferente(item)}>Saiu diferente</button>
+                    {dinheiroCompleto && <button type="button" className="md-com-link" onClick={() => saiuDiferente(item)}>Saiu diferente</button>}
                   </span>
                 )}
               </span>

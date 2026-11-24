@@ -6,6 +6,7 @@ import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, 
 import { registrar } from "../../utils/registro";
 import { db } from "../../firebase";
 import { useTaxas } from "../../utils/taxas";
+import { useRecurso } from "../../recursos";
 import { TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
 import { custoDaFicha, perdasNoPeriodo } from "../../utils/insumos";
 import Custos from "./Custos";
@@ -55,6 +56,7 @@ function useColecao(nome) {
 function Financas({ abas = ["resumo", "lancamentos"], titulo = "Dinheiro", texto = "O lucro do que a loja vende e o dinheiro que entrou e saiu." }) {
   const nomeLoja = useNomeLoja();
   const taxas = useTaxas();
+  const dinheiroCompleto = useRecurso("dinheiro-completo");
   const dias = useColecao("relatorioGerencial");
   const hoje = useColecao("vendasDia");
   const produtos = useColecao("produtos");
@@ -149,7 +151,7 @@ function Financas({ abas = ["resumo", "lancamentos"], titulo = "Dinheiro", texto
       ) : aba === "custos" ? (
         <Custos produtos={produtos} insumos={insumos} fichas={fichas} />
       ) : aba === "preco" ? (
-        <PrecoCerto produtos={produtos} custos={custos} daFicha={daFicha} vendas30={vendas30} insumos={insumos} fichas={fichas} lancamentos={lancamentos} categorias={categorias} />
+        <PrecoCerto produtos={produtos} custos={custos} daFicha={daFicha} vendas30={vendas30} insumos={insumos} fichas={fichas} lancamentos={dinheiroCompleto ? lancamentos : []} categorias={categorias} />
       ) : (
         <Resumo f={f} nomeLoja={nomeLoja} faixa={faixa} />
       )}
@@ -368,6 +370,7 @@ export function NovoLancamento({ categorias = [], onSalvo, tipoInicial = "", val
     const valor = lerValor(form.valor);
     if (!valor) return setErro("Informe o valor.");
     if (!form.data) return setErro("Informe a data.");
+    if (!form.descricao.trim()) return setErro("Escreva o motivo (o que foi).");
     setSalvando(true);
     setErro("");
     try {
@@ -422,8 +425,8 @@ export function NovoLancamento({ categorias = [], onSalvo, tipoInicial = "", val
           <input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} />
         </label>
         <label className="nl-largo">
-          Descrição
-          <input placeholder="Opcional" maxLength={120} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
+          Motivo
+          <input placeholder={tipo?.grupo === "compra" ? "Ex.: carne e frango no atacado" : "Ex.: conta de luz de novembro"} maxLength={120} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
         </label>
         {tipo?.categoria && categorias.length > 0 && (
           <label className="nl-largo">

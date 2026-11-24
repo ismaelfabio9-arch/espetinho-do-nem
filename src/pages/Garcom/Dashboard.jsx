@@ -41,8 +41,11 @@ function Dashboard() {
   const viagemLigado = useRecurso("viagem");
   // Dinheiro só para o dono.
   const souDono = useSouDono();
-  const caixaLigado = useRecurso("financas");
-  const financasLigado = caixaLigado && souDono;
+  const financasDaLoja = useRecurso("financas");
+  const dinheiroCompleto = useRecurso("dinheiro-completo");
+  const caixaLigado = financasDaLoja && dinheiroCompleto;
+  const financasLigadoBase = financasDaLoja;
+  const financasLigado = financasLigadoBase && souDono;
   const nomeLoja = useNomeLoja();
   const [faturamentoDia, setFaturamentoDia] = useState(0);
   const [mesas, setMesas] = useState([]);

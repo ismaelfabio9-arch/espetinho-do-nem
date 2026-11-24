@@ -59,7 +59,12 @@ export function resumoCaixa(caixa, vendas, movs, taxas) {
   });
   const meus = (movs || []).filter((m) => m.caixaId === caixa?.id);
   const suprimentos = r2(meus.filter((m) => m.tipo === "suprimento").reduce((s, m) => s + Number(m.valor || 0), 0));
-  const sangrias = r2(meus.filter((m) => m.tipo === "sangria").reduce((s, m) => s + Number(m.valor || 0), 0));
+  // Sangria tem a origem: gaveta (dinheiro, o padrão), Pix (conta) ou maquininha (débito/crédito).
+  const origemDe = (m) => m.origem || "Dinheiro";
+  const sangriaDe = (o) => r2(meus.filter((m) => m.tipo === "sangria" && origemDe(m) === o).reduce((s, m) => s + Number(m.valor || 0), 0));
+  const sangrias = sangriaDe("Dinheiro");
+  const sangriasPix = sangriaDe("Pix");
+  const sangriasMaq = sangriaDe("Maquininha");
   const inicial = Number(caixa?.valorInicial || 0);
   const dinheiro = r2(porForma.Dinheiro || 0);
   const gaveta = r2(inicial + dinheiro + suprimentos - sangrias);
@@ -75,10 +80,19 @@ export function resumoCaixa(caixa, vendas, movs, taxas) {
         taxa,
         caiNaConta: r2(vendido - taxa),
         // O que tem que conferir: gaveta no dinheiro; nas outras, o que passou (Pix no banco, cartão na maquininha).
-        temQueTer: f === "Dinheiro" ? gaveta : vendido,
+        temQueTer: f === "Dinheiro" ? gaveta : f === "Pix" ? r2(vendido - sangriasPix) : vendido,
         onde: f === "Dinheiro" ? "na gaveta" : f === "Pix" ? "no banco" : f === "Débito" || f === "Crédito" ? "na maquininha" : "",
       };
     });
+  // Tirou da maquininha: sai do débito e, se não der, do crédito.
+  let falta = sangriasMaq;
+  ["Débito", "Crédito"].forEach((n) => {
+    const f = formas.find((x) => x.nome === n);
+    if (!f || falta <= 0) return;
+    const tira = Math.min(f.temQueTer, falta);
+    f.temQueTer = r2(f.temQueTer - tira);
+    falta = r2(falta - tira);
+  });
   return {
     pedidos: (vendas || []).length,
     total: r2(total),
@@ -88,8 +102,16 @@ export function resumoCaixa(caixa, vendas, movs, taxas) {
     dinheiro,
     suprimentos,
     sangrias,
+    sangriasPix,
+    sangriasMaq,
     esperado: gaveta,
     caiNaConta: r2(formas.filter((f) => f.nome !== "Dinheiro").reduce((s, f) => s + f.caiNaConta, 0)),
     movimentos: meus.sort((a, b) => String(a.em).localeCompare(String(b.em))),
   };
+}
+
+/** Quanto dá para tirar de cada lugar agora: { Dinheiro, Pix, Maquininha }. */
+export function disponivelParaTirar(r) {
+  const de = (n) => Number(r?.formas?.find((f) => f.nome === n)?.temQueTer || 0);
+  return { Dinheiro: r2(Math.max(0, r?.esperado ?? de("Dinheiro"))), Pix: r2(Math.max(0, de("Pix"))), Maquininha: r2(Math.max(0, de("Débito") + de("Crédito"))) };
 }

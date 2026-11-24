@@ -60,7 +60,7 @@ export function Dinheiro() {
       icone="💰"
       padrao="hoje"
       abas={[
-        { id: "hoje", nome: "Hoje", recurso: "financas", tela: () => <DinheiroHoje /> },
+        { id: "hoje", nome: "Hoje", recurso: "dinheiro-completo", tela: () => <DinheiroHoje /> },
         { id: "lucro", nome: "Lucro e caixa", recurso: "financas", soDono: true, tela: () => <Financas abas={["resumo"]} titulo="Lucro e caixa" /> },
         { id: "despesas", nome: "Despesas e compras", recurso: "financas", soDono: true, tela: () => <Financas abas={["lancamentos"]} titulo="Despesas e compras" /> },
       ]}
