@@ -12,6 +12,7 @@ import { custoDaFicha } from "../../utils/insumos";
 import { resumoSaidas } from "../../utils/perdas";
 import { useOcorrencias } from "../../utils/ocorrencias";
 import { tipoVenda } from "../../utils/tipoVenda";
+import { useCaixaLoja } from "../../utils/caixaLoja";
 import "../../styles/Garcom/RelatorioCompleto.css";
 
 const fmt = (v) => Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -60,6 +61,7 @@ export default function RelatorioCompleto() {
   const caixaMov = useCol(() => query(collection(db, ...L(), "caixaMov"), where("em", ">=", new Date(new Date(inicioISO).getTime() - 864e5).toISOString())), [inicioISO]);
   const movs = useCol(() => query(collection(db, ...L(), "insumosMov"), where("em", ">=", new Date(new Date(inicioISO).getTime() - 864e5).toISOString())), [inicioISO]);
   const ocorrencias = useOcorrencias(faixa.de, faixa.ate);
+  const caixaMes = useCaixaLoja();
 
   const custos = useMemo(() => {
     const m = {};
@@ -224,6 +226,25 @@ export default function RelatorioCompleto() {
               <Ln a="Lucro estimado" b={R(rel.f.lucro)} total />
             </section>
 
+            {caixaMes && (
+              <section className="rc-card">
+                <h3>Caixa do mês</h3>
+                {(() => {
+                  const l = caixaMes.lista.filter((m) => m.dia >= faixa.de && m.dia <= faixa.ate);
+                  const soma = (f) => l.filter(f).reduce((t, m) => t + Number(m.valor || 0), 0);
+                  return (
+                    <>
+                      <Ln a="Do fechamento do dia" b={`+ ${R(soma((m) => m.origem === "fechamento"))}`} />
+                      <Ln a="Reforço" b={`+ ${R(soma((m) => m.origem === "reforco"))}`} />
+                      <Ln a="Sangria" b={R(-soma((m) => m.origem === "sangria"))} />
+                      <Ln a="Pagamentos (fornecedor, contas)" b={R(-soma((m) => m.origem === "pagamento"))} />
+                      <Ln a="Tem agora" b={R(caixaMes.saldo)} total />
+                    </>
+                  );
+                })()}
+              </section>
+            )}
+
             {rel.fornecedores.length > 0 && (
               <section className="rc-card">
                 <h3>Compras por fornecedor</h3>
@@ -250,11 +271,14 @@ export default function RelatorioCompleto() {
             </section>
           </div>
 
-          {(rel.gaveta.movimentos.length > 0 || rel.mexido.tirou.length + rel.mexido.saiu.length > 0) && (
+          {(rel.gaveta.movimentos.length > 0 || rel.mexido.tirou.length + rel.mexido.saiu.length > 0 || (caixaMes?.lista || []).some((m) => m.dia >= faixa.de && m.dia <= faixa.ate)) && (
             <section className="rc-card rc-detalhe">
               <h3>Detalhe</h3>
               {rel.gaveta.movimentos.map((m) => (
                 <Ln key={m.id} a={`${hora(m.em)} · ${m.tipo === "sangria" ? `Sangria${m.origem && m.origem !== "Dinheiro" ? ` (${m.origem})` : ""}` : "Reforço"} · ${m.motivo || ""}`} b={`${m.tipo === "sangria" ? "−" : "+"} ${R(m.valor)}`} />
+              ))}
+              {(caixaMes?.lista || []).filter((m) => m.dia >= faixa.de && m.dia <= faixa.ate).map((m) => (
+                <Ln key={`l${m.id}`} a={`${hora(m.em)} · Caixa do mês · ${m.motivo || m.origem}`} b={`${m.tipo === "saida" ? "−" : "+"} ${R(m.valor)}`} />
               ))}
               {[...rel.mexido.tirou, ...rel.mexido.saiu, ...rel.mexido.cortesia].sort((a, b) => String(b.em).localeCompare(String(a.em))).map((o) => (
                 <Ln key={o.id} a={`${hora(o.em)} · ${o.tipo === "saiuDiferente" ? "Saiu diferente" : o.tipo === "cortesia" ? "Cortesia" : "Tirou"} · ${o.texto}${o.mesa ? ` · mesa ${o.mesa}` : ""}${o.motivo ? ` · ${o.motivo}` : ""}`} b={o.tipo === "saiuDiferente" ? "" : R(o.valor)} />

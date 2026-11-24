@@ -11,6 +11,7 @@ import { resumoCaixa, vendasDoCaixa } from "../utils/caixa";
 import { resumoSaidas } from "../utils/perdas";
 import { useTaxas } from "../utils/taxas";
 import { calcularResumoDia } from "./ResumoDia";
+import { useCaixaLoja } from "../utils/caixaLoja";
 import { gerarResumoDiaHTML, imprimir as imprimirCupom } from "../utils/print";
 import { useConfigImpressora } from "../hooks/useConfigImpressora";
 import "./FechamentoDia.css";
@@ -73,6 +74,7 @@ export default function FechamentoDia({ onCancelar, onConfirmar, encerrando }) {
   const [metaTxt, setMetaTxt] = useState("");
   const [abertas, setAbertas] = useState({ n: 0, total: 0 });
   const configImpressora = useConfigImpressora();
+  const caixaMes = useCaixaLoja();
 
   useEffect(() => {
     const inicio = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
@@ -227,7 +229,7 @@ export default function FechamentoDia({ onCancelar, onConfirmar, encerrando }) {
                   {div && (
                     <div className="fd-tres">
                       <label>Fica na gaveta<input inputMode="decimal" value={div.gaveta} onChange={(e) => mudarGaveta(e.target.value)} /></label>
-                      <label>Vai para o caixa<input inputMode="decimal" value={div.caixa} onChange={(e) => mudarCaixa(e.target.value)} /></label>
+                      <label>Caixa do mês<input inputMode="decimal" value={div.caixa} onChange={(e) => mudarCaixa(e.target.value)} /></label>
                       <label>Dona tira<input inputMode="decimal" value={div.dona} onChange={(e) => mudarDona(e.target.value)} /></label>
                     </div>
                   )}
@@ -237,6 +239,7 @@ export default function FechamentoDia({ onCancelar, onConfirmar, encerrando }) {
                     <button type="button" onClick={() => atalho("gavetaDona")}>Gaveta e dona</button>
                     <button type="button" onClick={() => atalho("soDona")}>Só a dona</button>
                   </div>
+                  {caixaMes && <p className="fd-nota">Caixa do mês: R$ {caixaMes.saldo.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} → fica R$ {(caixaMes.saldo + cx).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}</p>}
                   {Math.abs(sobra) > 0.009 && <p className="fd-alerta">{sobra > 0 ? `Faltam ${R(sobra)} para fechar a conta da gaveta.` : `Passou ${R(-sobra)} do que tem na gaveta.`}</p>}
                   {meta.metaDona > 0 && dn > sugerido + 0.009 && <p className="fd-alerta">Tirou {R(dn - sugerido)} a mais que o certo para hoje.</p>}
                   {meta.metaDona > 0 && dn + 0.009 < sugerido && <p className="fd-nota">Tirou {R(sugerido - dn)} a menos que o certo para hoje: fica para os próximos dias.</p>}

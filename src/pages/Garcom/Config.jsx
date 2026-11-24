@@ -31,6 +31,7 @@ import ResumoDia, { calcularResumoDia } from "../../components/ResumoDia";
 import FechamentoDia from "../../components/FechamentoDia";
 import { SenhaDonaConfig, useComSenha } from "../../components/SenhaDona";
 import { isoDia } from "../../utils/financas";
+import { movCaixaLoja } from "../../utils/caixaLoja";
 import { auth } from "../../firebase";
 import { registrar } from "../../utils/registro";
 import { baixarInsumos } from "../../utils/insumos";
@@ -195,6 +196,9 @@ function Config() {
           ficouNaGaveta: fechamento.ficaNoCaixa ?? 0,
           resumo: { total: fechamento.total, pedidos: fechamento.pedidos, formas: [], inicial: fechamento.gaveta.inicial, dinheiro: fechamento.gaveta.dinheiro, suprimentos: fechamento.gaveta.reforcos, sangrias: fechamento.gaveta.sangrias },
         }).catch(() => {});
+      }
+      if (fechamento?.paraCaixaLoja > 0) {
+        await movCaixaLoja({ tipo: "entrada", valor: fechamento.paraCaixaLoja, motivo: "Separado no fechamento do dia", origem: "fechamento" }).catch(() => {});
       }
       if (fechamento?.donaTirou > 0) {
         await addDoc(collection(db, ...L(), "despesas"), { data: isoDia(), tipo: "retirada", grupo: "retirada", valor: fechamento.donaTirou, descricao: "Tirou no fechamento do dia", categoria: "", criadoEm: serverTimestamp() }).catch(() => {});

@@ -7,6 +7,7 @@ import { registrar } from "../../utils/registro";
 import { auth, db } from "../../firebase";
 import { useTaxas } from "../../utils/taxas";
 import { useRecurso } from "../../recursos";
+import { movCaixaLoja } from "../../utils/caixaLoja";
 import { TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
 import { custoDaFicha, perdasNoPeriodo } from "../../utils/insumos";
 import Custos from "./Custos";
@@ -358,7 +359,7 @@ const LISTAS_ENTRADA = [{ nome: "Entradas fora as vendas", grupos: ["entrada"] }
  * caixa e disponivel (Dinheiro → Hoje): mostra "Pagou com" — caixa da loja (a soma do mês, não mexe na gaveta),
  * gaveta de hoje (vira sangria da gaveta junto) ou Pix (sai do Pix do caixa).
  */
-export function NovoLancamento({ categorias = [], onSalvo, tipoInicial = "", valorInicial = "", descricaoInicial = "", titulo = "Novo lançamento", caixa = null, disponivel = null, fornecedores = [] }) {
+export function NovoLancamento({ categorias = [], onSalvo, tipoInicial = "", valorInicial = "", descricaoInicial = "", titulo = "Novo lançamento", caixa = null, disponivel = null, fornecedores = [], saldoMes = null }) {
   const vazio = { data: isoDia(), tipo: tipoInicial, valor: valorInicial, descricao: descricaoInicial, categoria: "", fornecedor: "", pagoCom: "loja" };
   const [form, setForm] = useState(vazio);
   const [lado, setLado] = useState(tipoInicial && grupoDe(tipoInicial).saida === false ? "entrada" : "saida");
@@ -378,6 +379,8 @@ export function NovoLancamento({ categorias = [], onSalvo, tipoInicial = "", val
     const daGaveta = grupo.saida && caixa && (form.pagoCom === "gaveta" || form.pagoCom === "pix");
     const origem = form.pagoCom === "pix" ? "Pix" : "Dinheiro";
     if (daGaveta && disponivel && valor > disponivel[origem]) return setErro(`${origem === "Pix" ? "No Pix" : "Na gaveta"} tem R$ ${fmt(disponivel[origem])}. Escolha outra forma de pagar.`);
+    const doMes = grupo.saida && saldoMes !== null && form.pagoCom === "loja";
+    if (doMes && valor > saldoMes) return setErro(`No caixa do mês tem R$ ${fmt(saldoMes)}. Ponha dinheiro nele (Reforço) ou escolha outra forma de pagar.`);
     setSalvando(true);
     setErro("");
     try {
@@ -392,6 +395,7 @@ export function NovoLancamento({ categorias = [], onSalvo, tipoInicial = "", val
         ...(grupo.saida && caixa ? { pagoCom: form.pagoCom } : {}),
         criadoEm: serverTimestamp(),
       });
+      if (doMes) await movCaixaLoja({ tipo: "saida", valor, motivo: `${tipo.nome}: ${form.descricao.trim()}${form.fornecedor.trim() ? ` (${form.fornecedor.trim()})` : ""}`, origem: "pagamento" });
       // Pagou com a gaveta ou o Pix do caixa: a sangria entra junto (não precisa lançar duas vezes).
       if (daGaveta) {
         await addDoc(collection(db, ...L(), "caixaMov"), { caixaId: caixa.id, tipo: "sangria", origem, valor, motivo: `${tipo.nome}: ${form.descricao.trim()}`.slice(0, 100), lancamento: true, em: new Date().toISOString(), por: auth.currentUser?.email || "", criadoEm: serverTimestamp() });
@@ -466,10 +470,10 @@ export function NovoLancamento({ categorias = [], onSalvo, tipoInicial = "", val
         <div className="nl-pago">
           <div className="nl-lab">Pagou com</div>
           <div className="nl-seg">
-            {[["loja", "Caixa da loja"], ["gaveta", "Gaveta de hoje"], ["pix", "Pix"]].map(([id, nome]) => (
+            {[["loja", "Caixa do mês"], ["gaveta", "Gaveta de hoje"], ["pix", "Pix"]].map(([id, nome]) => (
               <button type="button" key={id} className={form.pagoCom === id ? "on" : ""} onClick={() => setForm({ ...form, pagoCom: id })}>
                 {nome}
-                {disponivel && id !== "loja" && <small>R$ {fmt(id === "pix" ? disponivel.Pix : disponivel.Dinheiro)}</small>}
+                {id === "loja" ? saldoMes !== null && <small>R$ {fmt(saldoMes)}</small> : disponivel && <small>R$ {fmt(id === "pix" ? disponivel.Pix : disponivel.Dinheiro)}</small>}
               </button>
             ))}
           </div>
