@@ -38,6 +38,9 @@ export const RECURSOS = {
   "voltar-ao-salvar": false,
   // Pedido do Chef Baguette: painel sem o total do dia; o resumo do dia aparece ao encerrar o dia.
   "resumo-no-fechamento": false,
+  // Dinheiro completo (pedido da Kit Burger): aba Hoje no Dinheiro (sangria, reforço, saída de alimento, acabou), fechamento do dia
+  // com tudo e dona tirou/fica no caixa, saiu diferente na comanda, Preço certo ligado aos lançamentos e senha da dona.
+  "dinheiro-completo": false,
   beta: false,
 };
 

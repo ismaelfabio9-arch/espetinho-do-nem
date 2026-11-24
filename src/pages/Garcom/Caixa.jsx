@@ -6,7 +6,7 @@ import { addDoc, collection, doc, limit, onSnapshot, orderBy, query, serverTimes
 import { registrar } from "../../utils/registro";
 import { auth, db } from "../../firebase";
 import { lerValor } from "../../utils/financas";
-import { resumoCaixa, vendasDoCaixa } from "../../utils/caixa";
+import { disponivelParaTirar, resumoCaixa, vendasDoCaixa } from "../../utils/caixa";
 import { useTaxas } from "../../utils/taxas";
 import "../../styles/Garcom/RelatorioGerencial.css";
 import "../../styles/Garcom/Financas.css";
@@ -80,7 +80,7 @@ function Caixa() {
   );
 }
 
-function Abrir({ ultimo }) {
+export function Abrir({ ultimo, onAberto }) {
   const sugerido = ultimo ? Math.max(0, Number(ultimo.contado || 0) - Number(ultimo.retiradoNoFechamento || 0)) : 0;
   const [valor, setValor] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -91,6 +91,7 @@ function Abrir({ ultimo }) {
     try {
       await addDoc(collection(db, ...L(), "caixas"), { status: "aberto", abertoEm: new Date().toISOString(), abertoPor: quem(), valorInicial: lerValor(valor), criadoEm: serverTimestamp() });
       registrar({ area: "dinheiro", acao: "Abriu o caixa", texto: `Caixa aberto com R$ ${lerValor(valor).toFixed(2).replace(".", ",")} de troco`, valor: lerValor(valor) });
+      onAberto?.();
     } catch {
       setErro("Não foi possível abrir. Confira a internet.");
       setSalvando(false);
@@ -129,7 +130,7 @@ function Aberto({ caixa, r }) {
           <Linha nome="Troco inicial" valor={r.inicial} />
           <Linha nome="Vendas em dinheiro" valor={r.dinheiro} />
           {r.suprimentos > 0 && <Linha nome="Reforço de troco (suprimento)" valor={r.suprimentos} />}
-          {r.sangrias > 0 && <Linha nome="Retiradas (sangria)" valor={-r.sangrias} />}
+          {r.sangrias > 0 && <Linha nome="Retiradas da gaveta (sangria)" valor={-r.sangrias} />}
           <Linha nome="Tem que ter na gaveta" valor={r.esperado} total />
         </div>
         <div className="ins-modal-botoes cx-botoes">
@@ -147,30 +148,34 @@ function Aberto({ caixa, r }) {
             <h3 className="cx-sub">Sangrias e suprimentos</h3>
             <ul className="fin-lista">
               {r.movimentos.map((m) => (
-                <li key={m.id}><span>{hora(m.em)} · {m.tipo === "sangria" ? "Sangria" : "Suprimento"}{m.motivo ? ` · ${m.motivo}` : ""}</span><strong className={m.tipo === "sangria" ? "fin-neg" : "fin-pos"}>{m.tipo === "sangria" ? "− " : "+ "}R$ {fmt(m.valor)}</strong></li>
+                <li key={m.id}><span>{hora(m.em)} · {m.tipo === "sangria" ? `Sangria${m.origem && m.origem !== "Dinheiro" ? ` (${m.origem})` : ""}` : "Reforço"}{m.motivo ? ` · ${m.motivo}` : ""}</span><strong className={m.tipo === "sangria" ? "fin-neg" : "fin-pos"}>{m.tipo === "sangria" ? "− " : "+ "}R$ {fmt(m.valor)}</strong></li>
               ))}
             </ul>
           </>
         )}
         <button type="button" className="btn-verde cx-fechar" onClick={() => setFechar(true)}>Fechar caixa</button>
       </div>
-      {mov && <Movimento caixa={caixa} tipo={mov} fechar={() => setMov(null)} />}
+      {mov && <Movimento caixa={caixa} tipo={mov} r={r} fechar={() => setMov(null)} />}
       {fechar && <Fechar caixa={caixa} r={r} cancelar={() => setFechar(false)} />}
     </>
   );
 }
 
-function Movimento({ caixa, tipo, fechar }) {
+export function Movimento({ caixa, tipo, fechar, r = null }) {
   const [valor, setValor] = useState("");
+  const [origem, setOrigem] = useState("Dinheiro");
+  const tem = r ? disponivelParaTirar(r) : null;
   const [motivo, setMotivo] = useState("");
   const [erro, setErro] = useState("");
   async function salvar(e) {
     e.preventDefault();
     const v = lerValor(valor);
     if (!v) return setErro("Informe o valor.");
+    if (!motivo.trim()) return setErro("Escreva o motivo.");
+    if (tipo === "sangria" && tem && v > tem[origem]) return setErro(`Não dá para tirar R$ ${fmt(v)}: ${origem === "Dinheiro" ? "na gaveta" : origem === "Pix" ? "no Pix" : "na maquininha"} tem R$ ${fmt(tem[origem])}.`);
     try {
-      await addDoc(collection(db, ...L(), "caixaMov"), { caixaId: caixa.id, tipo, valor: v, motivo: motivo.trim().slice(0, 100), em: new Date().toISOString(), por: quem(), criadoEm: serverTimestamp() });
-      registrar({ area: "dinheiro", acao: tipo === "sangria" ? "Sangria" : "Suprimento", texto: tipo === "sangria" ? `Tirou R$ ${v.toFixed(2).replace(".", ",")} da gaveta` : `Pôs R$ ${v.toFixed(2).replace(".", ",")} na gaveta`, valor: tipo === "sangria" ? -v : v, motivo: motivo.trim() || "sem motivo informado" });
+      await addDoc(collection(db, ...L(), "caixaMov"), { caixaId: caixa.id, tipo, valor: v, ...(tipo === "sangria" ? { origem } : {}), motivo: motivo.trim().slice(0, 100), em: new Date().toISOString(), por: quem(), criadoEm: serverTimestamp() });
+      registrar({ area: "dinheiro", acao: tipo === "sangria" ? "Sangria" : "Suprimento", texto: tipo === "sangria" ? `Tirou R$ ${v.toFixed(2).replace(".", ",")} ${origem === "Dinheiro" ? "da gaveta" : origem === "Pix" ? "do Pix" : "da maquininha"}` : `Pôs R$ ${v.toFixed(2).replace(".", ",")} na gaveta`, valor: tipo === "sangria" ? -v : v, motivo: motivo.trim() });
       fechar();
     } catch {
       setErro("Não foi possível salvar. Confira a internet.");
@@ -179,15 +184,25 @@ function Movimento({ caixa, tipo, fechar }) {
   return (
     <div className="ins-modal" role="dialog" aria-modal="true" aria-label={tipo === "sangria" ? "Sangria" : "Suprimento"} onClick={fechar}>
       <form className="ins-modal-caixa" onClick={(e) => e.stopPropagation()} onSubmit={salvar}>
-        <h2>{tipo === "sangria" ? "Sangria: tirar dinheiro da gaveta" : "Suprimento: colocar troco na gaveta"}</h2>
+        <h2>{tipo === "sangria" ? "Sangria: tirar dinheiro da gaveta" : "Reforço: pôr dinheiro na gaveta"}</h2>
+        {tipo === "sangria" && (
+          <div className="cx-origem" role="radiogroup" aria-label="De onde saiu">
+            {[["Dinheiro", "Gaveta"], ["Pix", "Pix"], ["Maquininha", "Maquininha"]].map(([id, nome]) => (
+              <button type="button" key={id} role="radio" aria-checked={origem === id} className={origem === id ? "on" : ""} onClick={() => { setOrigem(id); setErro(""); }}>
+                <b>{nome}</b>
+                {tem && <small>tem R$ {fmt(tem[id])}</small>}
+              </button>
+            ))}
+          </div>
+        )}
         <div className="fin-campos">
           <label>
             Valor (R$)
             <input autoFocus inputMode="decimal" placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} />
           </label>
           <label>
-            Motivo (opcional)
-            <input placeholder={tipo === "sangria" ? "Ex.: guardar no cofre, pagar o gás" : "Ex.: troco do banco"} value={motivo} onChange={(e) => setMotivo(e.target.value)} />
+            Motivo
+            <input required placeholder={tipo === "sangria" ? "Ex.: guardar no cofre, pagar o gás" : "Ex.: troco do banco"} value={motivo} onChange={(e) => setMotivo(e.target.value)} />
           </label>
         </div>
         {tipo === "sangria" && <p className="fin-explica">Se o dinheiro foi para pagar uma conta, lance também em Finanças → Lançamentos.</p>}

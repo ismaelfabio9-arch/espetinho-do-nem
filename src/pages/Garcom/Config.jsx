@@ -14,6 +14,7 @@ import {
   deleteDoc,
   doc,
   setDoc,
+  updateDoc,
   serverTimestamp,
   writeBatch,
 } from "firebase/firestore";
@@ -27,6 +28,10 @@ import "../../styles/Garcom/AvisoCaixa.css";
 import WhatsLojaConfig from "../../components/WhatsLojaConfig";
 import SonsConfig from "../../components/SonsConfig";
 import ResumoDia, { calcularResumoDia } from "../../components/ResumoDia";
+import FechamentoDia from "../../components/FechamentoDia";
+import { SenhaDonaConfig, useComSenha } from "../../components/SenhaDona";
+import { isoDia } from "../../utils/financas";
+import { auth } from "../../firebase";
 import { registrar } from "../../utils/registro";
 import { baixarInsumos } from "../../utils/insumos";
 import { textoDoItem } from "../../utils/montagem";
@@ -48,6 +53,9 @@ function Config() {
   const [modalEncerrarDia, setModalEncerrarDia] = useState(false);
   // Loja com "resumo-no-fechamento" (Chef Baguette): o resumo do dia aparece ao encerrar o dia.
   const resumoNoFechamento = useRecurso("resumo-no-fechamento");
+  // Kit Burger: fechamento do dia com tudo (gaveta, dona tirou, comida, o que acabou) e com ou sem impressão.
+  const dinheiroCompleto = useRecurso("dinheiro-completo");
+  const [pedirSenha, janelaSenha] = useComSenha();
   const [resumoDia, setResumoDia] = useState(null);
 
   function mostrarMensagem(texto) {
@@ -124,7 +132,7 @@ function Config() {
     return n;
   }
 
-  async function confirmarEncerrarDia() {
+  async function confirmarEncerrarDia({ fechamento = null, caixa = null } = {}) {
     setEncerrando(true);
 
     try {
@@ -166,7 +174,34 @@ function Config() {
         });
       });
 
+      // Gaveta: o caixa aberto fecha junto (sem contagem: vale o que tinha que ter). O que a dona tirou vira
+      // uma retirada do dono no Dinheiro e o resto fica de troco para amanhã.
+      const extra = fechamento
+        ? { gaveta: fechamento.gaveta, donaTirou: fechamento.donaTirou || 0, ficaNoCaixa: fechamento.ficaNoCaixa ?? null, saidas: fechamento.saidas || [], saidasTotal: fechamento.saidasTotal || 0, acabou: fechamento.acabou || [], mexido: fechamento.mexido || null }
+        : {};
+      if (caixa && fechamento?.gaveta) {
+        await updateDoc(doc(db, ...L(), "caixas", caixa.id), {
+          status: "fechado",
+          fechadoEm: new Date().toISOString(),
+          fechadoPor: auth.currentUser?.email || "",
+          contado: fechamento.gaveta.esperado,
+          esperado: fechamento.gaveta.esperado,
+          diferenca: 0,
+          semContagem: true,
+          retiradoNoFechamento: fechamento.donaTirou || 0,
+          resumo: { total: fechamento.total, pedidos: fechamento.pedidos, formas: [], inicial: fechamento.gaveta.inicial, dinheiro: fechamento.gaveta.dinheiro, suprimentos: fechamento.gaveta.reforcos, sangrias: fechamento.gaveta.sangrias },
+        }).catch(() => {});
+      }
+      if (fechamento?.donaTirou > 0) {
+        await addDoc(collection(db, ...L(), "despesas"), { data: isoDia(), tipo: "retirada", grupo: "retirada", valor: fechamento.donaTirou, descricao: "Tirou no fechamento do dia", categoria: "", criadoEm: serverTimestamp() }).catch(() => {});
+        registrar({ area: "dinheiro", acao: "Retirada no fechamento", texto: `A dona tirou R$ ${Number(fechamento.donaTirou).toFixed(2).replace(".", ",")} · ficou R$ ${Number(fechamento.ficaNoCaixa || 0).toFixed(2).replace(".", ",")} no caixa`, valor: -fechamento.donaTirou });
+      }
+      // O que acabou hoje volta para o cardápio de amanhã.
+      const acabados = (await getDocs(collection(db, ...L(), "produtos"))).docs.filter((d) => d.data().acabouEm);
+      for (const d of acabados) await setDoc(doc(db, ...L(), "produtos", d.id), { foraHoje: false, acabouEm: null }, { merge: true });
+
       const fechamentoDoDia = {
+  ...extra,
   data: new Date().toLocaleDateString("pt-BR"),
   horario: new Date().toLocaleTimeString("pt-BR"),
   totalVendido,
@@ -321,6 +356,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
       {MULTI && souDono && <Equipe />}
 
       {souDono && <WhatsLojaConfig />}
+      <SenhaDonaConfig />
       {souDono && <TaxasMaquininha />}
 
       {souDono && <CardapioOnlineConfig />}
@@ -428,7 +464,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
             disabled={encerrando}
             onChange={(e) => {
               if (e.target.checked) {
-                setModalEncerrarDia(true);
+                pedirSenha(() => setModalEncerrarDia(true));
               }
             }}
           />
@@ -439,7 +475,12 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
 
       {resumoDia && <ResumoDia resumo={resumoDia} loja={nomeLoja} onFechar={() => setResumoDia(null)} />}
 
-      {modalEncerrarDia && souDono && (
+      {janelaSenha}
+      {modalEncerrarDia && souDono && dinheiroCompleto && (
+        <FechamentoDia encerrando={encerrando} onCancelar={() => setModalEncerrarDia(false)} onConfirmar={(dados) => confirmarEncerrarDia(dados)} />
+      )}
+
+      {modalEncerrarDia && souDono && !dinheiroCompleto && (
         <div className="modal-fechar-dia">
           <div className="modal-fechar-dia-card">
             <div className="modal-fechar-dia-icone">⚠️</div>
@@ -473,7 +514,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
               <button
                 className="modal-btn-confirmar"
                 disabled={encerrando}
-                onClick={confirmarEncerrarDia}
+                onClick={() => confirmarEncerrarDia()}
               >
                 {encerrando ? "Encerrando..." : caixaAberto ? "Encerrar assim mesmo" : "Encerrar Dia"}
               </button>

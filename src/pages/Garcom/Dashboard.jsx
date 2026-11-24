@@ -41,7 +41,11 @@ function Dashboard() {
   const viagemLigado = useRecurso("viagem");
   // Dinheiro só para o dono.
   const souDono = useSouDono();
-  const financasLigado = useRecurso("financas") && souDono;
+  const financasDaLoja = useRecurso("financas");
+  const dinheiroCompleto = useRecurso("dinheiro-completo");
+  const caixaLigado = financasDaLoja && dinheiroCompleto;
+  const financasLigadoBase = financasDaLoja;
+  const financasLigado = financasLigadoBase && souDono;
   const nomeLoja = useNomeLoja();
   const [faturamentoDia, setFaturamentoDia] = useState(0);
   const [mesas, setMesas] = useState([]);
@@ -573,8 +577,17 @@ function Dashboard() {
             {financasLigado && (
               <Link to="/dinheiro" onClick={() => setMenuAberto(false)}>
                 💰
-                <span>Dinheiro <small>lucro, despesas e compras</small></span>
+                <span>Dinheiro <small>hoje, lucro, despesas e compras</small></span>
               </Link>
+            )}
+
+            {caixaLigado && (
+              <>
+                <span className="menu-secao">Rápido</span>
+                <Link to="/dinheiro?aba=hoje&acao=sangria" onClick={() => setMenuAberto(false)}>Sangria</Link>
+                <Link to="/dinheiro?aba=hoje&acao=perda" onClick={() => setMenuAberto(false)}>Saída de alimento</Link>
+                <Link to="/dinheiro?aba=hoje&acao=acabou" onClick={() => setMenuAberto(false)}>Acabou</Link>
+              </>
             )}
 
             <Link to="/config" onClick={() => setMenuAberto(false)}>

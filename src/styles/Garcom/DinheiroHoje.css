@@ -1,0 +1,48 @@
+/* Dinheiro → Hoje */
+.dh { --d-txt: #111827; --d-mute: #6b7280; --d-card: #ffffff; --d-box: #f6f7f9; --d-linha: #e5e7eb; padding-top: 6px; color: var(--d-txt); }
+body.dark .dh, body.dark .dh-acabou, body.dark .dh-abrir { --d-txt: #f4f4f5; --d-mute: #a1a1aa; --d-card: #17181a; --d-box: #202125; --d-linha: #2a2b2f; }
+.dh-acabou, .dh-abrir { --d-txt: #111827; --d-mute: #6b7280; --d-card: #ffffff; --d-box: #f6f7f9; --d-linha: #e5e7eb; }
+html body :is(.dh, .dh-acabou, .dh-abrir) :is(span, small, b, strong, h2, p) { color: inherit; }
+.dh-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.dh-acoes button { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; background: var(--d-card); border: 1px solid var(--d-linha); border-radius: 12px; padding: 12px 13px; color: var(--d-txt); font: inherit; cursor: pointer; }
+.dh-acoes button b { font-size: 15px; font-weight: 700; }
+html body .dh-acoes button span { font-size: 12.5px; color: var(--d-mute); }
+.dh-acoes .dh-novo { grid-column: 1 / -1; align-items: center; background: #16a34a; border-color: #16a34a; color: #fff; }
+html body .dh-acoes .dh-novo span { color: #dcfce7; }
+.dh-cols { margin-top: 16px; display: flex; flex-direction: column-reverse; gap: 16px; }
+.dh-hoje h2 { margin: 0 0 8px; font-size: 16px; font-weight: 700; }
+.dh-lista { list-style: none; margin: 0; padding: 0; background: var(--d-card); border: 1px solid var(--d-linha); border-radius: 12px; overflow: hidden; }
+.dh-lista li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 14px; border-top: 1px solid var(--d-linha); }
+.dh-lista li:first-child { border-top: 0; }
+.dh-lista li div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.dh-lista li b { font-weight: 600; font-size: 15px; }
+html body .dh-lista li span { font-size: 12.5px; color: var(--d-mute); }
+.dh-lista strong { white-space: nowrap; font-size: 14px; font-weight: 600; font-variant-numeric: tabular-nums; }
+html body .dh-lista .dh-neg { color: #dc2626; }
+html body .dh-lista .dh-pos { color: #16a34a; }
+html body .dh-lista .dh-zero { color: var(--d-mute); }
+body.dark .dh-lista .dh-neg { color: #f87171 !important; }
+body.dark .dh-lista .dh-pos { color: #4ade80 !important; }
+.dh-vazio { color: var(--d-mute); font-size: 14px; }
+.dh-lanc { display: none; background: var(--d-card); border: 1px solid var(--d-linha); border-radius: 14px; padding: 16px; }
+.dh-lanc.aberto { display: block; }
+.dh-aviso { margin: 0 0 10px; font-size: 14px; color: var(--d-mute); }
+.dh-ok { margin: 0 0 10px; font-size: 14px; color: #16a34a; font-weight: 600; }
+.dh-busca { width: 100%; box-sizing: border-box; padding: 12px 13px; border-radius: 10px; border: 1px solid var(--d-linha); background: var(--d-card); color: var(--d-txt); font: inherit; font-size: 16px; }
+.dh-prods { list-style: none; margin: 10px 0; padding: 0; max-height: 50vh; overflow-y: auto; border: 1px solid var(--d-linha); border-radius: 12px; }
+.dh-prods li + li { border-top: 1px solid var(--d-linha); }
+.dh-prods button { display: flex; justify-content: space-between; align-items: center; gap: 10px; width: 100%; padding: 12px 14px; border: 0; background: transparent; color: var(--d-txt); font: inherit; font-size: 15px; text-align: left; cursor: pointer; }
+html body .dh-prods button small { color: var(--d-mute); font-size: 12px; }
+.dh-prods .dh-vazio { padding: 12px 14px; }
+
+@media (min-width: 900px) {
+  .dh-acoes { grid-template-columns: repeat(4, 1fr) 1.3fr; }
+  .dh-acoes .dh-novo { grid-column: auto; align-items: flex-start; }
+  .dh-cols { flex-direction: row; align-items: flex-start; gap: 22px; }
+  .dh-hoje { flex: 1.2; min-width: 0; }
+  .dh-cols.com-lanc .dh-lanc { display: block; flex: 1; min-width: 0; }
+}
+.dh-trava { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
+html body .dh-trava span { color: var(--d-mute); font-size: 14px; }
+.dh-trava button { margin-top: 6px; border: 0; border-radius: 10px; background: #16a34a; color: #fff; font: inherit; font-weight: 700; padding: 11px 16px; cursor: pointer; }
+.dh .sd-barra { padding: 0 0 8px; }

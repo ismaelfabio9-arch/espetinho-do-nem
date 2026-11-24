@@ -2,6 +2,7 @@
 // A aba fica no endereço (?aba=…), então os links antigos (/caixa, /historico…) caem na aba certa.
 import { Link, useSearchParams } from "react-router-dom";
 import SeLigado from "./SeLigado";
+import { PedirSenha } from "./SenhaDona";
 import { useRecursos } from "../recursos";
 import { useSouDono } from "../tenant";
 import "../styles/Garcom/Area.css";
@@ -47,6 +48,8 @@ export default function Area({ titulo, icone, texto, abas: todas, padrao, param 
     <SeLigado recurso={[].concat(atual.recurso)[0]} embutido>
       {atual.tela()}
     </SeLigado>
+  ) : atual.senha ? (
+    <PedirSenha>{atual.tela()}</PedirSenha>
   ) : (
     atual.tela()
   );
