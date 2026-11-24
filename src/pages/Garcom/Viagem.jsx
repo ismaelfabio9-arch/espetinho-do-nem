@@ -354,6 +354,7 @@ function Viagem({ modo = "balcao", topo = null }) {
       await baixarEstoque(itensPedido);
       await addDoc(collection(db, ...L(), "notificacoes"), {
         tipo: "pedido",
+        equipe: true,
         mensagem: `Nova entrega #${numero} - ${cliente}`,
         total: totalComTaxa,
         totalItens,
@@ -419,6 +420,7 @@ function Viagem({ modo = "balcao", topo = null }) {
 
       await addDoc(collection(db, ...L(), "notificacoes"), {
         tipo: "pedido",
+        equipe: true,
         mensagem: nomeCliente
           ? `Novo pedido viagem - ${nomeCliente}`
           : "Novo pedido viagem",

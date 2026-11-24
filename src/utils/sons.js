@@ -29,6 +29,8 @@ export const ligarSons = (sim) => {
 
 /** Qual som toca para o aviso (avisos antigos, sem "som", pelo tipo e pela mensagem). */
 export function somDoAviso(n) {
+  // Pedido feito pela equipe (mesa, balcão, entrega) não toca: só o que o cliente faz.
+  if (n?.equipe) return null;
   if (n?.som && SONS[n.som]) return n.som;
   if (n?.tipo === "garcom") return "garcom";
   if (n?.tipo === "pagamento") return "conta";

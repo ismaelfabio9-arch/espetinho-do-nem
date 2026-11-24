@@ -462,12 +462,13 @@ if (pedidosDaMesa.length === 0) {
 
   const totalGeralMesa = totalMesa + total;
 
-  /** Aviso com som nos outros aparelhos da equipe (o deste aparelho não toca). */
+  /** Aviso na lista da equipe (sem som: pedido feito pela equipe não toca). */
   function avisarEquipe(som, mensagem) {
     addDoc(collection(db, ...L(), "notificacoes"), {
       mesa: Number(id),
       tipo: "pedido",
       som,
+      equipe: true,
       mensagem,
       de: meuAparelho(),
       lida: false,
