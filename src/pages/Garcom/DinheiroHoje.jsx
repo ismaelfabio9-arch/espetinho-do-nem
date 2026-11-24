@@ -116,7 +116,7 @@ export default function DinheiroHoje() {
       {souDono && caixaLoja && (
         <div className="dh-loja">
           <div>
-            <span>Caixa da loja · {new Date().toLocaleDateString("pt-BR", { month: "long" })}</span>
+            <span>Caixa da loja · {new Date().toLocaleDateString("pt-BR", { month: "long" }).replace(/^./, (x) => x.toUpperCase())}</span>
             <b className={caixaLoja.saldo < 0 ? "dh-neg" : ""}>{precisaSenha ? "R$ •••" : `${caixaLoja.saldo < 0 ? "− " : ""}R$ ${fmt(Math.abs(caixaLoja.saldo))}`}</b>
           </div>
           {!precisaSenha && <small>entrou R$ {fmt(caixaLoja.entrou)} · saiu R$ {fmt(caixaLoja.saiu)}</small>}
