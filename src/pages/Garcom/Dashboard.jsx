@@ -3,7 +3,8 @@ import { L } from "../../loja";
 import useNomeLoja from "../../hooks/useNomeLoja";
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bell, ClipboardList, DollarSign, LayoutGrid, Menu, Settings, ShoppingBag, Table2, TrendingUp, X, Pencil, Eye, EyeOff } from "lucide-react";
+import { Bell, ClipboardList, DollarSign, LayoutGrid, Menu, Settings, ShoppingBag, TrendingUp, X, Pencil, Eye, EyeOff } from "lucide-react";
+
 import "../../styles/Garcom/Dashboard.css";
 import {
   collection,
@@ -24,6 +25,16 @@ import { baixarInsumos } from "../../utils/insumos";
 import { AVISO_PARCIAL, temPagamentoParcial } from "../../utils/contaMesa";
 import { useSouDono } from "../../tenant";
 import AvisoCaixa from "../../components/AvisoCaixa";
+
+function MesaIcon({ size = 24, strokeWidth = 2 }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round">
+      <ellipse cx="12" cy="7" rx="8" ry="2.5" />
+      <path d="M12 9.5V20M8 20.5h8" />
+    </svg>
+  );
+}
+
 
 function Dashboard() {
   // Funções que a IFTech pode desligar só nesta loja (Central da Loja).
@@ -539,7 +550,7 @@ function Dashboard() {
             </Link>
 
             <Link to="/mesas" onClick={() => setMenuAberto(false)}>
-              <Table2 size={20} />
+              <MesaIcon size={20} />
               Mesas
             </Link>
 
@@ -620,7 +631,7 @@ function Dashboard() {
         <div className="summary-bottom-ref">
           <div className="summary-mini-ref">
             <div className="icon-circle-ref purple">
-              <Table2 size={26} strokeWidth={2.5} />
+              <MesaIcon size={26} strokeWidth={2.5} />
             </div>
             <div>
               <span>Mesas abertas</span>
@@ -720,7 +731,7 @@ function Dashboard() {
                 {modoOrganizar ? (
                   <span style={{ fontSize: 18 }}>⠿</span>
                 ) : (
-                  <Table2 size={29} strokeWidth={2.4} />
+                  <MesaIcon size={29} strokeWidth={1.9} />
                 )}
               </div>
 
@@ -757,7 +768,7 @@ function Dashboard() {
         </Link>
 
         <Link to="/mesas">
-          <Table2 size={28} />
+          <MesaIcon size={28} />
           <span>Mesas</span>
         </Link>
 
