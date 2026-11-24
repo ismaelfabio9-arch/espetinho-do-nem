@@ -205,7 +205,6 @@ export function Movimento({ caixa, tipo, fechar, r = null }) {
             <input required placeholder={tipo === "sangria" ? "Ex.: guardar no cofre, pagar o gás" : "Ex.: troco do banco"} value={motivo} onChange={(e) => setMotivo(e.target.value)} />
           </label>
         </div>
-        {tipo === "sangria" && <p className="fin-explica">Se o dinheiro foi para pagar uma conta, lance também em Finanças → Lançamentos.</p>}
         {erro && <p className="fin-erro">{erro}</p>}
         <div className="ins-modal-botoes">
           <button type="button" className="ins-btn" onClick={fechar}>Cancelar</button>

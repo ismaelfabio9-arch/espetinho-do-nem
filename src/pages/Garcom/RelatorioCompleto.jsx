@@ -94,6 +94,7 @@ export default function RelatorioCompleto() {
     const fechados = cxs.filter((c) => c.status === "fechado");
     const gaveta = {
       caixas: cxs.length,
+      fechados: fechados.length,
       inicial: cxs.length ? Number(cxs[cxs.length - 1].valorInicial || 0) : 0,
       sangriaGaveta: soma(sangrias.filter((m) => (m.origem || "Dinheiro") === "Dinheiro")),
       sangriaPix: soma(sangrias.filter((m) => m.origem === "Pix")),
@@ -191,8 +192,14 @@ export default function RelatorioCompleto() {
                   {rel.gaveta.sangriaPix > 0 && <Ln a="Tirado do Pix" b={R(-rel.gaveta.sangriaPix)} />}
                   {rel.gaveta.sangriaMaq > 0 && <Ln a="Tirado da maquininha" b={R(-rel.gaveta.sangriaMaq)} />}
                   <Ln a={`Reforço (${rel.gaveta.nReforcos})`} b={`+ ${R(rel.gaveta.reforcos)}`} />
-                  <Ln a="Contado no fechamento" b={<>{R(rel.gaveta.contado)} <small>{rel.gaveta.diferenca === 0 ? "bateu" : `diferença ${R(rel.gaveta.diferenca)}`}</small></>} />
-                  <Ln a="Dona tirou · ficou" b={`${R(rel.gaveta.tirou)} · ${R(rel.gaveta.ficou)}`} />
+                  {rel.gaveta.fechados > 0 ? (
+                    <>
+                      <Ln a="Contado no fechamento" b={<>{R(rel.gaveta.contado)} <small>{rel.gaveta.diferenca === 0 ? "bateu" : `diferença ${R(rel.gaveta.diferenca)}`}</small></>} />
+                      <Ln a="Dona tirou · ficou" b={`${R(rel.gaveta.tirou)} · ${R(rel.gaveta.ficou)}`} />
+                    </>
+                  ) : (
+                    <Ln a="Fechamento" b="caixa ainda aberto" />
+                  )}
                 </>
               )}
             </section>
