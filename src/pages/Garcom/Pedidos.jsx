@@ -29,9 +29,9 @@ import "../../components/QuerMais.css";
 
 // Painel: separa os pedidos em Mesas, Balcão (viagem) e Entregas. No computador, uma coluna para cada.
 const GRUPOS = [
-  { id: "mesa", rotulo: "🍽️ Mesas" },
-  { id: "balcao", rotulo: "🛍️ Balcão" },
-  { id: "entrega", rotulo: "🛵 Entregas" },
+  { id: "mesa", rotulo: "Mesas" },
+  { id: "balcao", rotulo: "Balcão" },
+  { id: "entrega", rotulo: "Entregas" },
 ];
 const grupoDe = (p) => (p.tipo === "mesa" ? "mesa" : p.tipo === "entrega" ? "entrega" : "balcao");
 const largo = () => typeof window !== "undefined" && window.matchMedia?.("(min-width: 1000px)").matches;
@@ -283,7 +283,7 @@ function Pedidos() {
       <div className="pedido-topo">
         <div>
           <span className={`pedido-tipo ${pedido.tipo === "entrega" ? "pedido-tipo-entrega" : ""}`}>
-            {pedido.tipo === "mesa" ? "🍽️ Mesa" : pedido.tipo === "entrega" ? `${pedido.modo === "retirada" ? "🏪 Retirada" : "🛵 Entrega"} · ${pedido.origem === "manual" ? "telefone" : "site"}` : "🛍️ Balcão / viagem"}
+            {pedido.tipo === "mesa" ? "Mesa" : pedido.tipo === "entrega" ? `${pedido.modo === "retirada" ? "Retirada" : "Entrega"} · ${pedido.origem === "manual" ? "telefone" : "site"}` : "🛍️ Balcão / viagem"}
           </span>
 
           <h3>{tituloPedido(pedido)}</h3>
@@ -334,20 +334,20 @@ function Pedidos() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              💬 Chamar o cliente no WhatsApp
+              WhatsApp do cliente
             </a>
           )}
           {pedido.modo === "entrega" && (
             <p>
-              📍 {pedido.endereco}
+              {pedido.endereco}
               {pedido.referencia ? ` (ref.: ${pedido.referencia})` : ""}
             </p>
           )}
           <p>
-            💰 Paga na {pedido.modo === "entrega" ? "entrega" : "retirada"}: <strong>{pedido.pagamento}</strong>
+            Paga na {pedido.modo === "entrega" ? "entrega" : "retirada"}: <strong>{pedido.pagamento}</strong>
             {pedido.troco ? ` · troco para R$ ${formatarMoeda(pedido.troco)}` : ""}
           </p>
-          {pedido.obs && <p>📝 {pedido.obs}</p>}
+          {pedido.obs && <p>Obs.: {pedido.obs}</p>}
           {pedido.taxaEntrega > 0 && (
             <p>
               Itens R$ {formatarMoeda(Number.isFinite(Number(pedido.subtotal)) && pedido.subtotal !== undefined ? pedido.subtotal : Number(pedido.total || 0) - Number(pedido.taxaEntrega || 0))} + entrega R$ {formatarMoeda(pedido.taxaEntrega)}
@@ -378,7 +378,7 @@ function Pedidos() {
 
         {pedido.tipo === "entrega" && (
           <button className="btn-cinza" onClick={() => void imprimirEntrega(pedido)}>
-            🖨️ Imprimir
+            Imprimir
           </button>
         )}
 
@@ -402,8 +402,8 @@ function Pedidos() {
         </p>
         {pagarPedido.pagamento && (
           <p className="modal-total-encerrar">
-            O cliente disse que ia pagar com <strong>{pagarPedido.pagamento}</strong>
-            {pagarPedido.troco ? ` (troco para R$ ${formatarMoeda(pagarPedido.troco)})` : ""}. Confira e confirme.
+            Cliente escolheu: <strong>{pagarPedido.pagamento}</strong>
+            {pagarPedido.troco ? ` (troco para R$ ${formatarMoeda(pagarPedido.troco)})` : ""}
           </p>
         )}
         <FormasPagamento valor={Number(pagarPedido.total || 0)} partes={partesPagar} onChange={setPartesPagar} />

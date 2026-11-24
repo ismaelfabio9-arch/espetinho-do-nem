@@ -74,7 +74,7 @@ export default function ResumoDia({ resumo: r, loja = "", onFechar }) {
       <div className="rd">
         <div className="rd-cab">
           <small>Dia encerrado · {r.data}{r.de ? ` · das ${r.de} às ${r.ate}` : ""}</small>
-          <h1>📊 Resumo do dia</h1>
+          <h1>Resumo do dia</h1>
         </div>
         <div className="rd-card rd-big">
           <small>Total vendido</small>
@@ -87,10 +87,10 @@ export default function ResumoDia({ resumo: r, loja = "", onFechar }) {
           <div><small>Ticket médio</small><b>{R(r.ticket)}</b></div>
         </div>
         {r.fechadasNoEncerramento > 0 && (
-          <p className="rd-aviso">🔒 {r.fechadasNoEncerramento} {r.fechadasNoEncerramento === 1 ? "mesa estava aberta e foi fechada" : "mesas estavam abertas e foram fechadas"} ao encerrar o dia. O que não foi pago aparece como "Sem forma de pagamento".</p>
+          <p className="rd-aviso">{r.fechadasNoEncerramento} {r.fechadasNoEncerramento === 1 ? "mesa aberta foi fechada" : "mesas abertas foram fechadas"} no encerramento.</p>
         )}
         <div className="rd-card rd-mais">
-          <h3>🏆 Mais vendidos</h3>
+          <h3>Mais vendidos</h3>
           {r.produtos.length === 0 && <p className="rd-vazio">Nenhuma venda hoje.</p>}
           {r.produtos.slice(0, 15).map((p, k) => (
             <div key={p.nome} className="rd-lin">
@@ -106,14 +106,14 @@ export default function ResumoDia({ resumo: r, loja = "", onFechar }) {
         </div>
         {r.formas.length > 0 && (
           <div className="rd-card rd-formas">
-            <h3>💳 Como pagaram</h3>
+            <h3>Formas de pagamento</h3>
             {r.formas.map((f) => (
               <div key={f.forma} className="rd-fp"><span>{f.forma}</span><b>{R(f.valor)}</b></div>
             ))}
           </div>
         )}
         <div className="rd-bt">
-          <button type="button" onClick={imprimirResumo}>🖨️ Imprimir</button>
+          <button type="button" onClick={imprimirResumo}>Imprimir</button>
           <a className="w" href={`https://wa.me/?text=${encodeURIComponent(textoResumo(r, loja))}`} target="_blank" rel="noopener noreferrer">WhatsApp</a>
           <button type="button" className="v" onClick={onFechar}>OK, fechar</button>
         </div>

@@ -106,7 +106,7 @@ export async function registrarPerda(dados, insumosPorId) {
     acao: m.grupo === "saida" ? "Saída sem venda" : "Perda de alimento",
     texto: itens.map(descricaoItem).join(" + "),
     valor: -r2(total),
-    motivo: `${m.emoji} ${m.nome}${obs ? ` · ${obs}` : ""}`,
+    motivo: `${m.nome}${obs ? ` · ${obs}` : ""}`,
     detalhes: [...tirar.entries()].map(([id, q]) => `Saiu ${insumosPorId[id]?.nome || "ingrediente"}: ${mostrarQtd(q, insumosPorId[id]?.unidade)}`),
   });
   // Produto pronto com estoque do dia: também sai de lá.

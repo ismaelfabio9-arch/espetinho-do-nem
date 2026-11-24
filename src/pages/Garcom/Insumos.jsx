@@ -7,7 +7,7 @@ import { ajustarInsumo, custoPronto, entradaInsumo, novoCustoCompra, inventario,
 import { NovoInsumo } from "../../components/FichaTecnica";
 import RegistrarPerda from "../../components/RegistrarPerda";
 import { resumoSaidas } from "../../utils/perdas";
-import { isoDia, periodo } from "../../utils/financas";
+import { periodo } from "../../utils/financas";
 import { lerValor } from "../../utils/financas";
 import "../../styles/Garcom/RelatorioGerencial.css";
 import "../../styles/Garcom/Financas.css";
@@ -92,7 +92,7 @@ function Insumos({ embutido = false, dia = null, semLista = false }) {
           ))}
         </div>
         {!carregando && baixos.length > 0 && aba === "estoque" && (
-          <p className="fin-aviso ins-aviso">⚠️ Acabando: {baixos.map((i) => `${i.nome} (${mostrarQtd(i.quantidade, i.unidade)})`).join(", ")}</p>
+          <p className="fin-aviso ins-aviso">Acabando: {baixos.map((i) => `${i.nome} (${mostrarQtd(i.quantidade, i.unidade)})`).join(", ")}</p>
         )}
       </div>
       {aba === "dia" && dia ? (
@@ -123,7 +123,7 @@ function Estoque({ insumos, prev, perdasMes, verPerdas }) {
           <h2>Ingredientes</h2>
           <button type="button" className="btn-verde" onClick={() => setForm({})}>+ Novo ingrediente</button>
         </div>
-        <button type="button" className="pd-novo" onClick={() => setPerdaDe(true)}>🍽️ Registrar saída de alimento (queimou, estragou, doação…)</button>
+        <button type="button" className="pd-novo" onClick={() => setPerdaDe(true)}>Registrar saída de alimento</button>
         {perdasMes.total > 0 && (
           <button type="button" className="ins-perdas-resumo" onClick={verPerdas}>
             <span>Perdas este mês</span>
@@ -343,7 +343,7 @@ export function Movimentar({ acao, fechar }) {
         })()}
         {tipo === "compra" && pratos.length > 0 && (
           <p className="cp-pratos">
-            🔄 Com o preço novo, o custo destes pratos muda sozinho: <b>{pratos.slice(0, 8).join(", ")}</b>
+            Pratos afetados: <b>{pratos.slice(0, 8).join(", ")}</b>
             {pratos.length > 8 ? ` e mais ${pratos.length - 8}` : ""}.
           </p>
         )}
@@ -437,7 +437,7 @@ function Perdas({ movs, porId }) {
   const total = Math.round((s.total + r.faltas) * 100) / 100;
   return (
     <div className="relatorio-documento">
-      <button type="button" className="pd-novo" onClick={() => setNovo(true)}>🍽️ Registrar saída de alimento</button>
+      <button type="button" className="pd-novo" onClick={() => setNovo(true)}>Registrar saída de alimento</button>
       <h2>Perdas e saídas · − {R(total)}</h2>
       <div className="fin-periodos">
         {[{ id: "hoje", nome: "Hoje" }, { id: "7dias", nome: "7 dias" }, { id: "mes", nome: "Este mês" }, { id: "mesPassado", nome: "Mês passado" }, { id: "ano", nome: "Este ano" }].map((p) => (
@@ -455,7 +455,7 @@ function Perdas({ movs, porId }) {
           <h3 style={{ margin: "18px 0 6px" }}>Por motivo</h3>
           {s.porMotivo.map((m) => (
             <div key={m.id} className="pd-motivo-linha">
-              <span className="pd-nome">{m.emoji} {m.nome}<small>{m.vezes} {m.vezes === 1 ? "vez" : "vezes"}</small></span>
+              <span className="pd-nome">{m.nome}<small>{m.vezes} {m.vezes === 1 ? "vez" : "vezes"}</small></span>
               <span className="pd-barra"><i style={{ width: `${Math.max(4, (m.valor / maior) * 100)}%` }} /></span>
               <strong>− {R(m.valor)}</strong>
             </div>
@@ -464,7 +464,7 @@ function Perdas({ movs, porId }) {
       )}
       <h3 style={{ margin: "18px 0 6px" }}>Lançamentos</h3>
       {s.lista.length === 0 && r.faltas === 0 ? (
-        <p>Nenhuma perda no período. 👏</p>
+        <p>Nenhum registro no período.</p>
       ) : (
         <ul className="fin-despesas">
           {s.lista.map((l) => (
@@ -493,7 +493,6 @@ function Perdas({ movs, porId }) {
           ))}
         </ul>
       )}
-      <p className="relatorio-nota">O valor é o custo dos ingredientes (pela ficha do produto). Ingrediente sem preço não entra na conta. Hoje: {isoDia().split("-").reverse().join("/")}.</p>
       {novo && <RegistrarPerda fechar={() => setNovo(false)} />}
     </div>
   );

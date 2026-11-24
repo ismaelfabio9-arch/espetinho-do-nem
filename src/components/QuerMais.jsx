@@ -25,13 +25,12 @@ export default function QuerMais({ sugestoes, contagem, onAdicionar, onContinuar
     <div className="quermais-fundo" onClick={onFechar}>
       <div className="quermais-folha" role="dialog" aria-modal="true" aria-label="Vai querer mais alguma coisa?" onClick={(e) => e.stopPropagation()}>
         <button type="button" className="quermais-x" onClick={onFechar} aria-label="Fechar">✕</button>
-        <h2>Vai querer mais alguma coisa? 😋</h2>
-        <p>Toque para pôr na sacola. Arraste para o lado para ver mais.</p>
+        <h2>Deseja adicionar algo?</h2>
         <div className="quermais-lista">
           {lista.map((c) => (
             <section key={c.categoria}>
               <h3 className="quermais-cat">
-                {emojiCategoria(c.categoria)} {c.categoria}
+                {c.categoria}
               </h3>
               <div className="quermais-itens">
                 {c.itens.map((i) => {

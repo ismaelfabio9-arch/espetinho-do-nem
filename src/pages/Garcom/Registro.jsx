@@ -102,11 +102,8 @@ export default function Registro() {
   return (
     <div className="reg">
       <div className="reg-topo">
-        <div>
-          <h2>📋 O que foi mexido</h2>
-          <p>Quem fez, quando, o que mudou e o motivo. Ninguém da equipe apaga nem muda.</p>
-        </div>
-        <button type="button" className="reg-imprimir" onClick={() => window.print()} aria-label="Imprimir">🖨️</button>
+        <h2>O que foi mexido</h2>
+        <button type="button" className="reg-imprimir" onClick={() => window.print()}>Imprimir</button>
       </div>
 
       <div className="reg-faixa" role="group" aria-label="Período">
@@ -129,16 +126,16 @@ export default function Registro() {
 
       <div className="reg-faixa reg-areas" role="group" aria-label="Área">
         <button className={!area && !soAtencao ? "on" : ""} onClick={() => { setArea(""); setSoAtencao(false); }}>Tudo <i>{(lista || []).length}</i></button>
-        <button className={`atencao${soAtencao ? " on" : ""}`} onClick={() => setSoAtencao((v) => !v)}>⚠️ Atenção <i>{nAtencao}</i></button>
+        <button className={`atencao${soAtencao ? " on" : ""}`} onClick={() => setSoAtencao((v) => !v)}>Atenção <i>{nAtencao}</i></button>
         {Object.entries(AREAS).map(([id, a]) => (
           <button key={id} className={area === id ? "on" : ""} onClick={() => setArea(area === id ? "" : id)}>
-            {a.emoji} {a.nome.split(" ")[0]} <i>{contaArea(id)}</i>
+            {a.nome.split(" ")[0]} <i>{contaArea(id)}</i>
           </button>
         ))}
       </div>
 
       <div className="reg-linha">
-        <input type="search" placeholder="🔍 Buscar: mesa 4, arroz, sangria…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+        <input type="search" placeholder="Buscar" value={busca} onChange={(e) => setBusca(e.target.value)} />
         {pessoas.length > 1 && (
           <select value={pessoa} onChange={(e) => setPessoa(e.target.value)} aria-label="Quem fez">
             <option value="">Todos</option>
@@ -167,7 +164,6 @@ export default function Registro() {
                 const baixa = ehBaixa(r);
                 return (
                   <li key={r.id} className={`reg-item area-${r.area}${atencao ? " atencao" : ""}${aberto ? " aberto" : ""}`} onClick={() => setAberto(aberto ? null : r.id)}>
-                    <span className="reg-ico" aria-hidden="true">{a.emoji}</span>
                     <div className="reg-txt">
                       <div className="reg-l1">
                         <strong>
@@ -179,8 +175,8 @@ export default function Registro() {
                       {r.texto && !baixa && <p className="reg-texto">{r.texto}</p>}
                       {baixa && (
                         <p className="reg-texto">
-                          {det.filter((d) => d.startsWith("Saiu ")).length} ingredientes saíram
-                          {nao > 0 && <b className="reg-nao"> · {nao} {nao === 1 ? "coisa não saiu" : "coisas não saíram"}</b>}
+                          {det.filter((d) => d.startsWith("Saiu ")).length} {det.filter((d) => d.startsWith("Saiu ")).length === 1 ? "ingrediente" : "ingredientes"}
+                          {nao > 0 && <b className="reg-nao">, {nao} {nao === 1 ? "não saiu" : "não saíram"}</b>}
                         </p>
                       )}
                       {(r.antes || r.depois) && (
@@ -188,7 +184,7 @@ export default function Registro() {
                           {r.antes ? <s>{r.antes}</s> : null} {r.antes && r.depois ? "→" : ""} {r.depois ? <b>{r.depois}</b> : null}
                         </p>
                       )}
-                      {r.motivo && <p className="reg-motivo">💬 {r.motivo}</p>}
+                      {r.motivo && <p className="reg-motivo">Motivo: {r.motivo}</p>}
                       {aberto && (
                         <div className="reg-mais">
                           {baixa && r.texto && <p className="reg-texto-todo">{r.texto}</p>}
@@ -202,8 +198,8 @@ export default function Registro() {
                         </div>
                       )}
                       <small className="reg-rodape">
-                        {new Date(r.em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · {quem(r.por)}
-                        {det.length > 0 || (r.texto || "").length > 90 ? <span className="reg-ver"> · {aberto ? "▲ menos" : "▼ ver tudo"}</span> : null}
+                        {new Date(r.em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })} · {quem(r.por)} · {a.nome}
+                        {det.length > 0 || (r.texto || "").length > 90 ? <span className="reg-ver"> · {aberto ? "Ocultar" : "Detalhes"}</span> : null}
                       </small>
                     </div>
                   </li>

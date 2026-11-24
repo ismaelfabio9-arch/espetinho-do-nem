@@ -16,7 +16,7 @@ export default function SonsConfig() {
       <div className="config-icon">🔊</div>
       <div style={{ flex: 1, minWidth: 0 }}>
         <h2>Sons dos avisos</h2>
-        <p>Cada aviso tem um som diferente e toca 2 vezes, em qualquer tela do sistema. Deixe o volume de mídia do celular alto.</p>
+        <p>Um som para cada tipo de aviso.</p>
         <label className="sons-ligar">
           <input
             type="checkbox"
@@ -33,7 +33,7 @@ export default function SonsConfig() {
             <li key={id}>
               <span>{s.nome}</span>
               <button type="button" className="config-btn" onClick={() => ouvir(id)} aria-label={`Ouvir: ${s.nome}`}>
-                {tocando === id ? "🔊 Tocando…" : "▶ Ouvir"}
+                {tocando === id ? "Tocando…" : "Ouvir"}
               </button>
             </li>
           ))}

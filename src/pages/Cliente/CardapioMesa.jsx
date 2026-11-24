@@ -585,7 +585,7 @@ function CardapioMesa() {
     if (MULTI) {
       try {
         await mesasApi("chamar", { loja: getLoja(), mesa: Number(mesa), tipo: "pagamento", formaPagamento }, false);
-        setMensagem(`💳 Total: R$ ${formatarMoeda(totalConta)} • Pagamento: ${formaPagamento} • O garçom já foi notificado.`);
+        setMensagem(`Total: R$ ${formatarMoeda(totalConta)} • Pagamento: ${formaPagamento} • O garçom já foi notificado.`);
         setMostrarModalPagamento(false);
         setFormaPagamento("");
       } catch (erro) {
@@ -611,7 +611,7 @@ function CardapioMesa() {
       });
 
       setMensagem(
-        `💳 Total: R$ ${formatarMoeda(totalConta)} • Pagamento: ${formaPagamento} • O garçom já foi notificado.`
+        `Total: R$ ${formatarMoeda(totalConta)} • Pagamento: ${formaPagamento} • O garçom já foi notificado.`
       );
 
       setMostrarModalPagamento(false);
@@ -672,7 +672,7 @@ function CardapioMesa() {
       {mostrarModalPagamento && (
         <div className="modal-nome-cliente">
           <div className="modal-nome-card">
-            <h2>💳 Como deseja pagar?</h2>
+            <h2>Como deseja pagar?</h2>
 
             <p>
               Total da conta: R$ {formatarMoeda(pedidoMesaAberto?.total || total)}
@@ -704,13 +704,13 @@ function CardapioMesa() {
         nome={nomeLoja}
         linha={pedidoLigado ? "Escolha, monte do seu jeito e mande o pedido daqui da mesa." : "Veja o cardápio. Para pedir, chame o garçom."}
         selos={[
-          { texto: `🍽️ Mesa ${mesa}`, tom: "verde" },
-          nomeCliente ? { texto: `👤 ${nomeCliente}`, tom: "azul" } : null,
-          contaMesa ? { texto: `🧾 Conta R$ ${formatarMoeda(contaMesa.total)}` } : null,
+          { texto: `Mesa ${mesa}`, tom: "verde" },
+          nomeCliente ? { texto: nomeCliente, tom: "azul" } : null,
+          contaMesa ? { texto: `Conta R$ ${formatarMoeda(contaMesa.total)}` } : null,
         ]}
         aviso={
           repassaAlguma(taxas)
-            ? `💳 No cartão tem o acréscimo da taxa da maquininha${[taxas.passarDebito && taxas.debito ? `débito ${String(taxas.debito).replace(".", ",")}%` : "", taxas.passarCredito && taxas.credito ? `crédito ${String(taxas.credito).replace(".", ",")}%` : ""].filter(Boolean).join(", ").replace(/^/, ": ")}. Pix e dinheiro sem acréscimo.`
+            ? `No cartão tem o acréscimo da taxa da maquininha${[taxas.passarDebito && taxas.debito ? `débito ${String(taxas.debito).replace(".", ",")}%` : "", taxas.passarCredito && taxas.credito ? `crédito ${String(taxas.credito).replace(".", ",")}%` : ""].filter(Boolean).join(", ").replace(/^/, ": ")}. Pix e dinheiro sem acréscimo.`
             : null
         }
         acoes={[
@@ -790,7 +790,7 @@ function CardapioMesa() {
         secundario={
           qtdSacola === 0 && contaMesa ? (
             <button type="button" className="cl-barra-sec" onClick={() => setContaAberta(true)}>
-              <span>🧾 Conta da mesa · {contaMesa.totalItens} {contaMesa.totalItens === 1 ? "item" : "itens"}</span>
+              <span>Conta da mesa · {contaMesa.totalItens} {contaMesa.totalItens === 1 ? "item" : "itens"}</span>
               <strong>R$ {formatarMoeda(contaMesa.total)}</strong>
             </button>
           ) : null
@@ -799,7 +799,7 @@ function CardapioMesa() {
 
       {sacolaAberta && (
         <Folha
-          titulo="🛍️ Sua sacola"
+          titulo="Sua sacola"
           onFechar={() => setSacolaAberta(false)}
           rodape={
             <>
@@ -831,7 +831,7 @@ function CardapioMesa() {
 
       {contaAberta && (
         <Folha
-          titulo={`🧾 Conta da Mesa ${mesa}`}
+          titulo={`Conta da Mesa ${mesa}`}
           onFechar={() => setContaAberta(false)}
           rodape={
             <>
@@ -841,12 +841,12 @@ function CardapioMesa() {
               </div>
               {contaLigada && contaMesa && (
                 <button type="button" className="cl-btn azul" disabled={enviando} onClick={() => { setContaAberta(false); setMostrarModalPagamento(true); }}>
-                  💳 Pedir a conta
+                  Pedir a conta
                 </button>
               )}
               {garcomLigado && (
                 <button type="button" className="cl-btn claro" disabled={enviando} onClick={() => { setContaAberta(false); chamarGarcom(); }}>
-                  🛎️ Chamar o garçom
+                  Chamar o garçom
                 </button>
               )}
             </>
@@ -857,7 +857,7 @@ function CardapioMesa() {
           ) : (
             Object.entries(contaPorPessoa).map(([quem, itens]) => (
               <div key={quem} className="cl-conta-pessoa">
-                <b>{quem === "Mesa" ? "🍽️ Da mesa" : `👤 ${quem}`}</b>
+                <b>{quem === "Mesa" ? "Da mesa" : quem}</b>
                 {itens.map((item) => (
                   <div key={`${item.nome}-${quem}`} className="cl-conta-linha">
                     <span>{item.qtd}× {item.nome}</span>

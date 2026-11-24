@@ -180,7 +180,7 @@ export default function Custos({ produtos, insumos, fichas }) {
       <div className="cu-resumo">
         <span><b>{ativos.length - semPreco.length}</b> de {ativos.length} ingredientes com preço</span>
         <button type="button" className="btn-verde" onClick={() => setNovo(true)}>+ Novo ingrediente</button>
-        <button type="button" className="pd-novo" style={{ margin: "8px 0 0" }} onClick={() => setPerdaDe(true)}>🍽️ Saída de alimento (queimou, estragou, doação…)</button>
+        <button type="button" className="pd-novo" style={{ margin: "8px 0 0" }} onClick={() => setPerdaDe(true)}>Registrar saída de alimento</button>
       </div>
       <input className="cu-busca" type="search" placeholder="🔎 Procurar ingrediente pelo nome" aria-label="Procurar ingrediente pelo nome" value={busca} onChange={(e) => setBusca(e.target.value)} />
       <div className="fin-periodos cu-filtros" role="group" aria-label="Filtrar ingredientes">

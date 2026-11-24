@@ -201,16 +201,16 @@ export default function CardapioOnline() {
           nome={nomeLoja}
           linha={aberta ? `${temRetirada ? "Entrega ou retirada no balcão" : "Entrega"} · pagamento na ${temRetirada ? "entrega ou retirada" : "entrega"}` : "A loja não está recebendo pedidos pelo site agora. Você pode ver o cardápio."}
           selos={[
-            aberta ? { texto: "🟢 Aberto para pedidos", tom: "verde" } : { texto: "⏸️ Pedidos pausados", tom: "laranja" },
-            aberta ? { texto: `🛵 Entrega R$ ${moeda(entrega.taxa)}` } : null,
-            aberta && temRetirada ? { texto: "🏪 Retirada grátis" } : null,
+            aberta ? { texto: "Aberto para pedidos", tom: "verde" } : { texto: "Pedidos pausados", tom: "laranja" },
+            aberta ? { texto: `Entrega R$ ${moeda(entrega.taxa)}` } : null,
+            aberta && temRetirada ? { texto: "Retirada grátis" } : null,
           ]}
-          aviso={aberta && repassaAlguma(taxas) ? "💳 No cartão tem o acréscimo da taxa da maquininha. Pix e dinheiro sem acréscimo." : null}
+          aviso={aberta && repassaAlguma(taxas) ? "No cartão tem o acréscimo da taxa da maquininha. Pix e dinheiro sem acréscimo." : null}
           acoes={[whatsLoja && { icone: "💬", texto: "WhatsApp", sub: "falar com a loja", href: linkWhats(whatsLoja, `Olá! Vim pelo cardápio online da ${nomeLoja || "loja"}.`) }]}
         />
       ) : (
         <header className="online-topo cl-miolo" style={{ paddingTop: 16 }}>
-          <span className="online-eyebrow">🛵 {nomeLoja || "Cardápio online"}</span>
+          <span className="online-eyebrow">{nomeLoja || "Cardápio online"}</span>
         </header>
       )}
 
@@ -228,7 +228,7 @@ export default function CardapioOnline() {
           </p>
           {whatsLoja && (
             <a className="whats-btn online-whats-pedido" href={linkWhats(whatsLoja, `Olá! Fiz o pedido #${feito.numero} pelo cardápio online (${form.cliente}). `)} target="_blank" rel="noopener noreferrer">
-              💬 Falar com a loja sobre o pedido #{feito.numero}
+              Falar com a loja sobre o pedido #{feito.numero}
             </a>
           )}
           <button type="button" className="online-btn" onClick={() => { setFeito(null); setOfereceu(false); setEtapa("cardapio"); }}>
@@ -246,7 +246,7 @@ export default function CardapioOnline() {
                   {l.nome}
                   {l.montagem && produtoPorId(l.produtoId) && (
                     <button type="button" className="online-editar" onClick={() => editarLinha(l)}>
-                      ✏️ Editar
+                      Editar
                     </button>
                   )}
                 </span>
@@ -262,7 +262,7 @@ export default function CardapioOnline() {
 
           {temRetirada && (
             <div className="online-opcoes" role="radiogroup" aria-label="Entrega ou retirada">
-              {[["entrega", `🛵 Entrega (R$ ${moeda(entrega.taxa)})`], ["retirada", "🏪 Retirar no balcão"]].map(([v, t]) => (
+              {[["entrega", `Entrega (R$ ${moeda(entrega.taxa)})`], ["retirada", "Retirar no balcão"]].map(([v, t]) => (
                 <button type="button" key={v} className={modo === v ? "ativo" : ""} aria-pressed={modo === v} onClick={() => setForm({ ...form, modo: v })}>
                   {t}
                 </button>
@@ -340,7 +340,7 @@ export default function CardapioOnline() {
           {aberta && <BarraSacola qtd={qtdItens} total={subtotal} onClick={() => setSacolaAberta(true)} />}
           {sacolaAberta && (
             <Folha
-              titulo="🛍️ Sua sacola"
+              titulo="Sua sacola"
               onFechar={() => setSacolaAberta(false)}
               rodape={
                 <>

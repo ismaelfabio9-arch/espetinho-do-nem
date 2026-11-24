@@ -37,7 +37,7 @@ export default function PedidoRapido({ categorias, contagem, onTocar, emoji, ind
   return (
     <div className={`rapido${fotos && Object.keys(fotos).length ? " rapido-com-fotos" : ""}`}>
       <div className="rapido-fixo">
-        <input className="rapido-busca" type="search" placeholder="🔍 Buscar: guisado, coca, açaí…" value={busca} onChange={(e) => setBusca(e.target.value)} />
+        <input className="rapido-busca" type="search" placeholder="Buscar produto" value={busca} onChange={(e) => setBusca(e.target.value)} />
         {!busca.trim() && (
           <div className="rapido-cats">
             {categorias.map((c) => {
