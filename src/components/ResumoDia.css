@@ -34,3 +34,15 @@ html body .rd-bt a.w { background: #25d366 !important; border-color: #25d366 !im
 .rd-tres { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .rd-card { min-width: 0; }
 .rd-lin b { min-width: 0; white-space: nowrap; }
+/* Notebook e computador: duas colunas (total, números, pagamentos e botões à esquerda; mais vendidos à direita). */
+@media (min-width: 900px) {
+  .rd { max-width: 1120px; padding: 12px 24px 24px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); grid-template-areas: "cab cab" "big mais" "tres mais" "formas mais" "bt mais" "sobra mais"; grid-template-rows: auto auto auto auto auto 1fr; column-gap: 20px; align-items: start; }
+  .rd-cab { grid-area: cab; padding: 12px 0 4px; }
+  .rd-big { grid-area: big; }
+  .rd-tres { grid-area: tres; margin: 0; }
+  .rd-formas { grid-area: formas; }
+  .rd-bt { grid-area: bt; margin: 10px 0 0; }
+  .rd-mais { grid-area: mais; max-height: calc(100dvh - 130px); overflow-y: auto; }
+  .rd-card { margin: 10px 0; }
+  .rd-big b { font-size: 44px; }
+}
