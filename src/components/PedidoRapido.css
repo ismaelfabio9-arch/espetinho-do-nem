@@ -55,3 +55,21 @@ body:not(.dark) .rapido { --r-bg: #f4f5f7; --r-card: #fff; --r-card2: #f3f4f6; -
 }
 /* O sistema pinta todo span/p/small de cinza (App.css); aqui o texto segue a cor do card. */
 html body :is(.rapido) :is(span, p, small, b, strong, h3) { color: inherit; }
+
+/* Produtos em linha com foto pequena: cabe a categoria inteira sem descer a tela (celular e notebook). */
+html body .rapido .rapido-grade { grid-template-columns: 1fr; gap: 8px; }
+.rapido .rapido-item { flex-direction: row; align-items: center; border-radius: 12px; }
+.rapido .rapido-foto, .rapido .rapido-semfoto { width: 64px; height: 64px; aspect-ratio: auto; flex: none; border-radius: 10px; margin: 7px 0 7px 7px; font-size: 26px; }
+.rapido .rapido-txt { flex: 1; min-width: 0; gap: 2px; padding: 8px 54px 8px 12px !important; }
+.rapido .rapido-vem { -webkit-line-clamp: 1; }
+.rapido .rapido-mais { top: 50%; transform: translateY(-50%); right: 10px; }
+@media (min-width: 900px) {
+  html body .rapido .rapido-grade { grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 6px; }
+  .rapido .rapido-foto, .rapido .rapido-semfoto { width: 46px; height: 46px; margin: 6px 0 6px 6px; border-radius: 8px; font-size: 20px; }
+  .rapido .rapido-txt { padding: 6px 46px 6px 10px !important; gap: 1px; }
+  .rapido .rapido-item strong { font-size: 14px; }
+  .rapido .rapido-preco { font-size: 14px; }
+  .rapido .rapido-montar { display: none; }
+  .rapido .rapido-mais { width: 30px; height: 30px; font-size: 18px; right: 8px; }
+}
+.rapido .rapido-tag { left: 4px; top: 4px; font-size: 10px; padding: 2px 5px; }
