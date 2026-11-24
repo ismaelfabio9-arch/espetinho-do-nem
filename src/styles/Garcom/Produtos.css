@@ -77,14 +77,15 @@ body.dark .produto-modal-form input::placeholder { color: #9ca3af !important; }
   padding: 20px;
 }
 
+/* Janela clara no tema claro e escura no escuro (antes ficava sempre escura). */
 .modal-card {
   width: 100%;
   max-width: 380px;
-  background: #151515;
-  border: 1px solid #2a2a2a;
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
   border-radius: 18px;
   padding: 24px;
-  color: white;
+  color: #111827;
   text-align: center;
   box-shadow: 0 20px 50px rgba(0,0,0,0.5);
 }
@@ -98,17 +99,31 @@ body.dark .produto-modal-form input::placeholder { color: #9ca3af !important; }
 }
 
 .modal-card p {
-  color: #b7b7b7;
+  color: #6b7280;
   margin: 6px 0;
 }
 
 .modal-card strong {
-  color: #ffffff;
+  color: inherit;
 }
 
 .modal-alerta {
-  color: #ffffff !important;
+  color: #b91c1c !important;
   font-weight: 800;
+}
+
+body.dark .modal-card {
+  background: #151515;
+  border-color: #2a2a2a;
+  color: #ffffff;
+}
+
+body.dark .modal-card p {
+  color: #b7b7b7;
+}
+
+body.dark .modal-alerta {
+  color: #fca5a5 !important;
 }
 
 .modal-icon {
@@ -132,6 +147,11 @@ body.dark .produto-modal-form input::placeholder { color: #9ca3af !important; }
 }
 
 .btn-cancelar {
+  background: #e5e7eb;
+  color: #111827;
+}
+
+body.dark .btn-cancelar {
   background: #2a2a2a;
   color: white;
 }
@@ -179,7 +199,7 @@ body.dark .produto-modal-form input::placeholder { color: #9ca3af !important; }
 }
 
 .modal-fechar-dia-card strong {
-  color: white;
+  color: inherit;
 }
 
 .modal-fechar-dia-botoes {
