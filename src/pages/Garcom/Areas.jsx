@@ -17,9 +17,11 @@ import Insumos from "./Insumos";
 import Financas from "./Financas";
 import Registro from "./Registro";
 import DinheiroHoje from "./DinheiroHoje";
+import RelatorioCompleto from "./RelatorioCompleto";
 
 export function Vendas() {
   const caixa = useRecurso("financas");
+  const completo = useRecurso("dinheiro-completo");
   return (
     <Area
       titulo="Vendas"
@@ -29,7 +31,7 @@ export function Vendas() {
         { id: "caixa", nome: "Caixa", recurso: "financas", senha: true, tela: () => <Caixa /> },
         { id: "hoje", nome: "Pedidos de hoje", tela: () => <HistoricoMesas /> },
         { id: "dias", nome: "Dias anteriores", tela: () => <Historico /> },
-        { id: "relatorio", nome: "Relatório", recurso: "relatorios", senha: true, tela: () => <RelatorioGerencial /> },
+        { id: "relatorio", nome: "Relatório", recurso: "relatorios", senha: true, tela: () => (completo ? <RelatorioCompleto /> : <RelatorioGerencial />) },
         { id: "mexido", nome: "O que foi mexido", soDono: true, senha: true, tela: () => <Registro /> },
       ]}
     />
