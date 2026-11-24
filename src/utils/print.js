@@ -123,7 +123,7 @@ export function gerarResumoDiaHTML(r, config) {
     <div class="linha-central pequeno">${escapeHtml(r.data)}${r.de ? ` · ${escapeHtml(r.de)} às ${escapeHtml(r.ate)}` : ""}</div>
     <div class="separador"></div>
     <div class="linha-central pequeno">TOTAL VENDIDO</div>
-    <div class="linha-central negrito" style="font-size:24px">R$ ${formatarMoeda(r.total)}</div>
+    <div class="linha-central negrito grande">R$ ${formatarMoeda(r.total)}</div>
     <div class="separador"></div>
     ${linha("Pedidos", String(r.pedidos))}
     ${linha("Itens vendidos", String(r.itens))}
