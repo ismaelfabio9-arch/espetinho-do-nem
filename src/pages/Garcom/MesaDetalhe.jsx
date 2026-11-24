@@ -538,17 +538,24 @@ if (pedidosDaMesa.length === 0) {
     registrar({ area: "pedidos", acao: "Acrescentou na comanda", mesa: id, texto: `+${textoDoItem({ ...itemSelecionado, qtd: 1 })}`, valor: Number(itemSelecionado.preco || 0) });
   }
 
+  /** Nome do prato e o que vem nele, um por linha ("Marmita P", "Feijão preto", "sem Cebola"). */
+  function partesItem(item) {
+    const [nomeLido, ...doNome] = String(item?.nome || "").split(" — ");
+    const det = detalhesMontagem(item?.montagem);
+    const detalhes = (det.length ? det : doNome.join(" — ").split(/,\s*(?![^()]*\))/)).filter(Boolean).map((d) => d.charAt(0).toUpperCase() + d.slice(1));
+    return { nome: item?.nomeBase || nomeLido, detalhes };
+  }
+
   /** Tirar 1 de um item já salvo: pergunta o motivo antes. */
   function diminuirItemMesa(itemSelecionado) {
     const ultimo = Number(itemSelecionado.qtd) === 1;
     setMotivoOutro("");
     setMotivoEscolhido("");
-    const [nomeLido, ...doNome] = String(itemSelecionado.nome || "").split(" — ");
-    const det = detalhesMontagem(itemSelecionado.montagem);
+    const partes = partesItem(itemSelecionado);
     setPedirMotivo({
-      nome: itemSelecionado.nomeBase || nomeLido,
+      nome: partes.nome,
       preco: Number(itemSelecionado.preco || 0),
-      detalhes: det.length ? det : doNome.join(" — ").split(/,\s*(?![^()]*\))/).filter(Boolean),
+      detalhes: partes.detalhes,
       fazer: async (motivo) => {
         await tirarItemMesa(itemSelecionado);
         registrar({ area: "pedidos", acao: ultimo ? "Tirou da comanda" : "Diminuiu na comanda", mesa: id, texto: `−${textoDoItem({ ...itemSelecionado, qtd: 1 })}`, valor: -Number(itemSelecionado.preco || 0), motivo });
@@ -1100,14 +1107,17 @@ if (pedidosDaMesa.length === 0) {
               </div>
               <button type="button" className="pm-fechar" onClick={fecharPedidoMesa} aria-label="Fechar" data-fechar>✕</button>
             </div>
-            <p className="pm-dica">Errou ou o cliente desistiu? Ajuste a quantidade aqui.</p>
-
             <div className="pm-lista">
               {itensMesa.map((item) => (
                 <div className="pm-linha" key={item.nome}>
                   <div className="pm-info">
-                    <strong>{item.nome}</strong>
-                    <span>R$ {formatarMoeda(item.preco)} cada</span>
+                    <strong>{partesItem(item).nome}</strong>
+                    {partesItem(item).detalhes.length > 0 && (
+                      <span className="pm-det">
+                        {partesItem(item).detalhes.map((d, i) => <span key={i}>{d}</span>)}
+                      </span>
+                    )}
+                    <span className="pm-cada">R$ {formatarMoeda(item.preco)} cada</span>
                     {produtoPorId(item.produtoId) && abreEscolha(produtoPorId(item.produtoId), montarLigado) && (
                       <button type="button" className="pm-editar" onClick={() => editarSalvo(item)}>
                         Editar
@@ -1155,7 +1165,7 @@ if (pedidosDaMesa.length === 0) {
               {pedirMotivo.detalhes.length > 0 && (
                 <div className="motivo-item-det">
                   {pedirMotivo.detalhes.map((d, i) => (
-                    <span key={i}>{d.charAt(0).toUpperCase() + d.slice(1)}</span>
+                    <span key={i}>{d}</span>
                   ))}
                 </div>
               )}
@@ -1548,7 +1558,8 @@ if (pedidosDaMesa.length === 0) {
             <div className="md-com-item" key={`n:${item.nome}`}>
               {fotos[item.produtoId] ? <img src={fotos[item.produtoId]} alt="" /> : <span className="md-com-sem" aria-hidden="true">🍽️</span>}
               <span className="md-com-txt">
-                {item.qtd}× {item.nome}
+                <span className="md-com-nome">{item.qtd}× {partesItem(item).nome}</span>
+                {partesItem(item).detalhes.map((d, i) => <span key={i} className="md-com-det">{d}</span>)}
                 {item.montagem && produtoPorId(item.produtoId) && (
                   <button type="button" className="md-com-link" onClick={() => editarLinha(item)}>Editar</button>
                 )}
@@ -1565,7 +1576,8 @@ if (pedidosDaMesa.length === 0) {
             <div className="md-com-item" key={`m:${item.nome}`}>
               {fotos[item.produtoId] ? <img src={fotos[item.produtoId]} alt="" /> : <span className="md-com-sem" aria-hidden="true">🧾</span>}
               <span className="md-com-txt">
-                {item.qtd}× {item.nome}
+                <span className="md-com-nome">{item.qtd}× {partesItem(item).nome}</span>
+                {partesItem(item).detalhes.map((d, i) => <span key={i} className="md-com-det">{d}</span>)}
               </span>
               <span className="md-com-qtd">
                 <button type="button" onClick={() => diminuirItemMesa(item)} aria-label={Number(item.qtd) === 1 ? `Tirar ${item.nome}` : `Menos 1 ${item.nome}`}>{Number(item.qtd) === 1 ? "🗑" : "−"}</button>
