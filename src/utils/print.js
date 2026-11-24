@@ -66,17 +66,39 @@ function cabecalho(config) {
   `;
 }
 
+/** "Prato — a, b (c, d), e" → ["Prato", "a", "b (c, d)", "e"]: o que vem no prato, um embaixo do outro. */
+function separarNome(nome) {
+  const texto = String(nome ?? "");
+  const i = texto.indexOf(" — ");
+  if (i < 0) return [texto];
+  const partes = [];
+  let atual = "";
+  let nivel = 0;
+  for (const ch of texto.slice(i + 3)) {
+    if (ch === "(") nivel++;
+    if (ch === ")") nivel = Math.max(0, nivel - 1);
+    if (ch === "," && nivel === 0) {
+      partes.push(atual.trim());
+      atual = "";
+    } else atual += ch;
+  }
+  partes.push(atual.trim());
+  return [texto.slice(0, i), ...partes.filter(Boolean)];
+}
+
 function linhasDeItens(itens) {
   return itens
-    .map((item) => {
+    .map((item, n) => {
       const qtd = Number(item.qtd ?? item.quantidade ?? 0);
       const preco = Number(item.preco || 0);
       const subtotal = qtd * preco;
+      const [nome, ...detalhes] = separarNome(item.nome);
       return `
-        <div class="linha-item">
-          <span>${qtd}x ${escapeHtml(item.nome)}</span>
+        <div class="linha-item"${n > 0 ? ' style="margin-top:6px"' : ""}>
+          <span>${qtd}x ${escapeHtml(nome)}</span>
           <span>R$ ${formatarMoeda(subtotal)}</span>
         </div>
+        ${detalhes.map((d) => `<div class="detalhe">- ${escapeHtml(d)}</div>`).join("")}
       `;
     })
     .join("");
@@ -312,6 +334,7 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
         ".grande { font-size: 18px; }" +
         ".pequeno { font-size: 12px; }" +
         ".separador { border-top: 2px dashed #000; margin: 8px 0; }" +
+        ".detalhe { padding-left: 10px; font-size: 13px; }" +
         ".linha-item { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }" +
         ".cupom-imagem { display: block; width: " + largura + "px; margin: 0 auto; image-rendering: pixelated; }" +
         // Botão para sair da tela de impressão (no celular a janela fica por cima do sistema).
@@ -415,7 +438,7 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
       var doc = janela.document;
       var corpo = doc.body;
       var escala = pontos / largura;
-      var margem = 8; // px (igual ao padding lateral do body)
+      var margem = 14; // px: folga nas laterais (a impressora corta a beirada do papel)
       var util = largura - margem * 2;
 
       // Mede no canvas com a mesma fonte do texto e quebra as linhas compridas.
@@ -446,7 +469,7 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
       }
       function tamanho(el) {
         var lista = el.classList;
-        return lista.contains("grande") ? 18 : lista.contains("pequeno") ? 12 : 14;
+        return lista.contains("grande") ? 18 : lista.contains("pequeno") ? 12 : lista.contains("detalhe") ? 13 : 14;
       }
 
       // Monta a lista do que desenhar (y em px de tela).
@@ -485,9 +508,10 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
         var texto = limpo(el);
         if (!texto) continue;
         var centro = el.classList.contains("linha-central");
-        var linhas = quebrar(texto, px, util);
+        var recuo = el.classList.contains("detalhe") ? 10 : 0;
+        var linhas = quebrar(texto, px, util - recuo);
         for (var k = 0; k < linhas.length; k++) {
-          comandos.push({ tipo: "texto", texto: linhas[k], px: px, y: y, alinhar: centro ? "center" : "left" });
+          comandos.push({ tipo: "texto", texto: (k > 0 && recuo ? "  " : "") + linhas[k], px: px, y: y, alinhar: centro ? "center" : "left", recuo: recuo });
           y += alturaLinha;
         }
       }
@@ -511,16 +535,19 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
         }
         ctx.font = fonte(cmd.px);
         ctx.textAlign = cmd.alinhar;
-        var xTexto = cmd.alinhar === "center" ? (largura / 2) * escala : cmd.alinhar === "right" ? (largura - margem) * escala : margem * escala;
+        var xTexto = cmd.alinhar === "center" ? (largura / 2) * escala : cmd.alinhar === "right" ? (largura - margem) * escala : (margem + (cmd.recuo || 0)) * escala;
         var yTexto = (cmd.y + (cmd.px * 1.3 - cmd.px) / 2) * escala;
         ctx.fillText(cmd.texto, xTexto, yTexto);
+        // Contorno por cima: letra mais grossa, para não falhar na térmica.
+        ctx.lineWidth = 0.7 * escala;
+        ctx.strokeText(cmd.texto, xTexto, yTexto);
       }
 
       // Preto e branco puro: sem nenhum tom de cinza.
       var imagem = ctx.getImageData(0, 0, canvas.width, canvas.height);
       var d = imagem.data;
       for (var p = 0; p < d.length; p += 4) {
-        var cor = d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114 < 128 ? 0 : 255;
+        var cor = d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114 < 170 ? 0 : 255; // a borda da letra também fica preta
         d[p] = d[p + 1] = d[p + 2] = cor;
         d[p + 3] = 255;
       }
