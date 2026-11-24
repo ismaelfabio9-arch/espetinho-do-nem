@@ -240,7 +240,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
 
       const resumo = { ...calcularResumoDia(vendasDia), fechadasNoEncerramento: fechadas };
       registrar({ area: "dinheiro", acao: "Encerrou o dia", texto: `Total do dia R$ ${resumo.total.toFixed(2).replace(".", ",")} em ${resumo.pedidos} pedidos`, valor: resumo.total, detalhes: resumo.formas.map((f) => `${f.forma}: R$ ${f.valor.toFixed(2).replace(".", ",")}`) });
-      mostrarMensagem("✅ Dia encerrado com sucesso! Estoque zerado.");
+      mostrarMensagem("Dia encerrado.");
       setModalEncerrarDia(false);
       if (resumoNoFechamento) setResumoDia(resumo);
     } catch (erro) {
@@ -272,7 +272,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
 
       {novidadesEmTeste && (
         <p className="config-beta" style={{ margin: "0 0 14px", padding: "10px 14px", borderRadius: 12, background: "#dcfce7", color: "#14532d", fontWeight: 700, fontSize: 14 }}>
-          ✨ Sua loja recebe as novidades em teste antes das outras.
+          Sua loja recebe as novidades em teste antes das outras.
         </p>
       )}
 
@@ -280,15 +280,15 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
       <div className="config-areas">
         <span>Procurando caixa, histórico, produtos, estoque ou finanças? Ficam aqui:</span>
         <div>
-          <Link to="/vendas">💵 Vendas</Link>
-          <Link to="/cardapio">🍔 Cardápio e estoque</Link>
-          {financasLigado && souDono && <Link to="/dinheiro">💰 Dinheiro</Link>}
+          <Link to="/vendas">Vendas</Link>
+          <Link to="/cardapio">Cardápio e estoque</Link>
+          {financasLigado && souDono && <Link to="/dinheiro">Dinheiro</Link>}
         </div>
       </div>
 
       {!souDono && (
         <p className="config-beta" style={{ margin: "0 0 14px", padding: "10px 14px", borderRadius: 12, background: "#f3f4f6", color: "#374151", fontSize: 14 }}>
-          🔒 As configurações da loja (equipe, taxas, WhatsApp, cardápio online e fechamento do dia) ficam com o dono da loja.
+          As configurações da loja (equipe, taxas, WhatsApp, cardápio online e fechamento do dia) ficam com o dono da loja.
         </p>
       )}
 
@@ -457,7 +457,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
 
             {caixaAberto && (
               <p className="modal-caixa-aviso">
-                🧾 O caixa ainda está aberto. O certo é <Link to="/caixa">fechar o caixa</Link> (contar o dinheiro da gaveta) antes de encerrar o dia.
+                O caixa ainda está aberto. O certo é <Link to="/caixa">fechar o caixa</Link> (contar o dinheiro da gaveta) antes de encerrar o dia.
               </p>
             )}
 

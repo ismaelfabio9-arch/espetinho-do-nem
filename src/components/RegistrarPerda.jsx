@@ -90,19 +90,18 @@ export default function RegistrarPerda({ fechar, inicial = {} }) {
   return (
     <div className="ins-modal" role="dialog" aria-modal="true" aria-label="Saída de alimento" onClick={() => fechar(false)}>
       <div className="ins-modal-caixa pd-caixa" onClick={(e) => e.stopPropagation()}>
-        <h2>🍽️ Saída de alimento</h2>
-        <p className="fin-explica">Queimou, estragou, doou, a equipe comeu… Pode pôr vários itens de uma vez: pratos prontos (sai o que a ficha leva) e ingredientes (em kg ou g).</p>
+        <h2>Saída de alimento</h2>
 
-        <p className="pd-rotulo">1. O que aconteceu?</p>
+        <p className="pd-rotulo">Motivo</p>
         <div className="pd-motivos">
           {MOTIVOS.map((m) => (
             <button key={m.id} type="button" className={motivoId === m.id ? "on" : ""} aria-pressed={motivoId === m.id} onClick={() => setMotivoId(m.id)}>
-              <span aria-hidden="true">{m.emoji}</span> {m.nome}
+              {m.nome}
             </button>
           ))}
         </div>
 
-        <p className="pd-rotulo">2. O que saiu?</p>
+        <p className="pd-rotulo">Itens</p>
         {itens.map((it, n) => {
           const c = contas[n];
           if (it.produto) {
@@ -159,7 +158,7 @@ export default function RegistrarPerda({ fechar, inicial = {} }) {
           );
         })}
 
-        <input className="pd-busca" placeholder={itens.length ? "➕ Pôr mais um: arroz, feijão, marmita…" : "🔍 Buscar prato ou ingrediente: marmita, arroz, frango…"} value={busca} onChange={(e) => setBusca(e.target.value)} />
+        <input className="pd-busca" placeholder={itens.length ? "Adicionar outro item" : "Buscar prato ou ingrediente"} value={busca} onChange={(e) => setBusca(e.target.value)} />
         {carregando && busca ? (
           <p className="fin-carregando">Carregando…</p>
         ) : (
@@ -184,10 +183,10 @@ export default function RegistrarPerda({ fechar, inicial = {} }) {
           <>
             <label className="pd-campo">
               Observação (opcional)
-              <input placeholder="Ex.: doado para o abrigo, fritadeira desregulou" value={obs} onChange={(e) => setObs(e.target.value)} />
+              <input value={obs} onChange={(e) => setObs(e.target.value)} />
             </label>
             <div className="pd-conta">
-              <p>Sai do estoque:</p>
+              <p>Baixa no estoque</p>
               <ul>
                 {Object.values(
                   contas.flatMap((c) => c.linhas).reduce((acc, l) => {
@@ -209,7 +208,7 @@ export default function RegistrarPerda({ fechar, inicial = {} }) {
                 <span>Custo</span>
                 <b>{R(total)}</b>
               </p>
-              {semPreco.length > 0 && <small>Sem preço: {semPreco.join(", ")}. O custo conta só o que tem preço.</small>}
+              {semPreco.length > 0 && <small>Sem preço cadastrado: {semPreco.join(", ")}</small>}
             </div>
           </>
         )}

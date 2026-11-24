@@ -390,7 +390,7 @@ function QuandoSai({ linha, montagem, todos, passaveis, onChange }) {
   return (
     <div className="qs">
       <button type="button" className={`qs-btn${se ? " on" : ""}`} onClick={() => setAberto((a) => !a)} aria-expanded={aberto}>
-        ⚙️ {texto}
+        {texto}
         {se && linha.passa ? ` · senão vai para ${nomeDe(linha.passa)}` : ""}
       </button>
       {aberto && (
@@ -400,7 +400,7 @@ function QuandoSai({ linha, montagem, todos, passaveis, onChange }) {
             <select value={tipo} onChange={(e) => mudarTipo(e.target.value)}>
               <option value="">Sempre</option>
               {grupos.map((g) => (
-                <option key={g.nome} value={`g:${g.nome}`}>Depende do que escolher em: {g.nome}</option>
+                <option key={g.nome} value={`g:${g.nome}`}>Depende de: {g.nome}</option>
               ))}
               {vem.length > 0 && <option value="vem">Se o cliente não tirar do prato</option>}
               {extras.length > 0 && <option value="extra">Só quando pedir a mais</option>}
@@ -446,7 +446,6 @@ function QuandoSai({ linha, montagem, todos, passaveis, onChange }) {
                   <option key={i.id} value={i.id}>{i.nome}</option>
                 ))}
               </select>
-              <small>Ex.: sem feijão → os gramas do feijão vão para o arroz.</small>
             </label>
           )}
           <button type="button" className="qs-ok" onClick={() => setAberto(false)}>OK</button>
@@ -585,7 +584,6 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
     <div className="ins-ficha">
       <p className="ficha-titulo">O que vai em 1 <b>{produto.nome}</b>?</p>
       <LinhasFicha linhas={linhas} muda={muda} todos={todos} lista={lista} novo={() => setNovo({})} extra={doPrato} preco={preco} montagem={produto.montagem} passaveis={passaveis} vazio="Toque nos ingredientes abaixo para pôr na ficha." />
-      {produto.montagem && <p className="ficha-dica qs-dica">⚙️ Toque em "Sai sempre" para dizer quando o ingrediente sai: ex. o feijão só sai se escolher feijão, e sem feijão os gramas vão para o arroz. O ovo só sai se pedir a mais.</p>}
 
       {grupoVaria && (
         <div className="ficha-varia">

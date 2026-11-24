@@ -136,7 +136,7 @@ export function CardapioCliente({ categorias, contagem, onTocar, emoji, indispon
   return (
     <div className="cl-cardapio">
       <div className="cl-fixo">
-        <input className="cl-busca" type="search" placeholder="🔍 Buscar no cardápio" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar no cardápio" />
+        <input className="cl-busca" type="search" placeholder="Buscar no cardápio" value={busca} onChange={(e) => setBusca(e.target.value)} aria-label="Buscar no cardápio" />
         {!achados && (
           <nav className="cl-cats" ref={faixa} aria-label="Categorias">
             {categorias.map((c) => (
@@ -178,7 +178,7 @@ export function BarraSacola({ qtd, total, texto = "Ver sacola", onClick, secunda
       {qtd > 0 && (
         <button type="button" className="cl-barra-btn" onClick={onClick}>
           <span className="cl-barra-qtd">
-            🛍️ <b>{qtd}</b>
+            <b>{qtd}</b>
           </span>
           <span>{texto}</span>
           <strong>R$ {moeda(total)}</strong>
@@ -237,7 +237,7 @@ export function ItensSacola({ linhas, onMais, onMenos, onEditar, podeEditar = ()
               )}
               {l.montagem && podeEditar(l) && (
                 <button type="button" className="cl-link" onClick={() => onEditar(l)}>
-                  ✏️ Editar
+                  Editar
                 </button>
               )}
             </div>

@@ -136,9 +136,8 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
         {g.maxDe && (
           <div className="montar-misto">
             <button type="button" className="montar-op montar-misto-btn" onClick={() => setEscolha({ ...escolha, escolhas: { ...escolha.escolhas, [g.nome]: sortear(g.opcoes, maxNaEscolha(g, escolha.escolhas)) } })}>
-              🎲 Misto
+              Misto
             </button>
-            <small>Sorteia os {maxNaEscolha(g, escolha.escolhas)}; toque para tirar ou trocar.</small>
           </div>
         )}
         <div className={tiles ? "montar-tams" : "montar-opcoes"} style={tiles ? { gridTemplateColumns: `repeat(${g.opcoes.length}, 1fr)` } : undefined}>
@@ -196,7 +195,7 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
 
             {(m.vem || []).length > 0 && (
               <section className="montar-passo">
-                {titulo(tipo === "prato" ? "Vem no prato" : tipo === "lanche" ? "Vem no lanche" : "Vem", "toque para tirar")}
+                {titulo(tipo === "prato" ? "Vem no prato" : tipo === "lanche" ? "Vem no lanche" : "Vem")}
                 <div className="montar-opcoes">
                   {m.vem.map((v) => {
                     const tirou = escolha.tirar.includes(v);
@@ -251,7 +250,7 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
 
             {bebidas.length > 0 && (
               <section className="montar-passo">
-                {titulo("Bebida?", "um toque", bebidasEscolhidas.length ? { ok: true, txt: `✓ ${bebidasEscolhidas.length}` } : { ok: null, txt: "opcional" })}
+                 {titulo("Bebida", "", bebidasEscolhidas.length ? { ok: true, txt: `✓ ${bebidasEscolhidas.length}` } : { ok: null, txt: "opcional" })}
                 {[...new Set(bebidas.map((b) => b.grupo || ""))].map((g) => (
                   <div key={g || "bebidas"} className="montar-bebidas-grupo">
                     {g && <div className="montar-bebidas-cat">{g}</div>}
@@ -271,10 +270,9 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
 
             <section className="montar-passo">
               <h3 className="montar-passo-titulo">
-                <span className="montar-num">📝</span>
                 <span className="montar-passo-nome">Observação</span>
               </h3>
-              <input className="montar-obs" placeholder={tipo === "prato" ? "Ex.: pouco sal, trocar arroz por macaxeira" : tipo === "lanche" ? "Ex.: carne bem passada, molho à parte" : "Ex.: sem açúcar, bem passado"} value={escolha.obs || ""} maxLength={60} onChange={(e) => setEscolha({ ...escolha, obs: e.target.value })} />
+              <input className="montar-obs" placeholder="Observação para a cozinha" value={escolha.obs || ""} maxLength={60} onChange={(e) => setEscolha({ ...escolha, obs: e.target.value })} />
             </section>
           </div>
         </div>
@@ -289,7 +287,7 @@ export default function MontarPrato({ produto, bebidas: sugeridas = [], onAdicio
           )}
           <button type="button" className="montar-adicionar" onClick={adicionar} disabled={!!faltaRecheio}>
             {faltaRecheio ? (
-              `Escolha os ${String(faltaRecheio.nome).toLowerCase()} (ou toque em Misto)`
+              `Escolha: ${String(faltaRecheio.nome).toLowerCase()}`
             ) : (
               <>
                 <span>{textoBotao}</span>
