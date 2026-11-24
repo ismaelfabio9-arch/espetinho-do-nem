@@ -1,4 +1,5 @@
 import { L, MULTI, getLoja } from "../../loja";
+import { partesDoItem } from "../../utils/montagem";
 import useNomeLoja from "../../hooks/useNomeLoja";
 import { mesasApi } from "../../tenant";
 import { useEffect, useState } from "react";
@@ -862,7 +863,10 @@ function CardapioMesa() {
                 <b>{quem === "Mesa" ? "Da mesa" : quem}</b>
                 {itens.map((item) => (
                   <div key={`${item.nome}-${quem}`} className="cl-conta-linha">
-                    <span>{item.qtd}× {item.nome}</span>
+                    <span className="item-partes">
+                      <span className="item-nome">{item.qtd}× {partesDoItem(item).nome}</span>
+                      {partesDoItem(item).detalhes.map((d, k) => <span key={k} className="item-det">{d}</span>)}
+                    </span>
                     <span>R$ {formatarMoeda(item.preco * item.qtd)}</span>
                   </div>
                 ))}

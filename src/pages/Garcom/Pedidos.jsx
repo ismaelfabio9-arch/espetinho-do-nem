@@ -1,4 +1,5 @@
 import { L } from "../../loja";
+import { partesDoItem } from "../../utils/montagem";
 import { useEffect, useState } from "react";
 
 import { Link } from "react-router-dom";
@@ -307,8 +308,9 @@ function Pedidos() {
       <div className="pedido-itens">
         {ordenarItensPorPreco(pedido.itens).map((item) => (
           <div className="pedido-item-linha" key={item.nome}>
-            <span>
-              {Number(item.qtd || item.quantidade || 0)}x {item.nome}
+            <span className="item-partes">
+              <span className="item-nome">{Number(item.qtd || item.quantidade || 0)}x {partesDoItem(item).nome}</span>
+              {partesDoItem(item).detalhes.map((d, k) => <span key={k} className="item-det">{d}</span>)}
             </span>
 
             <strong>

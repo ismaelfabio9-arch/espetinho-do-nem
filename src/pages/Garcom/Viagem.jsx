@@ -1,4 +1,5 @@
 import { L } from "../../loja";
+import { partesDoItem } from "../../utils/montagem";
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import {
@@ -598,8 +599,9 @@ function Viagem({ modo = "balcao", topo = null }) {
 
           {itensPedido.map((item) => (
             <div className="resumo-linha resumo-linha-editavel" key={item.nome}>
-              <span>
-                {item.qtd}x {item.nome}
+              <span className="item-partes">
+                <span className="item-nome">{item.qtd}x {partesDoItem(item).nome}</span>
+                {partesDoItem(item).detalhes.map((d, k) => <span key={k} className="item-det">{d}</span>)}
                 {item.montagem && produtoPorId(item.produtoId) && (
                   <button type="button" className="resumo-editar" onClick={() => editarLinha(item)}>
                     ✏️ Editar

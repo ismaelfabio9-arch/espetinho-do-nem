@@ -570,3 +570,8 @@ body .voltar-fixo:hover { border-color: var(--green) !important; }
 .pm-total strong { font-size: 22px; color: var(--green); font-variant-numeric: tabular-nums; }
 .pm-ok { height: 48px; border: none; border-radius: 14px; background: var(--green); color: #fff; font-size: 16px; font-weight: 800; cursor: pointer; }
 .pm-editar { align-self: flex-start; margin-top: 4px; padding: 6px 12px; border: 1px solid var(--green); border-radius: 999px; background: transparent; color: var(--green); font-size: 13px; font-weight: 800; cursor: pointer; }
+
+/* Item com o que vem no prato, um por linha (Pedidos, balcão, conta da mesa) */
+.item-partes { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+html body .item-partes .item-nome { font-weight: 600; color: inherit; }
+html body .item-partes .item-det { font-size: 0.86em; line-height: 1.35; opacity: 0.7; color: inherit; }
