@@ -86,19 +86,39 @@ function separarNome(nome) {
   return [texto.slice(0, i), ...partes.filter(Boolean)];
 }
 
+const maiuscula = (t) => {
+  const x = String(t ?? "").trim();
+  return x ? x.charAt(0).toUpperCase() + x.slice(1) : "";
+};
+
+/** O que vem no prato, um por linha: "+1 Feijão Mulato", "Sem cebola", "Obs: pouco sal". */
+function detalhesDoItem(item, doNome) {
+  const m = item.montagem;
+  if (!m || typeof m !== "object" || Array.isArray(m)) return doNome.map((d) => (/^(sem |obs)/i.test(d) ? maiuscula(d) : `+1 ${maiuscula(d.replace(/^\+\s*/, ""))}`));
+  const lista = [];
+  Object.values(m.escolhas || {}).forEach((v) => (Array.isArray(v) ? v : v ? [v] : []).forEach((o) => lista.push(`+1 ${maiuscula(o)}`)));
+  (m.tirar || []).forEach((t) => lista.push(`Sem ${String(t).toLowerCase()}`));
+  (m.extras || []).forEach((e) => lista.push(`+1 ${maiuscula(e)}`));
+  (m.outros || []).forEach((o) => lista.push(`+1 ${maiuscula(o?.nome)}`));
+  if (m.obs) lista.push(`Obs: ${m.obs}`);
+  return lista;
+}
+
 function linhasDeItens(itens) {
   return itens
     .map((item, n) => {
       const qtd = Number(item.qtd ?? item.quantidade ?? 0);
       const preco = Number(item.preco || 0);
       const subtotal = qtd * preco;
-      const [nome, ...detalhes] = separarNome(item.nome);
+      const [nomeLido, ...doNome] = separarNome(item.nome);
+      const nome = item.nomeBase || nomeLido;
+      const detalhes = detalhesDoItem(item, doNome);
       return `
         <div class="linha-item"${n > 0 ? ' style="margin-top:6px"' : ""}>
           <span>${qtd}x ${escapeHtml(nome)}</span>
           <span>R$ ${formatarMoeda(subtotal)}</span>
         </div>
-        ${detalhes.map((d) => `<div class="detalhe">- ${escapeHtml(d)}</div>`).join("")}
+        ${detalhes.map((d) => `<div class="detalhe">${escapeHtml(d)}</div>`).join("")}
       `;
     })
     .join("");
@@ -334,7 +354,7 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
         ".grande { font-size: 18px; }" +
         ".pequeno { font-size: 12px; }" +
         ".separador { border-top: 2px dashed #000; margin: 8px 0; }" +
-        ".detalhe { padding-left: 10px; font-size: 13px; }" +
+        ".detalhe { font-size: 14px; font-weight: 400; padding: 1px 0; }" +
         ".linha-item { display: flex; justify-content: space-between; gap: 8px; padding: 2px 0; }" +
         ".cupom-imagem { display: block; width: " + largura + "px; margin: 0 auto; image-rendering: pixelated; }" +
         // Botão para sair da tela de impressão (no celular a janela fica por cima do sistema).
@@ -444,11 +464,11 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
       // Mede no canvas com a mesma fonte do texto e quebra as linhas compridas.
       var canvas = document.createElement("canvas");
       var ctx = canvas.getContext("2d");
-      function fonte(px) {
-        return "bold " + px * escala + "px Arial, Helvetica, sans-serif";
+      function fonte(px, fino) {
+        return (fino ? "" : "bold ") + px * escala + "px Arial, Helvetica, sans-serif";
       }
-      function quebrar(texto, px, max) {
-        ctx.font = fonte(px);
+      function quebrar(texto, px, max, fino) {
+        ctx.font = fonte(px, fino);
         var palavras = texto.split(" ");
         var linhas = [];
         var atual = "";
@@ -469,7 +489,7 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
       }
       function tamanho(el) {
         var lista = el.classList;
-        return lista.contains("grande") ? 18 : lista.contains("pequeno") ? 12 : lista.contains("detalhe") ? 13 : 14;
+        return lista.contains("grande") ? 18 : lista.contains("pequeno") ? 12 : 14;
       }
 
       // Monta a lista do que desenhar (y em px de tela).
@@ -508,10 +528,11 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
         var texto = limpo(el);
         if (!texto) continue;
         var centro = el.classList.contains("linha-central");
-        var recuo = el.classList.contains("detalhe") ? 10 : 0;
-        var linhas = quebrar(texto, px, util - recuo);
+        var fino = el.classList.contains("detalhe");
+        var linhas = quebrar(texto, px, util, fino);
+        if (fino) y += 3;
         for (var k = 0; k < linhas.length; k++) {
-          comandos.push({ tipo: "texto", texto: (k > 0 && recuo ? "  " : "") + linhas[k], px: px, y: y, alinhar: centro ? "center" : "left", recuo: recuo });
+          comandos.push({ tipo: "texto", texto: linhas[k], px: px, y: y, alinhar: centro ? "center" : "left", fino: fino });
           y += alturaLinha;
         }
       }
@@ -533,21 +554,18 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
           }
           continue;
         }
-        ctx.font = fonte(cmd.px);
+        ctx.font = fonte(cmd.px, cmd.fino);
         ctx.textAlign = cmd.alinhar;
-        var xTexto = cmd.alinhar === "center" ? (largura / 2) * escala : cmd.alinhar === "right" ? (largura - margem) * escala : (margem + (cmd.recuo || 0)) * escala;
+        var xTexto = cmd.alinhar === "center" ? (largura / 2) * escala : cmd.alinhar === "right" ? (largura - margem) * escala : margem * escala;
         var yTexto = (cmd.y + (cmd.px * 1.3 - cmd.px) / 2) * escala;
         ctx.fillText(cmd.texto, xTexto, yTexto);
-        // Contorno por cima: letra mais grossa, para não falhar na térmica.
-        ctx.lineWidth = 0.7 * escala;
-        ctx.strokeText(cmd.texto, xTexto, yTexto);
       }
 
       // Preto e branco puro: sem nenhum tom de cinza.
       var imagem = ctx.getImageData(0, 0, canvas.width, canvas.height);
       var d = imagem.data;
       for (var p = 0; p < d.length; p += 4) {
-        var cor = d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114 < 170 ? 0 : 255; // a borda da letra também fica preta
+        var cor = d[p] * 0.299 + d[p + 1] * 0.587 + d[p + 2] * 0.114 < 150 ? 0 : 255;
         d[p] = d[p + 1] = d[p + 2] = cor;
         d[p + 3] = 255;
       }
