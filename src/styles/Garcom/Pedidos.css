@@ -138,3 +138,4 @@ body.dark .status-entregue { background: var(--green-bg) !important; color: #86e
 @media (min-width: 1000px) {
   .container.pedidos-pagina { max-width: 1280px; }
 }
+.pedido-item-linha { align-items: flex-start; }

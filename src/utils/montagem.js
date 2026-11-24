@@ -343,3 +343,11 @@ export function textoDoItem(i) {
   const det = detalhesMontagem(i?.montagem);
   return `${Number(i?.qtd || i?.quantidade || 0)}× ${i?.nomeBase || i?.nome || ""}${det.length ? ` (${det.join(", ")})` : ""}`;
 }
+
+/** Nome do prato e o que vem nele, um por linha: { nome: "Guisado de boi", detalhes: ["Marmita P", "Feijão preto"] }. */
+export function partesDoItem(item) {
+  const [nomeLido, ...doNome] = String(item?.nome || "").split(" — ");
+  const det = detalhesMontagem(item?.montagem);
+  const detalhes = (det.length ? det : doNome.join(" — ").split(/,\s*(?![^()]*\))/)).filter(Boolean).map((d) => d.charAt(0).toUpperCase() + d.slice(1));
+  return { nome: item?.nomeBase || nomeLido, detalhes };
+}
