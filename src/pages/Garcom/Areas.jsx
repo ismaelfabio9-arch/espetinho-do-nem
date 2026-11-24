@@ -26,11 +26,11 @@ export function Vendas() {
       icone="💵"
       padrao={caixa ? "caixa" : "hoje"}
       abas={[
-        { id: "caixa", nome: "Caixa", recurso: "financas", tela: () => <Caixa /> },
+        { id: "caixa", nome: "Caixa", recurso: "financas", senha: true, tela: () => <Caixa /> },
         { id: "hoje", nome: "Pedidos de hoje", tela: () => <HistoricoMesas /> },
         { id: "dias", nome: "Dias anteriores", tela: () => <Historico /> },
-        { id: "relatorio", nome: "Relatório", recurso: "relatorios", tela: () => <RelatorioGerencial /> },
-        { id: "mexido", nome: "O que foi mexido", soDono: true, tela: () => <Registro /> },
+        { id: "relatorio", nome: "Relatório", recurso: "relatorios", senha: true, tela: () => <RelatorioGerencial /> },
+        { id: "mexido", nome: "O que foi mexido", soDono: true, senha: true, tela: () => <Registro /> },
       ]}
     />
   );
@@ -61,8 +61,8 @@ export function Dinheiro() {
       padrao="hoje"
       abas={[
         { id: "hoje", nome: "Hoje", recurso: "dinheiro-completo", tela: () => <DinheiroHoje /> },
-        { id: "lucro", nome: "Lucro e caixa", recurso: "financas", soDono: true, tela: () => <Financas abas={["resumo"]} titulo="Lucro e caixa" /> },
-        { id: "despesas", nome: "Despesas e compras", recurso: "financas", soDono: true, tela: () => <Financas abas={["lancamentos"]} titulo="Despesas e compras" /> },
+        { id: "lucro", nome: "Lucro e caixa", recurso: "financas", soDono: true, senha: true, tela: () => <Financas abas={["resumo"]} titulo="Lucro e caixa" /> },
+        { id: "despesas", nome: "Despesas e compras", recurso: "financas", soDono: true, senha: true, tela: () => <Financas abas={["lancamentos"]} titulo="Despesas e compras" /> },
       ]}
     />
   );
@@ -83,6 +83,7 @@ export function CardapioArea() {
           nome: "Ingredientes",
           recurso: "custos",
           soDono: true,
+          senha: true,
           tela: () => <Financas abas={["custos"]} titulo="Ingredientes" texto="O preço e o estoque de tudo o que se usa para fazer os produtos." />,
         },
         { id: "estoque", nome: "Estoque", recurso: ["custos", "estoque"], tela: () => <EstoqueArea /> },
@@ -92,6 +93,7 @@ export function CardapioArea() {
           nome: "Preço certo",
           recurso: "custos",
           soDono: true,
+          senha: true,
           tela: () => <Financas abas={["preco"]} titulo="Preço certo" texto="Quanto custa cada produto, por quanto vender e quanto sobra de lucro." />,
         },
       ]}

@@ -29,6 +29,7 @@ import WhatsLojaConfig from "../../components/WhatsLojaConfig";
 import SonsConfig from "../../components/SonsConfig";
 import ResumoDia, { calcularResumoDia } from "../../components/ResumoDia";
 import FechamentoDia from "../../components/FechamentoDia";
+import { SenhaDonaConfig, useComSenha } from "../../components/SenhaDona";
 import { isoDia } from "../../utils/financas";
 import { auth } from "../../firebase";
 import { registrar } from "../../utils/registro";
@@ -54,6 +55,7 @@ function Config() {
   const resumoNoFechamento = useRecurso("resumo-no-fechamento");
   // Kit Burger: fechamento do dia com tudo (gaveta, dona tirou, comida, o que acabou) e com ou sem impressão.
   const dinheiroCompleto = useRecurso("dinheiro-completo");
+  const [pedirSenha, janelaSenha] = useComSenha();
   const [resumoDia, setResumoDia] = useState(null);
 
   function mostrarMensagem(texto) {
@@ -354,6 +356,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
       {MULTI && souDono && <Equipe />}
 
       {souDono && <WhatsLojaConfig />}
+      <SenhaDonaConfig />
       {souDono && <TaxasMaquininha />}
 
       {souDono && <CardapioOnlineConfig />}
@@ -461,7 +464,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
             disabled={encerrando}
             onChange={(e) => {
               if (e.target.checked) {
-                setModalEncerrarDia(true);
+                pedirSenha(() => setModalEncerrarDia(true));
               }
             }}
           />
@@ -472,6 +475,7 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
 
       {resumoDia && <ResumoDia resumo={resumoDia} loja={nomeLoja} onFechar={() => setResumoDia(null)} />}
 
+      {janelaSenha}
       {modalEncerrarDia && souDono && dinheiroCompleto && (
         <FechamentoDia encerrando={encerrando} onCancelar={() => setModalEncerrarDia(false)} onConfirmar={(dados) => confirmarEncerrarDia(dados)} />
       )}

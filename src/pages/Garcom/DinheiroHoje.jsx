@@ -11,8 +11,12 @@ import { isoDia, tipoDe, grupoDe } from "../../utils/financas";
 import { resumoSaidas } from "../../utils/perdas";
 import { registrarOcorrencia, useOcorrencias } from "../../utils/ocorrencias";
 import RegistrarPerda from "../../components/RegistrarPerda";
+import { resumoCaixa, vendasDoCaixa } from "../../utils/caixa";
+import { useTaxas } from "../../utils/taxas";
 import { Abrir, Movimento } from "./Caixa";
 import { NovoLancamento } from "./Financas";
+import { BarraLiberado, useComSenha } from "../../components/SenhaDona";
+import { useLiberado } from "../../utils/senhaDona";
 import "../../styles/Garcom/RelatorioGerencial.css";
 import "../../styles/Garcom/Financas.css";
 import "../../styles/Garcom/Insumos.css";
@@ -39,6 +43,8 @@ export default function DinheiroHoje() {
   const movsCaixa = useLista(() => query(collection(db, ...L(), "caixaMov"), where("em", ">=", inicioDia)), [inicioDia]);
   const movsIns = useLista(() => query(collection(db, ...L(), "insumosMov"), where("em", ">=", inicioDia)), [inicioDia]);
   const produtos = useLista(() => collection(db, ...L(), "produtos"), []);
+  const vendasHoje = useLista(() => collection(db, ...L(), "vendasDia"), []);
+  const taxas = useTaxas();
   const ocorrencias = useOcorrencias(dia);
   const [despesas, setDespesas] = useState([]);
   useEffect(() => {
@@ -46,7 +52,18 @@ export default function DinheiroHoje() {
     return onSnapshot(query(collection(db, ...L(), "despesas"), where("data", "==", dia)), (s) => setDespesas(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => setDespesas([]));
   }, [souDono, dia]);
 
-  const [acao, setAcao] = useState(params.get("acao") || ""); // sangria | suprimento | perda | acabou | lancar
+  const [acaoPedida, setAcao] = useState(params.get("acao") || ""); // sangria | suprimento | perda | acabou | lancar
+  const [pedirSenha, janelaSenha, precisaSenha] = useComSenha();
+  const lib = useLiberado();
+  // Sangria, reforço e lançamento mexem com dinheiro: pedem a senha da dona.
+  const comDinheiro = (a) => a === "sangria" || a === "suprimento" || a === "lancar";
+  const acao = comDinheiro(acaoPedida) && precisaSenha ? "" : acaoPedida;
+  const abrir = (a) => (comDinheiro(a) ? pedirSenha(() => setAcao(a)) : setAcao(a));
+  useEffect(() => {
+    // Veio do menu (Sangria): pede a senha logo.
+    if (comDinheiro(acaoPedida)) pedirSenha(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   useEffect(() => {
     if (!params.get("acao")) return;
     const p = new URLSearchParams(params);
@@ -61,7 +78,7 @@ export default function DinheiroHoje() {
   // Tudo de hoje numa lista: { em, titulo, sub, valor (+/−) | null }
   const linhas = useMemo(() => {
     const l = [];
-    (movsCaixa || []).forEach((m) => l.push({ id: `c${m.id}`, em: m.em, titulo: m.tipo === "sangria" ? "Sangria" : "Reforço", sub: [m.motivo, quemCurto(m.por)].filter(Boolean).join(" · "), valor: m.tipo === "sangria" ? -Number(m.valor || 0) : Number(m.valor || 0) }));
+    (movsCaixa || []).forEach((m) => l.push({ id: `c${m.id}`, em: m.em, titulo: m.tipo === "sangria" ? `Sangria${m.origem && m.origem !== "Dinheiro" ? ` do ${m.origem === "Pix" ? "Pix" : "cartão"}` : ""}` : "Reforço", sub: [m.motivo, quemCurto(m.por)].filter(Boolean).join(" · "), valor: m.tipo === "sangria" ? -Number(m.valor || 0) : Number(m.valor || 0) }));
     resumoSaidas(movsIns || [], dia, dia).lista.forEach((s) => l.push({ id: `p${s.id}`, em: s.em, titulo: "Saída de alimento", sub: [s.descricoes.join(" + ") || s.itens.map((i) => i.nome).join(", "), String(s.motivo || "").split(" · ")[0], quemCurto(s.por)].filter(Boolean).join(" · "), valor: s.valor ? -s.valor : null }));
     (ocorrencias || []).forEach((o) => l.push({ id: `o${o.id}`, em: o.em, titulo: { acabou: "Acabou", tirou: "Tirou da comanda", saiuDiferente: "Saiu diferente", cortesia: "Cortesia", cancelou: "Pedido cancelado" }[o.tipo] || "Ocorrência", sub: [o.texto, o.motivo, quemCurto(o.por)].filter(Boolean).join(" · "), valor: typeof o.valor === "number" && o.tipo !== "saiuDiferente" ? -o.valor : null }));
     (despesas || []).forEach((d) => {
@@ -76,13 +93,15 @@ export default function DinheiroHoje() {
 
   return (
     <div className="container dh">
+      {janelaSenha}
+      {lib && <BarraLiberado quem={lib.quem} />}
       <div className="dh-acoes">
-        <button type="button" onClick={() => setAcao("sangria")}><b>Sangria</b><span>Tirar dinheiro da gaveta</span></button>
-        <button type="button" onClick={() => setAcao("suprimento")}><b>Reforço</b><span>Pôr dinheiro na gaveta</span></button>
-        <button type="button" onClick={() => setAcao("perda")}><b>Saída de alimento</b><span>Queimou, caiu, estragou</span></button>
-        <button type="button" onClick={() => setAcao("acabou")}><b>Acabou</b><span>Produto acabou hoje</span></button>
+        <button type="button" onClick={() => abrir("sangria")}><b>Sangria</b><span>Tirar dinheiro da gaveta</span></button>
+        <button type="button" onClick={() => abrir("suprimento")}><b>Reforço</b><span>Pôr dinheiro na gaveta</span></button>
+        <button type="button" onClick={() => abrir("perda")}><b>Saída de alimento</b><span>Queimou, caiu, estragou</span></button>
+        <button type="button" onClick={() => abrir("acabou")}><b>Acabou</b><span>Produto acabou hoje</span></button>
         {souDono && (
-          <button type="button" className="dh-novo" onClick={() => setAcao(acao === "lancar" ? "" : "lancar")}><b>+ Novo lançamento</b><span>Compra, despesa, entrada</span></button>
+          <button type="button" className="dh-novo" onClick={() => (acao === "lancar" ? setAcao("") : abrir("lancar"))}><b>+ Novo lançamento</b><span>Compra, despesa, entrada</span></button>
         )}
       </div>
 
@@ -102,7 +121,7 @@ export default function DinheiroHoje() {
                     <span>{hora(x.em)}{x.sub ? ` · ${x.sub}` : ""}</span>
                   </div>
                   <strong className={x.valor === null ? "dh-zero" : x.valor < 0 ? "dh-neg" : "dh-pos"}>
-                    {x.valor === null ? "—" : `${x.valor < 0 ? "− " : "+ "}R$ ${fmt(Math.abs(x.valor))}`}
+                    {x.valor === null ? "—" : precisaSenha ? "R$ •••" : `${x.valor < 0 ? "− " : "+ "}R$ ${fmt(Math.abs(x.valor))}`}
                   </strong>
                 </li>
               ))}
@@ -111,14 +130,22 @@ export default function DinheiroHoje() {
         </div>
         {souDono && (
           <div className={`dh-lanc${acao === "lancar" ? " aberto" : ""}`}>
-            <NovoLancamento categorias={categorias} onSalvo={() => setAcao("")} />
+            {precisaSenha ? (
+              <div className="dh-trava">
+                <b>Novo lançamento</b>
+                <span>Precisa da senha da dona.</span>
+                <button type="button" onClick={() => abrir("lancar")}>Entrar com a senha</button>
+              </div>
+            ) : (
+              <NovoLancamento categorias={categorias} onSalvo={() => setAcao("")} />
+            )}
           </div>
         )}
       </div>
 
       {(acao === "sangria" || acao === "suprimento") &&
         (caixas === null ? null : aberto ? (
-          <Movimento caixa={aberto} tipo={acao} fechar={() => setAcao("")} />
+          <Movimento caixa={aberto} tipo={acao} r={resumoCaixa(aberto, vendasDoCaixa(aberto, [], vendasHoje || []), movsCaixa || [], taxas)} fechar={() => setAcao("")} />
         ) : (
           <div className="ins-modal" role="dialog" aria-modal="true" aria-label="Abrir o caixa" onClick={() => setAcao("")}>
             <div className="ins-modal-caixa dh-abrir" onClick={(e) => e.stopPropagation()}>
