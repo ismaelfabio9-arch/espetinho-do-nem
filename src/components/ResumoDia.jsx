@@ -88,7 +88,7 @@ export default function ResumoDia({ resumo: r, loja = "", onFechar }) {
           <div><small>Balcão / viagem</small><b>{r.balcao}</b></div>
           <div><small>Ticket médio</small><b>{R(r.ticket)}</b></div>
         </div>
-        <div className="rd-card">
+        <div className="rd-card rd-mais">
           <h3>🏆 Mais vendidos</h3>
           {r.produtos.length === 0 && <p className="rd-vazio">Nenhuma venda hoje.</p>}
           {r.produtos.slice(0, 15).map((p, k) => (
@@ -104,7 +104,7 @@ export default function ResumoDia({ resumo: r, loja = "", onFechar }) {
           ))}
         </div>
         {r.formas.length > 0 && (
-          <div className="rd-card">
+          <div className="rd-card rd-formas">
             <h3>💳 Como pagaram</h3>
             {r.formas.map((f) => (
               <div key={f.forma} className="rd-fp"><span>{f.forma}</span><b>{R(f.valor)}</b></div>
