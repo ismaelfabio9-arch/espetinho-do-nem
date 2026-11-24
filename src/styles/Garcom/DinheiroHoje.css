@@ -54,3 +54,6 @@ html body .dh-loja span { font-size: 12.5px; color: var(--d-mute); }
 .dh-loja b { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
 html body .dh-loja small { font-size: 12.5px; color: var(--d-mute); }
 html body .dh-loja .dh-neg { color: #dc2626; }
+.dh-loja .dh-meta { width: 100%; display: flex; flex-direction: column; gap: 4px; margin-top: 4px; }
+.dh-meta i { display: block; height: 6px; border-radius: 3px; background: var(--d-linha); overflow: hidden; }
+.dh-meta i b { display: block; height: 100%; background: #16a34a; border-radius: 3px; }
