@@ -2,6 +2,7 @@
 //   💵 Vendas: Caixa · Pedidos de hoje · Dias anteriores · Relatório · O que foi mexido (registro, só o dono)
 //   🍔 Cardápio e estoque: Produtos (com os ingredientes de cada um) · Cardápio de hoje · Ingredientes (preço e estoque) · Estoque (contagem, perdas, histórico, do dia) · Preço certo
 //   💰 Dinheiro: Lucro e caixa · Despesas e compras (pages/Garcom/Financas.jsx)
+import { Navigate, useSearchParams } from "react-router-dom";
 import Area from "../../components/Area";
 import SeLigado from "../../components/SeLigado";
 import { useRecurso } from "../../recursos";
@@ -19,9 +20,14 @@ import Registro from "./Registro";
 import DinheiroHoje from "./DinheiroHoje";
 import RelatorioCompleto from "./RelatorioCompleto";
 
+// Com o Dinheiro completo, Vendas e Dinheiro viram uma área só (Dinheiro): o que era de Vendas vai para lá.
+const VENDAS_PARA_DINHEIRO = { caixa: "hoje", hoje: "pedidos", dias: "dias", relatorio: "relatorio", mexido: "mexido" };
+
 export function Vendas() {
   const caixa = useRecurso("financas");
   const completo = useRecurso("dinheiro-completo");
+  const [params] = useSearchParams();
+  if (completo) return <Navigate to={`/dinheiro?aba=${VENDAS_PARA_DINHEIRO[params.get("aba")] || "hoje"}`} replace />;
   return (
     <Area
       titulo="Vendas"
@@ -56,6 +62,23 @@ function EstoqueArea() {
 
 /** Dinheiro: mesmo jeito das outras áreas (título e abas), cada aba é uma parte de Finanças. */
 export function Dinheiro() {
+  const completo = useRecurso("dinheiro-completo");
+  if (completo)
+    return (
+      <Area
+        titulo="Dinheiro"
+        icone="💰"
+        padrao="hoje"
+        abas={[
+          { id: "hoje", nome: "Hoje", tela: () => <DinheiroHoje /> },
+          { id: "lancamentos", antigos: ["despesas"], nome: "Lançamentos", soDono: true, senha: true, tela: () => <Financas abas={["lancamentos"]} titulo="Lançamentos" texto="Compras, despesas e entradas." /> },
+          { id: "pedidos", nome: "Pedidos do dia", tela: () => <HistoricoMesas /> },
+          { id: "dias", nome: "Dias anteriores", tela: () => <Historico /> },
+          { id: "relatorio", antigos: ["lucro"], nome: "Relatório", senha: true, tela: () => <RelatorioCompleto /> },
+          { id: "mexido", nome: "O que foi mexido", soDono: true, senha: true, tela: () => <Registro /> },
+        ]}
+      />
+    );
   return (
     <Area
       titulo="Dinheiro"

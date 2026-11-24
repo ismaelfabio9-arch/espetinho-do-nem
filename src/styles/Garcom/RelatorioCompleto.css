@@ -35,3 +35,5 @@ html body .rc-ln.sub span:first-child { color: var(--r-mute); padding-left: 10px
   .rc { --r-txt: #000; --r-mute: #444; --r-card: #fff; --r-linha: #ccc; }
   .rc-grade { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 }
+.rc-bt { gap: 8px; flex-wrap: wrap; }
+.rc-bt .rc-sec { border: 1px solid var(--r-linha); background: var(--r-card); color: var(--r-txt); border-radius: 12px; font: inherit; font-weight: 600; font-size: 14px; padding: 12px 16px; cursor: pointer; }

@@ -564,20 +564,22 @@ function Dashboard() {
             </Link>
 
             <span className="menu-secao">Áreas</span>
+{!dinheiroCompleto && (
             <Link to="/vendas" onClick={() => setMenuAberto(false)}>
               💵
               <span>Vendas <small>caixa, histórico, relatório</small></span>
             </Link>
+            )}
 
             <Link to="/cardapio" onClick={() => setMenuAberto(false)}>
               🍔
               <span>Cardápio e estoque <small>produtos, hoje, estoque, preço</small></span>
             </Link>
 
-            {financasLigado && (
+            {(financasLigado || dinheiroCompleto) && (
               <Link to="/dinheiro" onClick={() => setMenuAberto(false)}>
                 💰
-                <span>Dinheiro <small>hoje, lucro, despesas e compras</small></span>
+                <span>Dinheiro <small>{dinheiroCompleto ? "hoje, caixa, pedidos, relatório" : "lucro, despesas e compras"}</small></span>
               </Link>
             )}
 

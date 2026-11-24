@@ -13,6 +13,7 @@ import { resumoSaidas } from "../../utils/perdas";
 import { useOcorrencias } from "../../utils/ocorrencias";
 import { tipoVenda } from "../../utils/tipoVenda";
 import { useCaixaLoja } from "../../utils/caixaLoja";
+import Financas from "./Financas";
 import "../../styles/Garcom/RelatorioCompleto.css";
 
 const fmt = (v) => Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -48,6 +49,7 @@ export default function RelatorioCompleto() {
   const nomeLoja = useNomeLoja();
   const taxas = useTaxas();
   const [per, setPer] = useState("hoje");
+  const [lucroDetalhe, setLucroDetalhe] = useState(false);
   const [faixa, setFaixa] = useState(() => faixaDe("hoje"));
   const inicioISO = `${faixa.de}T00:00:00`;
   const dias = useCol(() => collection(db, ...L(), "relatorioGerencial"), []);
@@ -287,8 +289,10 @@ export default function RelatorioCompleto() {
           )}
 
           <div className="rc-bt no-print">
+            <button type="button" className="rc-sec" onClick={() => setLucroDetalhe(!lucroDetalhe)}>{lucroDetalhe ? "Esconder lucro por produto" : "Lucro por produto e categoria"}</button>
             <button type="button" className="v" onClick={() => window.print()}>Imprimir</button>
           </div>
+          {lucroDetalhe && <Financas abas={["resumo"]} titulo="Lucro e caixa" texto="Lucro por categoria e por produto, ponto de equilíbrio." />}
         </>
       )}
     </div>
