@@ -175,7 +175,7 @@ export default function Registro() {
                       {r.texto && !baixa && <p className="reg-texto">{r.texto}</p>}
                       {baixa && (
                         <p className="reg-texto">
-                          {det.filter((d) => d.startsWith("Saiu ")).length} ingredientes
+                          {det.filter((d) => d.startsWith("Saiu ")).length} {det.filter((d) => d.startsWith("Saiu ")).length === 1 ? "ingrediente" : "ingredientes"}
                           {nao > 0 && <b className="reg-nao">, {nao} {nao === 1 ? "não saiu" : "não saíram"}</b>}
                         </p>
                       )}
