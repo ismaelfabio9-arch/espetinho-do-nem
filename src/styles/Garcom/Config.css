@@ -87,3 +87,8 @@ body.dark .taxas-linha input[inputmode] { background: #111; color: #f3f4f6; bord
 .sons-lista li span { font-size: 14px; }
 .sons-lista .config-btn { margin: 0; flex-shrink: 0; min-width: 104px; }
 body.dark .sons-lista li { border-top-color: rgba(255, 255, 255, 0.12); }
+/* A lista de sons cabe no celular (o botão "Ouvir" não estica a tela) */
+.sons-card { min-width: 0; }
+.sons-card > div { min-width: 0; }
+.sons-lista li span { flex: 1; min-width: 0; }
+.sons-lista .config-btn { min-width: 0 !important; width: auto !important; padding: 8px 12px !important; white-space: nowrap; }
