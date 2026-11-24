@@ -44,3 +44,5 @@ body.dark .hoje-cat-topo .hoje-hr.on { border-color: #166534; color: #4ade80 !im
 @media (min-width: 900px) {
   .hoje-page { max-width: 760px; }
 }
+.hoje-cat-topo { flex-wrap: wrap; }
+.hoje-cat-topo > span { display: flex; flex-wrap: nowrap; white-space: nowrap; margin-left: auto; }
