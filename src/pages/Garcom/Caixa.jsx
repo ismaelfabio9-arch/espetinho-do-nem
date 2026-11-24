@@ -80,7 +80,7 @@ function Caixa() {
   );
 }
 
-function Abrir({ ultimo }) {
+export function Abrir({ ultimo, onAberto }) {
   const sugerido = ultimo ? Math.max(0, Number(ultimo.contado || 0) - Number(ultimo.retiradoNoFechamento || 0)) : 0;
   const [valor, setValor] = useState("");
   const [salvando, setSalvando] = useState(false);
@@ -91,6 +91,7 @@ function Abrir({ ultimo }) {
     try {
       await addDoc(collection(db, ...L(), "caixas"), { status: "aberto", abertoEm: new Date().toISOString(), abertoPor: quem(), valorInicial: lerValor(valor), criadoEm: serverTimestamp() });
       registrar({ area: "dinheiro", acao: "Abriu o caixa", texto: `Caixa aberto com R$ ${lerValor(valor).toFixed(2).replace(".", ",")} de troco`, valor: lerValor(valor) });
+      onAberto?.();
     } catch {
       setErro("Não foi possível abrir. Confira a internet.");
       setSalvando(false);
@@ -160,7 +161,7 @@ function Aberto({ caixa, r }) {
   );
 }
 
-function Movimento({ caixa, tipo, fechar }) {
+export function Movimento({ caixa, tipo, fechar }) {
   const [valor, setValor] = useState("");
   const [motivo, setMotivo] = useState("");
   const [erro, setErro] = useState("");
@@ -179,7 +180,7 @@ function Movimento({ caixa, tipo, fechar }) {
   return (
     <div className="ins-modal" role="dialog" aria-modal="true" aria-label={tipo === "sangria" ? "Sangria" : "Suprimento"} onClick={fechar}>
       <form className="ins-modal-caixa" onClick={(e) => e.stopPropagation()} onSubmit={salvar}>
-        <h2>{tipo === "sangria" ? "Sangria: tirar dinheiro da gaveta" : "Suprimento: colocar troco na gaveta"}</h2>
+        <h2>{tipo === "sangria" ? "Sangria: tirar dinheiro da gaveta" : "Reforço: pôr dinheiro na gaveta"}</h2>
         <div className="fin-campos">
           <label>
             Valor (R$)

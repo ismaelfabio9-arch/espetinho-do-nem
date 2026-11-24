@@ -16,6 +16,7 @@ import Estoque from "./Estoque";
 import Insumos from "./Insumos";
 import Financas from "./Financas";
 import Registro from "./Registro";
+import DinheiroHoje from "./DinheiroHoje";
 
 export function Vendas() {
   const caixa = useRecurso("financas");
@@ -57,8 +58,9 @@ export function Dinheiro() {
     <Area
       titulo="Dinheiro"
       icone="💰"
-      padrao="lucro"
+      padrao="hoje"
       abas={[
+        { id: "hoje", nome: "Hoje", recurso: "financas", tela: () => <DinheiroHoje /> },
         { id: "lucro", nome: "Lucro e caixa", recurso: "financas", soDono: true, tela: () => <Financas abas={["resumo"]} titulo="Lucro e caixa" /> },
         { id: "despesas", nome: "Despesas e compras", recurso: "financas", soDono: true, tela: () => <Financas abas={["lancamentos"]} titulo="Despesas e compras" /> },
       ]}

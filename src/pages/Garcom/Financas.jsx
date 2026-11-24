@@ -6,7 +6,7 @@ import { addDoc, collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, 
 import { registrar } from "../../utils/registro";
 import { db } from "../../firebase";
 import { useTaxas } from "../../utils/taxas";
-import { GRUPOS, TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
+import { TIPOS, calcularFinancas, grupoDe, isoDia, juntarVendas, lerValor, periodo, tipoDe } from "../../utils/financas";
 import { custoDaFicha, perdasNoPeriodo } from "../../utils/insumos";
 import Custos from "./Custos";
 import PrecoCerto from "./PrecoCerto";
@@ -343,17 +343,28 @@ function Linha({ nome, valor, detalhe, total, sub }) {
   );
 }
 
-function Lancamentos({ f, categorias }) {
-  const vazio = { data: isoDia(), tipo: "insumos", valor: "", descricao: "", categoria: "" };
+/** Os tipos de lançamento em listas: Compras · Despesas do mês (as fixas marcadas) · Outros; na entrada, as entradas. */
+const LISTAS_SAIDA = [
+  { nome: "Compras", grupos: ["compra"] },
+  { nome: "Despesas do mês", grupos: ["fixa", "variavel"] },
+  { nome: "Outros", grupos: ["investimento", "retirada"] },
+];
+const LISTAS_ENTRADA = [{ nome: "Entradas fora as vendas", grupos: ["entrada"] }];
+
+/** Formulário de lançamento (Dinheiro → Hoje e Despesas e compras). duasColunas: no notebook, as listas lado a lado. */
+export function NovoLancamento({ categorias = [], onSalvo, tipoInicial = "", valorInicial = "", descricaoInicial = "", titulo = "Novo lançamento" }) {
+  const vazio = { data: isoDia(), tipo: tipoInicial, valor: valorInicial, descricao: descricaoInicial, categoria: "" };
   const [form, setForm] = useState(vazio);
+  const [lado, setLado] = useState(tipoInicial && grupoDe(tipoInicial).saida === false ? "entrada" : "saida");
   const [erro, setErro] = useState("");
   const [salvando, setSalvando] = useState(false);
-  const [apagar, setApagar] = useState(null);
-  const tipo = tipoDe(form.tipo);
-  const grupo = grupoDe(form.tipo);
+  const tipo = form.tipo ? tipoDe(form.tipo) : null;
+  const grupo = form.tipo ? grupoDe(form.tipo) : null;
+  const listas = lado === "saida" ? LISTAS_SAIDA : LISTAS_ENTRADA;
 
   async function salvar(e) {
     e.preventDefault();
+    if (!tipo) return setErro("Escolha o que é.");
     const valor = lerValor(form.valor);
     if (!valor) return setErro("Informe o valor.");
     if (!form.data) return setErro("Informe a data.");
@@ -370,7 +381,8 @@ function Lancamentos({ f, categorias }) {
         criadoEm: serverTimestamp(),
       });
       registrar({ area: "dinheiro", acao: "Lançou em Finanças", texto: `${tipo.nome || form.tipo}${form.descricao.trim() ? `: ${form.descricao.trim()}` : ""} · dia ${form.data.split("-").reverse().join("/")}`, valor: grupo.saida ? -valor : valor });
-      setForm({ ...vazio, data: form.data, tipo: form.tipo, categoria: form.categoria });
+      setForm({ ...vazio, tipo: "", valor: "", descricao: "", data: form.data });
+      onSalvo?.();
     } catch {
       setErro("Não foi possível salvar. Confira a internet e tente de novo.");
     }
@@ -378,50 +390,69 @@ function Lancamentos({ f, categorias }) {
   }
 
   return (
-    <>
-      <form className="relatorio-documento fin-form no-print" onSubmit={salvar}>
-        <h2>Novo lançamento</h2>
-        {GRUPOS.map((gr) => (
-          <fieldset key={gr.id} className="fin-grupo-tipos">
-            <legend>{gr.saida ? "Saída · " : "Entrada · "}{gr.nome}</legend>
-            <div className="fin-tipos">
-              {TIPOS.filter((t) => t.grupo === gr.id).map((t) => (
-                <button type="button" key={t.id} aria-pressed={form.tipo === t.id} className={form.tipo === t.id ? (gr.saida ? "ativo" : "ativo entrada") : ""} onClick={() => setForm({ ...form, tipo: t.id })}>
-                  {t.icone} {t.nome}
+    <form className="nl no-print" onSubmit={salvar}>
+      {titulo && <h2 className="nl-titulo">{titulo}</h2>}
+      <div className="nl-seg" role="tablist">
+        <button type="button" role="tab" aria-selected={lado === "saida"} className={lado === "saida" ? "on" : ""} onClick={() => { setLado("saida"); setForm({ ...form, tipo: "" }); }}>Saída</button>
+        <button type="button" role="tab" aria-selected={lado === "entrada"} className={lado === "entrada" ? "on" : ""} onClick={() => { setLado("entrada"); setForm({ ...form, tipo: "" }); }}>Entrada</button>
+      </div>
+      <div className={`nl-listas${listas.length > 1 ? " varias" : ""}`}>
+        {listas.map((l) => (
+          <div key={l.nome} className="nl-bloco">
+            <div className="nl-lab">{l.nome}</div>
+            <div className="nl-lista">
+              {l.grupos.flatMap((g) => TIPOS.filter((t) => t.grupo === g)).map((t) => (
+                <button type="button" key={t.id} className={form.tipo === t.id ? "nl-r on" : "nl-r"} aria-pressed={form.tipo === t.id} onClick={() => setForm({ ...form, tipo: t.id })}>
+                  <span className="nl-rd" aria-hidden="true" />
+                  <span className="nl-nome">{t.nome}</span>
+                  {t.grupo === "fixa" && <small>fixa</small>}
                 </button>
               ))}
             </div>
-          </fieldset>
+          </div>
         ))}
-        <p className="fin-dica"><strong>{tipo.icone} {tipo.nome}:</strong> {grupo.dica}</p>
-        <div className="fin-campos">
-          <label>
-            Valor (R$)
-            <input inputMode="decimal" placeholder="0,00" value={form.valor} onChange={(e) => setForm({ ...form, valor: e.target.value })} />
+      </div>
+      <div className="nl-campos">
+        <label>
+          Valor (R$)
+          <input inputMode="decimal" placeholder="0,00" value={form.valor} onChange={(e) => setForm({ ...form, valor: e.target.value })} />
+        </label>
+        <label>
+          Data
+          <input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} />
+        </label>
+        <label className="nl-largo">
+          Descrição
+          <input placeholder="Opcional" maxLength={120} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
+        </label>
+        {tipo?.categoria && categorias.length > 0 && (
+          <label className="nl-largo">
+            Categoria do cardápio
+            <select value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })}>
+              <option value="">Para tudo / várias</option>
+              {categorias.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
           </label>
-          <label>
-            Data
-            <input type="date" value={form.data} onChange={(e) => setForm({ ...form, data: e.target.value })} />
-          </label>
-          <label className="fin-largo">
-            Descrição (opcional)
-            <input placeholder={tipo.grupo === "compra" ? "Ex.: carne e frango no atacado" : "Ex.: conta de luz de outubro"} maxLength={120} value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })} />
-          </label>
-          {tipo.categoria && categorias.length > 0 && (
-            <label className="fin-largo">
-              Para qual categoria do cardápio? (opcional)
-              <select value={form.categoria} onChange={(e) => setForm({ ...form, categoria: e.target.value })}>
-                <option value="">Para tudo / várias</option>
-                {categorias.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </label>
-          )}
-        </div>
-        {erro && <p className="fin-erro">{erro}</p>}
-        <button className="btn-verde" disabled={salvando}>{salvando ? "Salvando…" : grupo.saida ? "Salvar saída" : "Salvar entrada"}</button>
-      </form>
+        )}
+      </div>
+      {grupo?.id === "fixa" && <p className="nl-aviso">Despesa fixa: entra também no Preço certo, nas despesas fixas do mês.</p>}
+      {grupo?.id === "compra" && <p className="nl-aviso">Compra vira estoque: entra no lucro só quando o produto é vendido.</p>}
+      {erro && <p className="fin-erro">{erro}</p>}
+      <button className="nl-ok" disabled={salvando}>{salvando ? "Salvando…" : "Lançar"}</button>
+    </form>
+  );
+}
+
+function Lancamentos({ f, categorias }) {
+  const [apagar, setApagar] = useState(null);
+
+  return (
+    <>
+      <div className="relatorio-documento">
+        <NovoLancamento categorias={categorias} />
+      </div>
 
       <div className="relatorio-documento">
         <h2>Lançamentos do período</h2>
