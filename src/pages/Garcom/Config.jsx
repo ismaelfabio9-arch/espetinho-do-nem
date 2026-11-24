@@ -177,7 +177,7 @@ function Config() {
       // Gaveta: o caixa aberto fecha junto (sem contagem: vale o que tinha que ter). O que a dona tirou vira
       // uma retirada do dono no Dinheiro e o resto fica de troco para amanhã.
       const extra = fechamento
-        ? { gaveta: fechamento.gaveta, donaTirou: fechamento.donaTirou || 0, ficaNoCaixa: fechamento.ficaNoCaixa ?? null, saidas: fechamento.saidas || [], saidasTotal: fechamento.saidasTotal || 0, acabou: fechamento.acabou || [], mexido: fechamento.mexido || null }
+        ? { gaveta: fechamento.gaveta, donaTirou: fechamento.donaTirou || 0, ficaNoCaixa: fechamento.ficaNoCaixa ?? null, paraCaixaLoja: fechamento.paraCaixaLoja || 0, metaDona: fechamento.metaDona || 0, sugeridoDona: fechamento.sugeridoDona || 0, saidas: fechamento.saidas || [], saidasTotal: fechamento.saidasTotal || 0, acabou: fechamento.acabou || [], mexido: fechamento.mexido || null }
         : {};
       if (caixa && fechamento?.gaveta) {
         await updateDoc(doc(db, ...L(), "caixas", caixa.id), {
@@ -188,13 +188,17 @@ function Config() {
           esperado: fechamento.gaveta.esperado,
           diferenca: 0,
           semContagem: true,
-          retiradoNoFechamento: fechamento.donaTirou || 0,
+          // Saiu da gaveta: o que a dona tirou e o que foi para o caixa da loja; o resto é o troco de amanhã.
+          retiradoNoFechamento: Math.round(((fechamento.donaTirou || 0) + (fechamento.paraCaixaLoja || 0)) * 100) / 100,
+          donaTirou: fechamento.donaTirou || 0,
+          paraCaixaLoja: fechamento.paraCaixaLoja || 0,
+          ficouNaGaveta: fechamento.ficaNoCaixa ?? 0,
           resumo: { total: fechamento.total, pedidos: fechamento.pedidos, formas: [], inicial: fechamento.gaveta.inicial, dinheiro: fechamento.gaveta.dinheiro, suprimentos: fechamento.gaveta.reforcos, sangrias: fechamento.gaveta.sangrias },
         }).catch(() => {});
       }
       if (fechamento?.donaTirou > 0) {
         await addDoc(collection(db, ...L(), "despesas"), { data: isoDia(), tipo: "retirada", grupo: "retirada", valor: fechamento.donaTirou, descricao: "Tirou no fechamento do dia", categoria: "", criadoEm: serverTimestamp() }).catch(() => {});
-        registrar({ area: "dinheiro", acao: "Retirada no fechamento", texto: `A dona tirou R$ ${Number(fechamento.donaTirou).toFixed(2).replace(".", ",")} · ficou R$ ${Number(fechamento.ficaNoCaixa || 0).toFixed(2).replace(".", ",")} no caixa`, valor: -fechamento.donaTirou });
+        registrar({ area: "dinheiro", acao: "Retirada no fechamento", texto: `A dona tirou R$ ${Number(fechamento.donaTirou).toFixed(2).replace(".", ",")} · caixa da loja R$ ${Number(fechamento.paraCaixaLoja || 0).toFixed(2).replace(".", ",")} · gaveta R$ ${Number(fechamento.ficaNoCaixa || 0).toFixed(2).replace(".", ",")}`, valor: -fechamento.donaTirou, motivo: fechamento.sugeridoDona && fechamento.donaTirou > fechamento.sugeridoDona ? `Tirou R$ ${(fechamento.donaTirou - fechamento.sugeridoDona).toFixed(2).replace(".", ",")} a mais que o certo para a meta` : "" });
       }
       // O que acabou hoje volta para o cardápio de amanhã.
       const acabados = (await getDocs(collection(db, ...L(), "produtos"))).docs.filter((d) => d.data().acabouEm);

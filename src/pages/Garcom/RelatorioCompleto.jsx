@@ -104,8 +104,9 @@ export default function RelatorioCompleto() {
       nReforcos: meus.filter((m) => m.tipo === "suprimento").length,
       contado: fechados.reduce((s, c) => s + Number(c.contado || 0), 0),
       diferenca: Math.round(fechados.reduce((s, c) => s + Number(c.diferenca || 0), 0) * 100) / 100,
-      tirou: Math.round(fechados.reduce((s, c) => s + Number(c.retiradoNoFechamento || 0), 0) * 100) / 100,
-      ficou: fechados.length ? Math.max(0, Number(fechados[0].contado || 0) - Number(fechados[0].retiradoNoFechamento || 0)) : 0,
+      tirou: Math.round(fechados.reduce((s, c) => s + Number(c.donaTirou ?? c.retiradoNoFechamento ?? 0), 0) * 100) / 100,
+      paraCaixa: Math.round(fechados.reduce((s, c) => s + Number(c.paraCaixaLoja || 0), 0) * 100) / 100,
+      ficou: fechados.length ? Number(fechados[0].ficouNaGaveta ?? Math.max(0, Number(fechados[0].contado || 0) - Number(fechados[0].retiradoNoFechamento || 0))) : 0,
       movimentos: meus.sort((a, b) => String(b.em).localeCompare(String(a.em))),
     };
     // O que mais saiu do estoque nas vendas.
@@ -204,7 +205,9 @@ export default function RelatorioCompleto() {
                   {rel.gaveta.fechados > 0 ? (
                     <>
                       <Ln a="Contado no fechamento" b={<>{R(rel.gaveta.contado)} <small>{rel.gaveta.diferenca === 0 ? "bateu" : `diferença ${R(rel.gaveta.diferenca)}`}</small></>} />
-                      <Ln a="Dona tirou · ficou" b={`${R(rel.gaveta.tirou)} · ${R(rel.gaveta.ficou)}`} />
+                      <Ln a="Dona tirou" b={R(rel.gaveta.tirou)} />
+                      <Ln a="Foi para o caixa da loja" b={R(rel.gaveta.paraCaixa)} />
+                      <Ln a="Ficou na gaveta" b={R(rel.gaveta.ficou)} />
                     </>
                   ) : (
                     <Ln a="Fechamento" b="caixa ainda aberto" />

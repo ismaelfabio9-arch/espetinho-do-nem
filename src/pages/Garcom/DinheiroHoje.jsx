@@ -60,6 +60,9 @@ export default function DinheiroHoje() {
     };
   }, [souDono, mes.de]);
   const despesas = useMemo(() => despesasMes.filter((d) => d.data === dia), [despesasMes, dia]);
+  const [metaDona, setMetaDona] = useState(0);
+  useEffect(() => (souDono ? onSnapshot(doc(db, ...L(), "configuracoes", "precificacao"), (s) => setMetaDona(Number(s.data()?.metaDona || 0)), () => {}) : undefined), [souDono]);
+  const tiradoMes = useMemo(() => Math.round(despesasMes.filter((d) => d.tipo === "retirada").reduce((t, d) => t + Number(d.valor || 0), 0) * 100) / 100, [despesasMes]);
   const fornecedores = useMemo(() => [...new Set(despesasMes.map((d) => d.fornecedor).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR")), [despesasMes]);
 
   const [acaoPedida, setAcao] = useState(params.get("acao") || ""); // sangria | suprimento | perda | acabou | lancar
@@ -116,10 +119,16 @@ export default function DinheiroHoje() {
       {souDono && caixaLoja && (
         <div className="dh-loja">
           <div>
-            <span>Caixa da loja · {new Date().toLocaleDateString("pt-BR", { month: "long" })}</span>
+            <span>Caixa da loja · {new Date().toLocaleDateString("pt-BR", { month: "long" }).replace(/^./, (x) => x.toUpperCase())}</span>
             <b className={caixaLoja.saldo < 0 ? "dh-neg" : ""}>{precisaSenha ? "R$ •••" : `${caixaLoja.saldo < 0 ? "− " : ""}R$ ${fmt(Math.abs(caixaLoja.saldo))}`}</b>
           </div>
           {!precisaSenha && <small>entrou R$ {fmt(caixaLoja.entrou)} · saiu R$ {fmt(caixaLoja.saiu)}</small>}
+          {!precisaSenha && metaDona > 0 && (
+            <div className="dh-meta">
+              <small>Dona tirou R$ {fmt(tiradoMes)} de R$ {fmt(metaDona)} no mês</small>
+              <i><b style={{ width: `${Math.min(100, (tiradoMes / metaDona) * 100)}%` }} /></i>
+            </div>
+          )}
         </div>
       )}
       <div className="dh-acoes">
