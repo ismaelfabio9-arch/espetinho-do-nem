@@ -1,6 +1,6 @@
 // Toca o som de cada aviso novo (pedido do cardápio digital, pedido pelo QR, acrescentou, alterou, conta,
 // garçom) em qualquer tela da equipe — não só no Painel. Não toca o que já estava lá ao abrir o sistema,
-// nem o aviso que o próprio aparelho fez (quem alterou o pedido não precisa ouvir).
+// nem o pedido feito pela equipe (mesa, balcão, entrega): só o que o cliente faz.
 import { useEffect } from "react";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "../firebase";
