@@ -1103,7 +1103,7 @@ if (pedidosDaMesa.length === 0) {
                     <span>R$ {formatarMoeda(item.preco)} cada</span>
                     {produtoPorId(item.produtoId) && abreEscolha(produtoPorId(item.produtoId), montarLigado) && (
                       <button type="button" className="pm-editar" onClick={() => editarSalvo(item)}>
-                        ✏️ Editar
+                        Editar
                       </button>
                     )}
                   </div>
@@ -1137,7 +1137,7 @@ if (pedidosDaMesa.length === 0) {
         <div className="modal-overlay" onClick={() => setPedirMotivo(null)}>
           <div className="modal-card motivo-card" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Motivo">
             <h2>{pedirMotivo.titulo}</h2>
-            <p>Por quê? Fica no registro para a dona.</p>
+            <p>Motivo</p>
             <div className="motivo-ops">
               {MOTIVOS_PEDIDO.map((m) => (
                 <button
@@ -1154,7 +1154,7 @@ if (pedidosDaMesa.length === 0) {
               ))}
             </div>
             <div className="motivo-outro">
-              <input placeholder="Outro motivo…" value={motivoOutro} maxLength={100} onChange={(e) => setMotivoOutro(e.target.value)} />
+              <input placeholder="Outro" value={motivoOutro} maxLength={100} onChange={(e) => setMotivoOutro(e.target.value)} />
               <button
                 type="button"
                 disabled={!motivoOutro.trim()}
@@ -1209,7 +1209,7 @@ if (pedidosDaMesa.length === 0) {
           <h1>
             Mesa {id}
             <button type="button" className="md-nome" onClick={() => setEditandoNomeCliente(true)} aria-label="Nome do cliente">
-              ✏️ {nomeCliente || "nome"}
+              {nomeCliente || "Nome"}
             </button>
           </h1>
         </div>
@@ -1221,13 +1221,13 @@ if (pedidosDaMesa.length === 0) {
 
       {totalItensMesa > 0 && (
         <button type="button" className="btn-imprimir-comanda" onClick={() => setContaParcial(true)}>
-          🧾 Conta parcial · dividir{pagamentosMesa.length ? ` · falta R$ ${formatarMoeda(faltaDaConta(totalMesa, pagamentosMesa))}` : ""}
+          Conta parcial{pagamentosMesa.length ? ` · falta R$ ${formatarMoeda(faltaDaConta(totalMesa, pagamentosMesa))}` : ""}
         </button>
       )}
 
       {configImpressora.habilitada && totalItensMesa > 0 && (
         <button className="btn-imprimir-comanda" onClick={imprimirComandaManual} data-atalho="F1">
-          🖨️ Imprimir comanda da mesa
+          Imprimir comanda
         </button>
       )}
 
@@ -1290,7 +1290,7 @@ if (pedidosDaMesa.length === 0) {
                 {item.nome}
                 {item.montagem && produtoPorId(item.produtoId) && (
                   <button type="button" className="resumo-editar" onClick={() => editarLinha(item)}>
-                    ✏️ Editar
+                    Editar
                   </button>
                 )}
               </span>
@@ -1522,7 +1522,7 @@ if (pedidosDaMesa.length === 0) {
           <small>Comanda</small>
           <h2>
             Mesa {id}
-            {nomeCliente ? <span className="md-com-nome">✏️ {nomeCliente}</span> : null}
+            {nomeCliente ? <span className="md-com-nome">{nomeCliente}</span> : null}
           </h2>
         </div>
         <div className="md-com-lista">
@@ -1533,7 +1533,7 @@ if (pedidosDaMesa.length === 0) {
               <span className="md-com-txt">
                 {item.qtd}× {item.nome}
                 {item.montagem && produtoPorId(item.produtoId) && (
-                  <button type="button" className="md-com-link" onClick={() => editarLinha(item)}>✏️ editar</button>
+                  <button type="button" className="md-com-link" onClick={() => editarLinha(item)}>Editar</button>
                 )}
               </span>
               <span className="md-com-qtd">
@@ -1557,7 +1557,7 @@ if (pedidosDaMesa.length === 0) {
               <b>{formatarMoeda(Number(item.preco || 0) * Number(item.qtd || 0))}</b>
             </div>
           ))}
-          {!itensPedido.length && !itensMesa.length && <p className="md-com-vazio">Mesa sem pedido. Toque nos produtos para lançar.</p>}
+          {!itensPedido.length && !itensMesa.length && <p className="md-com-vazio">Sem itens.</p>}
         </div>
         <div className="md-com-pe">
           {itensMesa.length > 0 && <p className="md-com-linha"><span>Já na comanda</span><span>R$ {formatarMoeda(totalMesa)}</span></p>}

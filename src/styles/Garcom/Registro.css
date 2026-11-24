@@ -2,10 +2,10 @@
 .reg { --rg-card: var(--card, #151515); --rg-linha: var(--border, rgba(127, 127, 127, 0.25)); --rg-mute: #9ca3af; margin: 0 auto; max-width: 900px; padding: 4px 16px 24px; box-sizing: border-box; overflow-x: hidden; }
 body:not(.dark) .reg { --rg-card: #fff; --rg-mute: #6b7280; }
 html body .reg :is(span, small, p, b, strong, h2, h3, em, i, li) { color: inherit; }
-.reg-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; margin-bottom: 12px; }
+.reg-topo { display: flex; justify-content: space-between; align-items: center; gap: 12px; margin-bottom: 12px; }
 .reg-topo h2 { margin: 0; font-size: 22px; }
 .reg-topo p { margin: 4px 0 0; font-size: 13.5px; color: var(--rg-mute) !important; line-height: 1.35; }
-.reg-imprimir { flex: none; width: 44px; height: 44px; border-radius: 12px; border: 1px solid var(--rg-linha); background: var(--rg-card); font-size: 19px; cursor: pointer; }
+.reg-imprimir { flex: none; height: 38px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--rg-linha); background: var(--rg-card); color: inherit; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; }
 .reg-faixa { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: none; margin: 0 -16px 10px; padding: 0 16px 2px; }
 .reg-faixa::-webkit-scrollbar { display: none; }
 .reg-faixa button { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 8px 13px; border-radius: 99px; border: 1px solid var(--rg-linha); background: var(--rg-card); color: inherit; font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }

@@ -10,10 +10,10 @@ import { auth, db } from "../firebase";
 import { L } from "../loja";
 
 export const AREAS = {
-  dinheiro: { nome: "Dinheiro", emoji: "💰" },
-  comida: { nome: "Comida e estoque", emoji: "🥘" },
-  pedidos: { nome: "Pedidos e mesas", emoji: "🧾" },
-  cardapio: { nome: "Cardápio e preços", emoji: "🍔" },
+  dinheiro: { nome: "Dinheiro" },
+  comida: { nome: "Estoque" },
+  pedidos: { nome: "Pedidos" },
+  cardapio: { nome: "Cardápio" },
 };
 
 const diaDe = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
