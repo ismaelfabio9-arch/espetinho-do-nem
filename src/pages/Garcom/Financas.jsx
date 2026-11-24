@@ -149,7 +149,7 @@ function Financas({ abas = ["resumo", "lancamentos"], titulo = "Dinheiro", texto
       ) : aba === "custos" ? (
         <Custos produtos={produtos} insumos={insumos} fichas={fichas} />
       ) : aba === "preco" ? (
-        <PrecoCerto produtos={produtos} custos={custos} daFicha={daFicha} vendas30={vendas30} insumos={insumos} fichas={fichas} />
+        <PrecoCerto produtos={produtos} custos={custos} daFicha={daFicha} vendas30={vendas30} insumos={insumos} fichas={fichas} lancamentos={lancamentos} categorias={categorias} />
       ) : (
         <Resumo f={f} nomeLoja={nomeLoja} faixa={faixa} />
       )}

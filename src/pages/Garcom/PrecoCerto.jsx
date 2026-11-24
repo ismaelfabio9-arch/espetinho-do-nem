@@ -11,6 +11,8 @@ import { db } from "../../firebase";
 import { L } from "../../loja";
 import { ehCategoriaDeBebida, ehCategoriaDePrato, precoOpcao, precosDoCardapio } from "../../utils/montagem";
 import { PESO_INGREDIENTES_PADRAO, contaDoProduto, pctDasContas, pctPorVenda, pesoIngredientes, precoBonito } from "../../utils/precificacao";
+import { NovoLancamento } from "./Financas";
+import { isoDia, tipoDe } from "../../utils/financas";
 import { custoPronto, custosPorOpcao, daFicha as paraUnidadeDoInsumo, itensJuntos, rendimentoDe, unidadeDe } from "../../utils/insumos";
 const brl = (v) => `R$ ${Number(v || 0).toFixed(2).replace(".", ",")}`;
 
@@ -31,7 +33,23 @@ const LISTAS = {
   variaveis: ["Embalagens", "Entregador (motoboy)", "Taxa de aplicativo de entrega", "Divulgação e anúncios"],
 };
 
-export default function PrecoCerto({ produtos, custos, daFicha, vendas30 = 0, insumos = [], fichas = [] }) {
+/** Despesas lançadas no Dinheiro nos últimos 30 dias, somadas por tipo: { fixas: [{nome, valor}], variaveis: [...] }. */
+function contasDosLancamentos(lancamentos) {
+  const hoje = new Date();
+  const de = isoDia(new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 29));
+  const soma = { fixa: {}, variavel: {} };
+  (lancamentos || []).forEach((d) => {
+    const tp = tipoDe(d.tipo);
+    if (!soma[tp.grupo] || String(d.data || "") < de) return;
+    soma[tp.grupo][tp.nome] = (soma[tp.grupo][tp.nome] || 0) + Number(d.valor || 0);
+  });
+  const lista = (o) => Object.entries(o).map(([nome, valor]) => ({ nome, valor: Math.round(valor * 100) / 100 })).sort((a, b) => b.valor - a.valor);
+  return { fixas: lista(soma.fixa), variaveis: lista(soma.variavel) };
+}
+
+export default function PrecoCerto({ produtos, custos, daFicha, vendas30 = 0, insumos = [], fichas = [], lancamentos = [], categorias = [] }) {
+  const doDinheiro = useMemo(() => contasDosLancamentos(lancamentos), [lancamentos]);
+  const [lancar, setLancar] = useState(false);
   // Produtos que já têm ingredientes na ficha (mesmo sem preço): a porção rápida não mexe neles.
   const comFicha = useMemo(() => new Set((fichas || []).filter((fi) => itensJuntos(fi).length > 0 || fi.variaPor).map((fi) => fi.id)), [fichas]);
   // Produto que já tem a ficha mas algum ingrediente está sem preço: quais faltam (para mostrar no lugar de "pôr os ingredientes").
@@ -67,12 +85,33 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendas30 = 0, in
         impostos: t(salvo.impostos), impostosModo: m("impostos"),
         variaveis: t(salvo.variaveis), variaveisModo: m("variaveis"),
         fixas: t(salvo.fixas), fixasModo: m("fixas", "valor"),
-        fixasItens: (salvo.fixasItens || []).map((i) => ({ nome: i.nome, valor: t(i.valor) })),
-        variaveisItens: (salvo.variaveisItens || []).map((i) => ({ nome: i.nome, valor: t(i.valor) })),
+        // Lançou despesa no Dinheiro (últimos 30 dias): as contas do mês vêm de lá.
+        fixasItens: (doDinheiro.fixas.length ? doDinheiro.fixas : salvo.fixasItens || []).map((i) => ({ nome: i.nome, valor: t(i.valor) })),
+        variaveisItens: (doDinheiro.variaveis.length ? doDinheiro.variaveis : salvo.variaveisItens || []).map((i) => ({ nome: i.nome, valor: t(i.valor) })),
         vendasMes: t(salvo.vendasMes),
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [salvo, form]);
+
+  // As contas que vieram do Dinheiro ficam gravadas também (a conta de cada produto usa o que está salvo).
+  useEffect(() => {
+    if (!salvo) return;
+    const soma = (l) => Math.round(l.reduce((x, i) => x + i.valor, 0) * 100) / 100;
+    const mudou = (k, l) => l.length && (JSON.stringify((salvo[`${k}Itens`] || []).map((i) => [i.nome, i.valor])) !== JSON.stringify(l.map((i) => [i.nome, i.valor])) || salvo[`${k}Modo`] !== "valor");
+    const dados = {};
+    if (mudou("fixas", doDinheiro.fixas)) Object.assign(dados, { fixasItens: doDinheiro.fixas, fixas: soma(doDinheiro.fixas), fixasModo: "valor" });
+    if (mudou("variaveis", doDinheiro.variaveis)) Object.assign(dados, { variaveisItens: doDinheiro.variaveis, variaveis: soma(doDinheiro.variaveis), variaveisModo: "valor" });
+    if (Object.keys(dados).length) setDoc(doc(db, ...L(), "configuracoes", "precificacao"), { ...dados, atualizadoEm: new Date().toISOString() }, { merge: true }).catch(() => {});
+    if (form && Object.keys(dados).length) {
+      setForm((f) => ({
+        ...f,
+        ...(dados.fixasItens ? { fixasItens: dados.fixasItens.map((i) => ({ nome: i.nome, valor: t(i.valor) })) } : {}),
+        ...(dados.variaveisItens ? { variaveisItens: dados.variaveisItens.map((i) => ({ nome: i.nome, valor: t(i.valor) })) } : {}),
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [salvo, doDinheiro]);
 
   const ativos = useMemo(
     () =>
@@ -233,6 +272,15 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendas30 = 0, in
 
   return (
     <>
+      {lancar && (
+        <div className="ins-modal" role="dialog" aria-modal="true" aria-label="Lançar despesa" onClick={() => setLancar(false)}>
+          <div className="ins-modal-caixa" onClick={(e) => e.stopPropagation()}>
+            <NovoLancamento categorias={categorias} tipoInicial="aluguel" titulo="Lançar despesa do mês" onSalvo={() => setLancar(false)} />
+            <button type="button" className="ins-btn" style={{ marginTop: 10, width: "100%" }} onClick={() => setLancar(false)}>Fechar</button>
+          </div>
+        </div>
+      )}
+    <>
       <div className="relatorio-documento">
         <h2>Como calcular o lucro</h2>
         <div className="pc-conta" role="radiogroup" aria-label="Como calcular o lucro">
@@ -272,6 +320,10 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendas30 = 0, in
             <div className="pc-campos">
               {campo("fixas", "Despesas fixas", "aluguel, funcionários, luz, água, contador…", { comModo: true, lista: LISTAS.fixas, padraoValor: true })}
               {campo("variaveis", "Despesas variáveis", "entregador, aplicativo, divulgação…: o total do mês em R$ ou em % de cada venda", { comModo: true, lista: LISTAS.variaveis })}
+              {(doDinheiro.fixas.length > 0 || doDinheiro.variaveis.length > 0) && (
+                <p className="pc-do-dinheiro">Vem dos lançamentos de despesa no Dinheiro (últimos 30 dias). Lançou lá, muda aqui.</p>
+              )}
+              <button type="button" className="ins-btn pc-lancar" onClick={() => setLancar(true)}>Lançar despesa do mês</button>
               <label className="pc-campo">
                 <span>
                   Quanto a loja vende por mês
@@ -418,6 +470,7 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendas30 = 0, in
           <p className="fin-explica">O custo de cada produto sai dos ingredientes dele (Produtos → editar) e do preço de cada ingrediente (aba <Link to="/cardapio?aba=ingredientes">Ingredientes</Link>).</p>
         )}
       </div>
+    </>
     </>
   );
 }
