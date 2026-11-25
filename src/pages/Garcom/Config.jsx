@@ -329,16 +329,6 @@ await addDoc(collection(db, ...L(), "relatorioGerencial"), fechamentoDoDia);
         </p>
       )}
 
-      {/* Caixa, histórico, relatório, produtos, estoque e finanças ficam nas 3 áreas. */}
-      <div className="config-areas">
-        <span>Procurando caixa, histórico, produtos, estoque ou finanças? Ficam aqui:</span>
-        <div>
-          {!dinheiroCompleto && <Link to="/vendas">Vendas</Link>}
-          <Link to="/cardapio">Cardápio e estoque</Link>
-          {((financasLigado && souDono) || dinheiroCompleto) && <Link to="/dinheiro">Dinheiro</Link>}
-        </div>
-      </div>
-
       {!souDono && (
         <p className="config-beta" style={{ margin: "0 0 14px", padding: "10px 14px", borderRadius: 12, background: "#f3f4f6", color: "#374151", fontSize: 14 }}>
           As configurações da loja (equipe, taxas, WhatsApp, cardápio online e fechamento do dia) ficam com o dono da loja.

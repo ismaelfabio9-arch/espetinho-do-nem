@@ -64,9 +64,7 @@ export default function Area({ titulo, icone, texto, abas: todas, padrao, param 
     <div className="area">
       <header className="area-topo">
         <Link to="/" className="voltar">← Painel</Link>
-        <h1>
-          <span aria-hidden="true">{icone}</span> {titulo}
-        </h1>
+        <h1>{titulo}</h1>
         {texto && <p>{texto}</p>}
         {barra}
       </header>

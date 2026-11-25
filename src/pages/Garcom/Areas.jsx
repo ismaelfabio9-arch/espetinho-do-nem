@@ -18,6 +18,7 @@ import Estoque from "./Estoque";
 import Insumos from "./Insumos";
 import Financas from "./Financas";
 import Registro from "./Registro";
+import RegistrarPerda from "../../components/RegistrarPerda";
 import DinheiroHoje from "./DinheiroHoje";
 import RelatorioCompleto, { LucroPorProduto } from "./RelatorioCompleto";
 
@@ -45,6 +46,17 @@ export function Vendas() {
   );
 }
 
+/** A equipe registra saída de alimento (queimou, caiu, estragou) sem precisar do dono. */
+function SaidaEquipe() {
+  const [abrir, setAbrir] = useState(false);
+  return (
+    <div className="container" style={{ paddingBottom: 0 }}>
+      <button type="button" className="cu-saida" onClick={() => setAbrir(true)}>Saída de alimento</button>
+      {abrir && <RegistrarPerda fechar={() => setAbrir(false)} />}
+    </div>
+  );
+}
+
 /** Estoque: ingredientes (com contagem, perdas e histórico) e a quantidade do dia por produto, numa fileira de abas só. */
 function EstoqueArea() {
   // Ingredientes (com preço) só para o dono; a equipe fica com o estoque do dia.
@@ -56,9 +68,12 @@ function EstoqueArea() {
   // A lista de ingredientes (preço, compra, estoque) fica na aba Ingredientes; aqui, contagem, perdas, histórico e o do dia.
   if (ingredientes) return <Insumos embutido semLista dia={doDia ? <Estoque /> : null} somente={completo ? ["contagem", "dia"] : null} />;
   return (
-    <SeLigado recurso="estoque" embutido>
-      <Estoque />
-    </SeLigado>
+    <>
+      <SaidaEquipe />
+      <SeLigado recurso="estoque" embutido>
+        <Estoque />
+      </SeLigado>
+    </>
   );
 }
 
