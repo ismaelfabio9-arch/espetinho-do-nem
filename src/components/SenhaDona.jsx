@@ -124,7 +124,6 @@ export function SenhaDonaConfig() {
     if (s1 !== s2) return aviso("As duas senhas não são iguais.");
     await salvarSenhas({ dona: await novaSenha(s1), pessoas: cfg.pessoas || [] });
     registrar({ area: "dinheiro", acao: temSenha ? "Trocou a senha da dona" : "Criou a senha da dona", texto: "Senha da dona" });
-    liberar("Dona");
     setS1("");
     setS2("");
     aviso(temSenha ? "Senha trocada." : "Senha criada.");

@@ -5,6 +5,7 @@ import { MULTI } from "./loja";
 import LojaGate, { LojaDoEndereco } from "./components/LojaGate";
 
 import { useEffect } from "react";
+import { bloquear as bloquearSenha } from "./utils/senhaDona";
 import "./App.css";
 import Dashboard from "./pages/Garcom/Dashboard";
 import MesaDetalhe from "./pages/Garcom/MesaDetalhe";
@@ -86,9 +87,19 @@ function Para({ to }) {
 }
 
 /** Telas do garçom e do dono. */
+/** Saiu do Dinheiro, do Preço certo ou das Configurações: a senha da dona volta a ser pedida. */
+function BloqueioSenha() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    if (!["/dinheiro", "/vendas", "/config", "/cardapio", "/caixa", "/relatorio"].some((r) => pathname.startsWith(r))) bloquearSenha();
+  }, [pathname]);
+  return null;
+}
+
 function TelasEquipe() {
   return (
     <>
+    <BloqueioSenha />
     <Atalhos />
     <EstacaoImpressao />
     <AvisosSom />
