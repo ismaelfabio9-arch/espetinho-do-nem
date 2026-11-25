@@ -64,6 +64,9 @@ function EstoqueArea() {
 /** Dinheiro: mesmo jeito das outras áreas (título e abas), cada aba é uma parte de Finanças. */
 export function Dinheiro() {
   const completo = useRecurso("dinheiro-completo");
+  const [paramsD] = useSearchParams();
+  // A equipe ainda lança saída de alimento, acabou e entrada de alimento pelo menu sem a senha.
+  const soEquipe = ["perda", "acabou", "entrada"].includes(paramsD.get("acao"));
   if (completo)
     return (
       <Area
@@ -71,7 +74,7 @@ export function Dinheiro() {
         icone="💰"
         padrao="hoje"
         abas={[
-          { id: "hoje", antigos: ["lancamentos", "despesas"], nome: "Hoje", tela: () => <DinheiroHoje /> },
+          { id: "hoje", antigos: ["lancamentos", "despesas"], nome: "Hoje", senha: !soEquipe, tela: () => <DinheiroHoje /> },
           { id: "relatorio", antigos: ["lucro", "pedidos", "dias", "mexido"], nome: "Relatório", tela: () => <RelatorioArea /> },
         ]}
       />
