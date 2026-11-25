@@ -124,7 +124,7 @@ function Estoque({ insumos, prev, perdasMes, verPerdas }) {
           <h2>Ingredientes</h2>
           <button type="button" className="btn-verde" onClick={() => setForm({})}>+ Novo ingrediente</button>
         </div>
-        <button type="button" className="pd-novo" onClick={() => setPerdaDe(true)}>Registrar saída de alimento</button>
+        <button type="button" className="cu-saida" onClick={() => setPerdaDe(true)}>Saída de alimento</button>
         {perdasMes.total > 0 && (
           <button type="button" className="ins-perdas-resumo" onClick={verPerdas}>
             <span>Perdas este mês</span>
