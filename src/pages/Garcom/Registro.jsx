@@ -32,7 +32,7 @@ const diaBonito = (s) => {
   return new Date(y, m - 1, d).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" });
 };
 
-export default function Registro() {
+export default function Registro({ emRelatorio = false }) {
   const [per, setPer] = useState("hoje");
   const [area, setArea] = useState("");
   const [pessoa, setPessoa] = useState("");
@@ -100,11 +100,13 @@ export default function Registro() {
   const ehBaixa = (r) => /baixou o estoque|sem baixa|baixa do estoque/i.test(r.acao);
 
   return (
-    <div className="reg">
-      <div className="reg-topo">
-        <h2>O que foi mexido</h2>
-        <button type="button" className="reg-imprimir" onClick={() => window.print()}>Imprimir</button>
-      </div>
+    <div className={emRelatorio ? "reg rel-parte" : "reg"}>
+      {!emRelatorio && (
+        <div className="reg-topo">
+          <h2>O que foi mexido</h2>
+          <button type="button" className="reg-imprimir" onClick={() => window.print()}>Imprimir</button>
+        </div>
+      )}
 
       <div className="reg-faixa" role="group" aria-label="Período">
         {PERIODOS.map((p) => (
