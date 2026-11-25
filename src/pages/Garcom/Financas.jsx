@@ -146,7 +146,7 @@ function Financas({ abas = ["resumo", "lancamentos"], titulo = "Dinheiro", texto
       </div>
 
       {carregando ? (
-        <p className="fin-carregando"><span className="girando" aria-hidden="true" />Carregando…</p>
+        <p className="fin-carregando"><span className="if-carrega" aria-hidden="true"><i /></span>Carregando…</p>
       ) : aba === "lancamentos" ? (
         <Lancamentos f={f} categorias={categorias} />
       ) : aba === "custos" ? (

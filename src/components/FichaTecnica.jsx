@@ -798,7 +798,7 @@ export function FichaDoProduto({ produto, precoAtual, onNomes, grupos = [] }) {
   useEffect(() => onSnapshot(doc(db, ...L(), "fichas", produto.id), (s) => setFicha(s.exists() ? s.data() : null), () => setFicha(null)), [produto.id]);
   useEffect(() => onSnapshot(doc(db, ...L(), "custos", produto.id), (s) => setCustoManual(typeof s.data()?.custo === "number" ? s.data().custo : null), () => setCustoManual(null)), [produto.id]);
   const aoCusto = useCallback((custo, temItens) => setCustoFicha({ custo, temItens }), []);
-  if (insumos === null || ficha === undefined || custoManual === undefined) return <p className="fin-carregando"><span className="girando" aria-hidden="true" />Carregando…</p>;
+  if (insumos === null || ficha === undefined || custoManual === undefined) return <p className="fin-carregando"><span className="if-carrega" aria-hidden="true"><i /></span>Carregando…</p>;
   const ativos = insumos.filter((i) => i.ativo !== false).sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"));
   const porId = Object.fromEntries(insumos.map((i) => [i.id, i]));
   const custo = custoFicha.temItens ? custoFicha.custo : custoManual;
