@@ -146,7 +146,6 @@ export default function RelatorioCompleto() {
     if (id !== "escolher") setFaixa(faixaDe(id));
   }
 
-  const somaV = (l) => l.reduce((s, o) => s + Number(o.valor || 0), 0);
 
   return (
     <div className="container rc">
@@ -171,126 +170,145 @@ export default function RelatorioCompleto() {
       {!rel ? (
         <p className="rc-vazio">Carregando…</p>
       ) : (
-        <>
-          <div className="rc-kpi">
-            <div><span>Vendido</span><b>{R(rel.f.vendas)}</b></div>
-            <div><span>Lucro estimado</span><b className={rel.f.lucro < 0 ? "rc-neg" : ""}>{R(rel.f.lucro)}</b></div>
-            <div><span>Pedidos</span><b>{rel.f.pedidos}</b></div>
-            <div><span>Ticket médio</span><b>{R(rel.f.ticket)}</b></div>
-          </div>
-          <div className="rc-grade">
-            <section className="rc-card">
-              <h3>Vendas</h3>
-              <Ln a="Mesa" b={R(rel.porTipo.mesa)} />
-              <Ln a="Balcão" b={R(rel.porTipo.balcao)} />
-              <Ln a="Entrega" b={R(rel.porTipo.entrega)} />
-              {rel.f.formas.map((x) => <Ln key={x.nome} a={x.nome} b={R(x.valor)} sub />)}
-              <Ln a="Taxas da maquininha" b={R(-rel.f.maquininha)} />
-            </section>
+        (() => {
+          const f = rel.f;
+          const g = rel.gaveta;
+          const somaV = (l) => l.reduce((t, o) => t + Number(o.valor || 0), 0);
+          const mesLista = (caixaMes?.lista || []).filter((m) => m.dia >= faixa.de && m.dia <= faixa.ate);
+          const somaMes = (fn) => mesLista.filter(fn).reduce((t, m) => t + Number(m.valor || 0), 0);
+          const entrouMes = somaMes((m) => m.tipo !== "saida");
+          const saiuMes = somaMes((m) => m.tipo === "saida");
+          const despesas = f.variaveis + f.fixas;
+          const atencao = [
+            rel.mexido.tirou.length > 0 && { a: "Itens tirados da comanda", b: `${rel.mexido.tirou.length} · ${R(somaV(rel.mexido.tirou))}` },
+            rel.mexido.saiu.length > 0 && { a: "Saiu diferente (cliente ficou)", b: String(rel.mexido.saiu.length) },
+            rel.mexido.cortesia.length > 0 && { a: "Cortesias", b: `${rel.mexido.cortesia.length} · ${R(somaV(rel.mexido.cortesia))}` },
+            rel.mexido.cancelou.length > 0 && { a: "Pedidos cancelados", b: `${rel.mexido.cancelou.length} · ${R(somaV(rel.mexido.cancelou))}` },
+            g.fechados > 0 && g.diferenca !== 0 && { a: g.diferenca < 0 ? "Faltou na gaveta" : "Sobrou na gaveta", b: R(Math.abs(g.diferenca)) },
+          ].filter(Boolean);
+          const temComida = rel.saidas.lista.length > 0 || rel.acabou.length > 0 || rel.maisGasto.length > 0;
+          const detalhe = [
+            ...g.movimentos.map((m) => ({ id: `g${m.id}`, em: m.em, a: `Caixa do dia · ${m.tipo === "sangria" ? `sangria${m.origem && m.origem !== "Dinheiro" ? ` (${m.origem})` : ""}` : "reforço"} · ${m.motivo || ""}`, b: `${m.tipo === "sangria" ? "−" : "+"} ${R(m.valor)}` })),
+            ...mesLista.map((m) => ({ id: `l${m.id}`, em: m.em, a: `Caixa do mês · ${m.motivo || m.origem}`, b: `${m.tipo === "saida" ? "−" : "+"} ${R(m.valor)}` })),
+            ...[...rel.mexido.tirou, ...rel.mexido.saiu, ...rel.mexido.cortesia].map((o) => ({ id: `o${o.id}`, em: o.em, a: `${o.tipo === "saiuDiferente" ? "Saiu diferente" : o.tipo === "cortesia" ? "Cortesia" : "Tirou"} · ${o.texto}${o.mesa ? ` · mesa ${o.mesa}` : ""}${o.motivo ? ` · ${o.motivo}` : ""}`, b: o.tipo === "saiuDiferente" ? "" : R(o.valor) })),
+          ].sort((x, y) => String(y.em).localeCompare(String(x.em)));
+          return (
+            <>
+              <div className="rc-kpi">
+                <div><span>Vendido</span><b>{R(f.vendas)}</b></div>
+                <div><span>Lucro</span><b className={f.lucro < 0 ? "rc-neg" : "rc-pos"}>{R(f.lucro)}</b></div>
+                <div><span>Pedidos</span><b>{f.pedidos}</b></div>
+                <div><span>Ticket médio</span><b>{R(f.ticket)}</b></div>
+              </div>
 
-            <section className="rc-card">
-              <h3>Mais vendidos</h3>
-              {rel.f.produtos.length === 0 ? <p className="rc-vazio">Nenhuma venda.</p> : [...rel.f.produtos].sort((a, b) => b.qtd - a.qtd).slice(0, 8).map((p) => (
-                <Ln key={p.nome} a={p.nome} b={<>{p.qtd} <small>{R(p.vendido)}</small></>} />
-              ))}
-            </section>
+              <div className="rc-grade2">
+                <section className="rc-card">
+                  <h3>Vendas</h3>
+                  <div className="rc-duas">
+                    <div>
+                      <h4>Por onde</h4>
+                      {[["Mesa", rel.porTipo.mesa], ["Balcão", rel.porTipo.balcao], ["Entrega", rel.porTipo.entrega]].filter(([, v]) => v > 0).map(([n, v]) => <Ln key={n} a={n} b={R(v)} />)}
+                    </div>
+                    <div>
+                      <h4>Como pagaram</h4>
+                      {f.formas.filter((x) => x.valor > 0).map((x) => <Ln key={x.nome} a={x.nome} b={R(x.valor)} />)}
+                    </div>
+                  </div>
+                </section>
 
-            <section className="rc-card">
-              <h3>Gaveta e dinheiro</h3>
-              {rel.gaveta.caixas === 0 ? <p className="rc-vazio">Caixa não aberto no período.</p> : (
-                <>
-                  <Ln a="Abriu com" b={R(rel.gaveta.inicial)} />
-                  <Ln a={`Sangria da gaveta (${rel.gaveta.nSangrias})`} b={R(-rel.gaveta.sangriaGaveta)} />
-                  {rel.gaveta.sangriaPix > 0 && <Ln a="Tirado do Pix" b={R(-rel.gaveta.sangriaPix)} />}
-                  {rel.gaveta.sangriaMaq > 0 && <Ln a="Tirado da maquininha" b={R(-rel.gaveta.sangriaMaq)} />}
-                  <Ln a={`Reforço (${rel.gaveta.nReforcos})`} b={`+ ${R(rel.gaveta.reforcos)}`} />
-                  {rel.gaveta.fechados > 0 ? (
+                <section className="rc-card">
+                  <h3>Lucro</h3>
+                  <Ln a="Vendido" b={R(f.vendas)} />
+                  <Ln a="Custo dos pratos" b={R(-f.custoProdutos)} />
+                  {f.maquininha > 0 && <Ln a="Taxa da maquininha" b={R(-f.maquininha)} />}
+                  {despesas > 0 && <Ln a="Despesas" b={R(-despesas)} />}
+                  {rel.saidas.total > 0 && <Ln a="Perda de alimento" b={R(-rel.saidas.total)} />}
+                  <Ln a="Lucro" b={R(f.lucro)} total />
+                  {f.margem !== null && <small className="rc-nota">{f.margem}% do que vendeu</small>}
+                </section>
+              </div>
+
+              <section className="rc-card rc-dinheiro">
+                <h3>Dinheiro</h3>
+                <div className="rc-tres">
+                  <div>
+                    <h4>Caixa do dia</h4>
+                    {g.caixas === 0 ? <p className="rc-vazio">Não abriu no período.</p> : (
+                      <>
+                        <Ln a="Abriu com" b={R(g.inicial)} />
+                        {g.reforcos > 0 && <Ln a="Reforço" b={`+ ${R(g.reforcos)}`} />}
+                        {g.sangriaGaveta > 0 && <Ln a="Sangria" b={R(-g.sangriaGaveta)} />}
+                        {g.sangriaPix > 0 && <Ln a="Tirado do Pix" b={R(-g.sangriaPix)} />}
+                        {g.sangriaMaq > 0 && <Ln a="Tirado da maquininha" b={R(-g.sangriaMaq)} />}
+                        {g.fechados > 0 ? <Ln a="Ficou na gaveta" b={R(g.ficou)} total /> : <Ln a="Fechamento" b="caixa aberto" total />}
+                      </>
+                    )}
+                  </div>
+                  <div>
+                    <h4>Caixa do mês</h4>
+                    {entrouMes > 0 && <Ln a="Entrou" b={`+ ${R(entrouMes)}`} />}
+                    {saiuMes > 0 && <Ln a="Saiu" b={R(-saiuMes)} />}
+                    <Ln a="Tem agora" b={R(caixaMes?.saldo || 0)} total />
+                  </div>
+                  <div>
+                    <h4>Dona</h4>
+                    <Ln a="Tirou para ela" b={R(g.tirou)} total />
+                  </div>
+                </div>
+              </section>
+
+              <div className="rc-grade2">
+                <section className="rc-card">
+                  <h3>Mais vendidos</h3>
+                  {f.produtos.length === 0 ? <p className="rc-vazio">Nenhuma venda.</p> : [...f.produtos].sort((x, y) => y.qtd - x.qtd).slice(0, 5).map((p, k) => (
+                    <Ln key={p.nome} a={`${k + 1}. ${p.nome}`} b={<>{p.qtd}× <small>{R(p.vendido)}</small></>} />
+                  ))}
+                </section>
+
+                <section className="rc-card">
+                  <h3>Comida</h3>
+                  {!temComida ? <p className="rc-vazio">Sem perda e nada acabou.</p> : (
                     <>
-                      <Ln a="Contado no fechamento" b={<>{R(rel.gaveta.contado)} <small>{rel.gaveta.diferenca === 0 ? "bateu" : `diferença ${R(rel.gaveta.diferenca)}`}</small></>} />
-                      <Ln a="Dona tirou" b={R(rel.gaveta.tirou)} />
-                      <Ln a="Foi para o caixa da loja" b={R(rel.gaveta.paraCaixa)} />
-                      <Ln a="Ficou na gaveta" b={R(rel.gaveta.ficou)} />
+                      {rel.saidas.lista.slice(0, 5).map((x) => (
+                        <Ln key={x.id} a={`${x.descricoes.join(" + ") || x.itens.map((i) => i.nome).join(", ")} · ${String(x.motivo || "").split(" · ")[0].toLowerCase()}`} b={R(x.valor)} />
+                      ))}
+                      {rel.acabou.length > 0 && <Ln a="Acabou" b={rel.acabou.map((o) => o.texto).join(", ")} />}
+                      {rel.maisGasto.length > 0 && <Ln a="Mais usado" b={rel.maisGasto.slice(0, 3).map((x) => `${x.nome} ${kg(x.qtd, x.u)}`).join(" · ")} />}
                     </>
-                  ) : (
-                    <Ln a="Fechamento" b="caixa ainda aberto" />
                   )}
-                </>
+                </section>
+              </div>
+
+              {(atencao.length > 0 || rel.fornecedores.length > 0) && (
+                <div className="rc-grade2">
+                  {atencao.length > 0 && (
+                    <section className="rc-card rc-atencao">
+                      <h3>Atenção</h3>
+                      {atencao.map((x) => <Ln key={x.a} a={x.a} b={x.b} />)}
+                    </section>
+                  )}
+                  {rel.fornecedores.length > 0 && (
+                    <section className="rc-card">
+                      <h3>Compras por fornecedor</h3>
+                      {rel.fornecedores.map((x) => <Ln key={x.nome} a={x.nome} b={R(x.valor)} />)}
+                    </section>
+                  )}
+                </div>
               )}
-            </section>
 
-            <section className="rc-card">
-              <h3>Custos e lucro</h3>
-              <Ln a="Custo dos pratos vendidos" b={R(rel.f.custoProdutos)} />
-              <Ln a="Despesas lançadas" b={R(rel.f.variaveis + rel.f.fixas)} />
-              <Ln a="Saída de alimento" b={R(rel.saidas.total)} />
-              <Ln a="Lucro estimado" b={R(rel.f.lucro)} total />
-            </section>
+              {detalhe.length > 0 && (
+                <details className="rc-card rc-detalhe">
+                  <summary>Tudo o que aconteceu ({detalhe.length})</summary>
+                  {detalhe.map((x) => <Ln key={x.id} a={`${hora(x.em)} · ${x.a}`} b={x.b} />)}
+                </details>
+              )}
 
-            {caixaMes && (
-              <section className="rc-card">
-                <h3>Caixa do mês</h3>
-                {(() => {
-                  const l = caixaMes.lista.filter((m) => m.dia >= faixa.de && m.dia <= faixa.ate);
-                  const soma = (f) => l.filter(f).reduce((t, m) => t + Number(m.valor || 0), 0);
-                  return (
-                    <>
-                      <Ln a="Do fechamento do dia" b={`+ ${R(soma((m) => m.origem === "fechamento"))}`} />
-                      <Ln a="Reforço" b={`+ ${R(soma((m) => m.origem === "reforco"))}`} />
-                      <Ln a="Sangria" b={R(-soma((m) => m.origem === "sangria"))} />
-                      <Ln a="Pagamentos (fornecedor, contas)" b={R(-soma((m) => m.origem === "pagamento"))} />
-                      <Ln a="Tem agora" b={R(caixaMes.saldo)} total />
-                    </>
-                  );
-                })()}
-              </section>
-            )}
-
-            {rel.fornecedores.length > 0 && (
-              <section className="rc-card">
-                <h3>Compras por fornecedor</h3>
-                {rel.fornecedores.map((x) => <Ln key={x.nome} a={x.nome} b={R(x.valor)} />)}
-                <Ln a="Total de compras" b={R(rel.fornecedores.reduce((t, x) => t + x.valor, 0))} total />
-              </section>
-            )}
-
-            <section className="rc-card">
-              <h3>Comida</h3>
-              {rel.saidas.lista.length === 0 ? <Ln a="Saída de alimento" b="nada" /> : rel.saidas.lista.slice(0, 8).map((s) => (
-                <Ln key={s.id} a={`${s.descricoes.join(" + ") || s.itens.map((i) => i.nome).join(", ")} · ${String(s.motivo || "").split(" · ")[0].toLowerCase()}`} b={R(s.valor)} />
-              ))}
-              <Ln a="Acabou" b={rel.acabou.length ? rel.acabou.map((a) => `${a.texto} ${new Date(a.em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`).join(" · ") : "nada"} />
-              {rel.maisGasto.length > 0 && <Ln a="Mais gasto" b={rel.maisGasto.slice(0, 3).map((g) => `${g.nome} ${kg(g.qtd, g.u)}`).join(" · ")} />}
-            </section>
-
-            <section className="rc-card">
-              <h3>O que foi mexido</h3>
-              <Ln a="Itens tirados da comanda" b={<>{rel.mexido.tirou.length} <small>{R(somaV(rel.mexido.tirou))}</small></>} />
-              <Ln a="Saiu diferente (cliente ficou)" b={String(rel.mexido.saiu.length)} />
-              <Ln a="Cortesias" b={<>{rel.mexido.cortesia.length} <small>{R(somaV(rel.mexido.cortesia))}</small></>} />
-              {rel.mexido.cancelou.length > 0 && <Ln a="Pedidos cancelados" b={<>{rel.mexido.cancelou.length} <small>{R(somaV(rel.mexido.cancelou))}</small></>} />}
-            </section>
-          </div>
-
-          {(rel.gaveta.movimentos.length > 0 || rel.mexido.tirou.length + rel.mexido.saiu.length > 0 || (caixaMes?.lista || []).some((m) => m.dia >= faixa.de && m.dia <= faixa.ate)) && (
-            <section className="rc-card rc-detalhe">
-              <h3>Detalhe</h3>
-              {rel.gaveta.movimentos.map((m) => (
-                <Ln key={m.id} a={`${hora(m.em)} · ${m.tipo === "sangria" ? `Sangria${m.origem && m.origem !== "Dinheiro" ? ` (${m.origem})` : ""}` : "Reforço"} · ${m.motivo || ""}`} b={`${m.tipo === "sangria" ? "−" : "+"} ${R(m.valor)}`} />
-              ))}
-              {(caixaMes?.lista || []).filter((m) => m.dia >= faixa.de && m.dia <= faixa.ate).map((m) => (
-                <Ln key={`l${m.id}`} a={`${hora(m.em)} · Caixa do mês · ${m.motivo || m.origem}`} b={`${m.tipo === "saida" ? "−" : "+"} ${R(m.valor)}`} />
-              ))}
-              {[...rel.mexido.tirou, ...rel.mexido.saiu, ...rel.mexido.cortesia].sort((a, b) => String(b.em).localeCompare(String(a.em))).map((o) => (
-                <Ln key={o.id} a={`${hora(o.em)} · ${o.tipo === "saiuDiferente" ? "Saiu diferente" : o.tipo === "cortesia" ? "Cortesia" : "Tirou"} · ${o.texto}${o.mesa ? ` · mesa ${o.mesa}` : ""}${o.motivo ? ` · ${o.motivo}` : ""}`} b={o.tipo === "saiuDiferente" ? "" : R(o.valor)} />
-              ))}
-            </section>
-          )}
-
-          <div className="rc-bt no-print">
-            <button type="button" className="v" onClick={() => window.print()}>Imprimir</button>
-          </div>
-
-        </>
+              <div className="rc-bt no-print">
+                <button type="button" className="v" onClick={() => window.print()}>Imprimir</button>
+              </div>
+            </>
+          );
+        })()
       )}
     </div>
   );
