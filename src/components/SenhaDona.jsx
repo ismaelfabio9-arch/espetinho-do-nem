@@ -38,7 +38,7 @@ export function TelaSenha({ cfg, titulo = "Senha da dona", onCancelar, emJanela 
     <form className="sd-caixa" onSubmit={entrar} onClick={(e) => e.stopPropagation()}>
       <h2>{titulo}</h2>
       <p>Esta parte mexe com dinheiro.</p>
-      <input className="sd-pin" type="password" inputMode="numeric" autoComplete="off" autoFocus placeholder="Senha" value={senha} onChange={(e) => { setSenha(e.target.value); setErro(""); }} />
+      <input className="sd-pin sd-bolinha" type="text" inputMode="numeric" autoComplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other" autoFocus placeholder="Senha" value={senha} onChange={(e) => { setSenha(e.target.value); setErro(""); }} />
       {erro && <p className="sd-erro">{erro}</p>}
       <div className="sd-bts">
         {onCancelar && <button type="button" className="sd-cancelar" onClick={onCancelar}>Cancelar</button>}
@@ -151,8 +151,8 @@ export function SenhaDonaConfig() {
         <form className="sd-form" onSubmit={salvarDona}>
           <div className="sd-lab">{temSenha ? "Trocar a senha" : "Criar a senha"}</div>
           <div className="sd-duo">
-            <input type="password" inputMode="numeric" autoComplete="new-password" placeholder="Senha" value={s1} onChange={(e) => setS1(e.target.value)} />
-            <input type="password" inputMode="numeric" autoComplete="new-password" placeholder="Repita a senha" value={s2} onChange={(e) => setS2(e.target.value)} />
+            <input type="text" inputMode="numeric" autoComplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other" className="sd-bolinha" placeholder="Senha" value={s1} onChange={(e) => setS1(e.target.value)} />
+            <input type="text" inputMode="numeric" autoComplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other" className="sd-bolinha" placeholder="Repita a senha" value={s2} onChange={(e) => setS2(e.target.value)} />
           </div>
           <button className="config-btn">{temSenha ? "Trocar senha" : "Criar senha"}</button>
         </form>
@@ -174,7 +174,7 @@ export function SenhaDonaConfig() {
             <form className="sd-form" onSubmit={adicionarPessoa}>
               <div className="sd-duo">
                 <input placeholder="Nome" value={nome} maxLength={40} onChange={(e) => setNome(e.target.value)} />
-                <input type="password" inputMode="numeric" autoComplete="new-password" placeholder="Senha dela" value={sp} onChange={(e) => setSp(e.target.value)} />
+                <input type="text" inputMode="numeric" autoComplete="off" data-lpignore="true" data-1p-ignore="true" data-form-type="other" className="sd-bolinha" placeholder="Senha dela" value={sp} onChange={(e) => setSp(e.target.value)} />
               </div>
               <button className="config-btn">Liberar acesso</button>
             </form>
