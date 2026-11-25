@@ -609,3 +609,11 @@ body.dark .if-pontos i { background: #60a5fa; }
 /* Botões esperando: rodinha azul IFTech nos botões claros; branca nos coloridos */
 .girando { border-color: currentColor; border-right-color: transparent; }
 @media (prefers-reduced-motion: reduce) { .if-carrega::before, .if-carrega i, .if-pontos i { animation-duration: 2.4s; } }
+
+/* Fundo da janela inteira igual ao do sistema (no app instalado aparecia uma faixa branca no topo) */
+html { background: #f6f7f9; }
+html:has(body.dark) { background: #070707; }
+html, body { margin: 0; padding: 0; }
+body > #root { min-height: 100vh; }
+/* Conta da mesa no tema claro: Pix, Débito e Crédito claros (não pretos) */
+html body:not(.dark) .cp-receber .formas-pagamento button:not(.ativo) { background: #fff !important; border: 1px solid #d1d5db !important; color: #111827 !important; }
