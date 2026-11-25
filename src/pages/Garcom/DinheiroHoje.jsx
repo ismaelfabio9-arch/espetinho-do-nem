@@ -1,7 +1,7 @@
 // Dinheiro → Hoje: os atalhos do dia a dia (sangria, reforço, saída de alimento, acabou), o novo lançamento
 // (só o dono) e tudo o que aconteceu hoje numa lista só, com hora, quem fez e o valor.
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { collection, doc, limit, onSnapshot, orderBy, query, setDoc, where } from "firebase/firestore";
 import { db } from "../../firebase";
 import { L } from "../../loja";
@@ -40,6 +40,7 @@ function useLista(fazer, deps) {
 export default function DinheiroHoje() {
   const souDono = useSouDono();
   const [params, setParams] = useSearchParams();
+  const navigate = useNavigate();
   const dia = isoDia();
   const inicioDia = new Date(new Date().setHours(0, 0, 0, 0)).toISOString();
   const caixas = useLista(() => query(collection(db, ...L(), "caixas"), orderBy("abertoEm", "desc"), limit(5)), []);
@@ -129,6 +130,9 @@ export default function DinheiroHoje() {
               </small>
             )}
             {caixas !== null && !aberto && <button type="button" className="dh-abrir-bt" onClick={() => pedirSenha(() => { setQualCaixa("dia"); setAcao("suprimento"); })}>Abrir o caixa do dia</button>}
+            {caixas !== null && aberto && (
+              <button type="button" className="dh-fechar-bt" onClick={() => navigate("/config?encerrar=1")}>Fechar o caixa e encerrar o dia</button>
+            )}
           </div>
           <div className="dh-loja">
             <div>

@@ -4,8 +4,8 @@ import Equipe from "../../components/Equipe";
 import { useSouDono } from "../../tenant";
 import TaxasMaquininha from "../../components/TaxasMaquininha";
 import CardapioOnlineConfig from "../../components/CardapioOnlineConfig";
-import { useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import {
   collection,
   getDoc,
@@ -57,6 +57,16 @@ function Config() {
   // Kit Burger: fechamento do dia com tudo (gaveta, dona tirou, comida, o que acabou) e com ou sem impressão.
   const dinheiroCompleto = useRecurso("dinheiro-completo");
   const [pedirSenha, janelaSenha] = useComSenha();
+  // Veio do Dinheiro → Hoje ("Fechar o caixa e encerrar o dia"): abre o fechamento direto.
+  const [params, setParams] = useSearchParams();
+  useEffect(() => {
+    if (params.get("encerrar") !== "1" || !souDono || !dinheiroCompleto) return;
+    const p = new URLSearchParams(params);
+    p.delete("encerrar");
+    setParams(p, { replace: true });
+    pedirSenha(() => setModalEncerrarDia(true));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params, souDono, dinheiroCompleto]);
   const [resumoDia, setResumoDia] = useState(null);
 
   function mostrarMensagem(texto) {
