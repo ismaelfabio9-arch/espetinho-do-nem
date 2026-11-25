@@ -79,3 +79,11 @@ html body .dh-qual > button span { font-size: 13px; color: var(--d-mute); }
 .dh-fechar-bt { margin-top: 8px; align-self: flex-start; border: 1px solid #dc2626; border-radius: 10px; background: transparent; color: #dc2626; font: inherit; font-weight: 700; font-size: 14px; padding: 9px 14px; cursor: pointer; }
 body.dark .dh-fechar-bt { color: #f87171; border-color: #f87171; }
 .dh-caixas .dh-loja { flex-direction: column; align-items: flex-start; justify-content: flex-start; }
+.dh-mes { margin-top: 14px; }
+.dh-mes-topo { width: 100%; display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 10px 2px; border: 0; background: transparent; color: var(--d-txt); font: inherit; font-weight: 700; font-size: 15px; cursor: pointer; text-align: left; }
+html body .dh-mes-topo small { font-weight: 500; font-size: 12.5px; color: var(--d-mute); }
+.dh-mes-dir { display: flex; align-items: center; gap: 8px; }
+.dh-mes-x { border: 0; background: transparent; color: var(--d-mute); font-size: 14px; cursor: pointer; padding: 4px; }
+.dh-mes-conf { display: flex; gap: 6px; }
+.dh-mes-conf button { border: 1px solid var(--d-linha); background: transparent; color: var(--d-txt); border-radius: 8px; padding: 5px 9px; font: inherit; font-size: 12.5px; cursor: pointer; }
+.dh-mes-conf button.sim { border-color: #dc2626; color: #dc2626; }
