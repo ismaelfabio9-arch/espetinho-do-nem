@@ -302,7 +302,8 @@ function Pedidos() {
   const nomeCartao = (p) => {
     if (p.tipo === "mesa") return tituloPedido(p);
     if (p.tipo === "entrega") return tituloPedido(p);
-    if (p.titulo) return p.titulo;
+    // Título genérico ("Pedido Viagem", "PARA VIAGEM") não diz nada: usa o número do dia e o nome.
+    if (p.titulo && !/^(pedido viagem|para viagem|viagem|balc[aã]o)$/i.test(String(p.titulo).trim())) return p.titulo;
     const n = numeros[p.id] || numeros[p.numero];
     return `${n ? `Pedido ${n}` : "Balcão"}${p.cliente ? ` · ${p.cliente}` : ""}`;
   };
@@ -486,20 +487,9 @@ function Pedidos() {
           <h2>Nenhum pedido aberto</h2>
           <p>{busca.trim() ? "Tente buscar por mesa, cliente, item ou status." : "Os pedidos de mesa, balcão e entrega aparecem aqui."}</p>
         </div>
-      ) : pc && filtro === "todos" ? (
-        <div className="pedidos-colunas">
-          {GRUPOS.map((g) => {
-            const lista = pedidosFiltrados.filter((p) => grupoDe(p) === g.id);
-            return (
-              <section key={g.id} className="pedidos-coluna">
-                <h2>
-                  {g.rotulo} <small>{lista.length}</small>
-                </h2>
-                {lista.length ? <div className="lista-pedidos">{lista.map(cartao)}</div> : <p className="pedidos-coluna-vazia">Nenhum agora.</p>}
-              </section>
-            );
-          })}
-        </div>
+      ) : pc ? (
+        // Computador: todos os pedidos numa grade só, usando a largura da tela (o tipo está no cartão).
+        <div className="pedidos-grade">{pedidosFiltrados.map(cartao)}</div>
       ) : (
         <div className="lista-pedidos">{pedidosFiltrados.map(cartao)}</div>
       )}
