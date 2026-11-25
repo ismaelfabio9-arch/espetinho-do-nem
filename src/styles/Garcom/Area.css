@@ -26,7 +26,7 @@
 .area-sub button { flex: 0 0 auto; white-space: nowrap; }
 /* Abas das áreas: uma linha só, texto com traço embaixo (sem botões grandes quebrando em duas linhas) */
 .area-topo h1 { font-size: 22px; font-weight: 700; margin: 10px 0 8px; }
-.area-abas { display: flex; gap: 0; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--border); }
+.area-abas { display: flex; flex-wrap: nowrap; gap: 0; overflow-x: auto; scrollbar-width: none; border-bottom: 1px solid var(--border); }
 .area-abas::-webkit-scrollbar { display: none; }
 .area-abas button { flex: 0 0 auto; background: transparent !important; border: 0 !important; border-bottom: 2px solid transparent !important; border-radius: 0 !important; color: var(--muted) !important; font-weight: 600; font-size: 14.5px; padding: 10px 14px 9px; white-space: nowrap; }
 .area-abas button.ativa { color: var(--green) !important; border-bottom-color: var(--green) !important; }
