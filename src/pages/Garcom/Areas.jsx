@@ -21,7 +21,7 @@ import DinheiroHoje from "./DinheiroHoje";
 import RelatorioCompleto from "./RelatorioCompleto";
 
 // Com o Dinheiro completo, Vendas e Dinheiro viram uma área só (Dinheiro): o que era de Vendas vai para lá.
-const VENDAS_PARA_DINHEIRO = { caixa: "hoje", hoje: "pedidos", dias: "dias", relatorio: "relatorio", mexido: "mexido" };
+const VENDAS_PARA_DINHEIRO = { caixa: "hoje", hoje: "relatorio&parte=pedidos", dias: "relatorio&parte=dias", relatorio: "relatorio", mexido: "relatorio&parte=mexido" };
 
 export function Vendas() {
   const caixa = useRecurso("financas");
@@ -51,8 +51,9 @@ function EstoqueArea() {
   const souDono = useSouDono();
   const ingredientes = custos && souDono;
   const doDia = useRecurso("estoque");
+  const completo = useRecurso("dinheiro-completo");
   // A lista de ingredientes (preço, compra, estoque) fica na aba Ingredientes; aqui, contagem, perdas, histórico e o do dia.
-  if (ingredientes) return <Insumos embutido semLista dia={doDia ? <Estoque /> : null} />;
+  if (ingredientes) return <Insumos embutido semLista dia={doDia ? <Estoque /> : null} somente={completo ? ["contagem", "dia"] : null} />;
   return (
     <SeLigado recurso="estoque" embutido>
       <Estoque />
@@ -72,10 +73,7 @@ export function Dinheiro() {
         abas={[
           { id: "hoje", nome: "Hoje", tela: () => <DinheiroHoje /> },
           { id: "lancamentos", antigos: ["despesas"], nome: "Lançamentos", soDono: true, senha: true, tela: () => <Financas abas={["lancamentos"]} titulo="Lançamentos" texto="Compras, despesas e entradas." /> },
-          { id: "pedidos", nome: "Pedidos do dia", tela: () => <HistoricoMesas /> },
-          { id: "dias", nome: "Dias anteriores", tela: () => <Historico /> },
-          { id: "relatorio", antigos: ["lucro"], nome: "Relatório", senha: true, tela: () => <RelatorioCompleto /> },
-          { id: "mexido", nome: "O que foi mexido", soDono: true, senha: true, tela: () => <Registro /> },
+          { id: "relatorio", antigos: ["lucro", "pedidos", "dias", "mexido"], nome: "Relatório", tela: () => <RelatorioArea /> },
         ]}
       />
     );
@@ -88,6 +86,31 @@ export function Dinheiro() {
         { id: "hoje", nome: "Hoje", recurso: "dinheiro-completo", tela: () => <DinheiroHoje /> },
         { id: "lucro", nome: "Lucro e caixa", recurso: "financas", soDono: true, senha: true, tela: () => <Financas abas={["resumo"]} titulo="Lucro e caixa" /> },
         { id: "despesas", nome: "Despesas e compras", recurso: "financas", soDono: true, senha: true, tela: () => <Financas abas={["lancamentos"]} titulo="Despesas e compras" /> },
+      ]}
+    />
+  );
+}
+
+/** Um lugar só para todos os relatórios (Dinheiro completo): geral, lucro, pedidos do dia, dias anteriores, estoque e perdas, o que foi mexido. */
+function RelatorioArea() {
+  const custos = useRecurso("custos");
+  const souDono = useSouDono();
+  const [params] = useSearchParams();
+  // Links antigos (?aba=pedidos, dias, mexido, lucro) caem na parte certa.
+  const antiga = { pedidos: "pedidos", dias: "dias", mexido: "mexido", lucro: "lucro" }[params.get("aba")];
+  return (
+    <Area
+      titulo="Relatório"
+      sub
+      param="parte"
+      padrao={antiga || "geral"}
+      abas={[
+        { id: "geral", nome: "Geral", senha: true, tela: () => <RelatorioCompleto /> },
+        { id: "lucro", nome: "Lucro por produto", soDono: true, senha: true, tela: () => <Financas abas={["resumo"]} titulo="Lucro por produto e categoria" texto="Lucro, caixa, categorias e produtos do período." /> },
+        { id: "pedidos", nome: "Pedidos do dia", tela: () => <HistoricoMesas /> },
+        { id: "dias", nome: "Dias anteriores", tela: () => <Historico /> },
+        ...(custos && souDono ? [{ id: "estoque", nome: "Estoque e perdas", senha: true, tela: () => <Insumos embutido semLista somente={["perdas", "historico"]} /> }] : []),
+        { id: "mexido", nome: "O que foi mexido", soDono: true, senha: true, tela: () => <Registro /> },
       ]}
     />
   );
