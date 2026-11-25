@@ -18,8 +18,7 @@ import { disponivelParaTirar, resumoCaixa, vendasDoCaixa } from "../../utils/cai
 import { useTaxas } from "../../utils/taxas";
 import { Abrir, Movimento } from "./Caixa";
 import { NovoLancamento } from "./Financas";
-import { BarraLiberado, useComSenha } from "../../components/SenhaDona";
-import { useLiberado } from "../../utils/senhaDona";
+import { useComSenha } from "../../components/SenhaDona";
 import "../../styles/Garcom/RelatorioGerencial.css";
 import "../../styles/Garcom/Financas.css";
 import "../../styles/Garcom/Insumos.css";
@@ -71,7 +70,6 @@ export default function DinheiroHoje() {
   useEffect(() => {
     if (!acaoPedida) setQualCaixa("");
   }, [acaoPedida]);
-  const lib = useLiberado();
   // Sangria, reforço e lançamento mexem com dinheiro: pedem a senha da dona.
   const comDinheiro = (a) => a === "sangria" || a === "suprimento" || a === "lancar";
   const acao = comDinheiro(acaoPedida) && precisaSenha ? "" : acaoPedida;
@@ -115,7 +113,6 @@ export default function DinheiroHoje() {
   return (
     <div className="container dh">
       {janelaSenha}
-      {lib && <BarraLiberado quem={lib.quem} />}
       {souDono && (
         <div className="dh-caixas">
           <div className="dh-loja">
