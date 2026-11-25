@@ -85,3 +85,5 @@ html body .rc-prod small { color: var(--r-mute); font-size: 12px; }
 @media (min-width: 900px) {
   .rc-cats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
 }
+/* Período igual em todas as partes do relatório (verde no escolhido) */
+.rc-per button.on { background: #16a34a; border-color: #16a34a; color: #fff; }
