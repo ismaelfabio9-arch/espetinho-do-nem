@@ -99,7 +99,7 @@ function Insumos({ embutido = false, dia = null, semLista = false, somente = nul
       {aba === "dia" && dia ? (
         <div className="ins-dia">{dia}</div>
       ) : carregando ? (
-        <p className="fin-carregando">Carregando…</p>
+        <p className="fin-carregando"><span className="girando" aria-hidden="true" />Carregando…</p>
       ) : aba === "estoque" ? (
         <Estoque insumos={ativos} prev={prev} perdasMes={perdasMes} verPerdas={() => setAba("perdas")} />
       ) : aba === "contagem" ? (
@@ -351,7 +351,7 @@ export function Movimentar({ acao, fechar }) {
         {erro && <p className="fin-erro">{erro}</p>}
         <div className="ins-modal-botoes">
           <button type="button" className="ins-btn" onClick={fechar}>Cancelar</button>
-          <button className="btn-verde" disabled={salvando}>{salvando ? "Salvando…" : "Salvar"}</button>
+          <button className="btn-verde" disabled={salvando}>{salvando ? <><span className="girando" aria-hidden="true" />Salvando…</> : "Salvar"}</button>
         </div>
       </form>
     </div>
@@ -421,7 +421,7 @@ function Contagem({ insumos }) {
       )}
       {msg && <p className="fin-dica">{msg}</p>}
       <button type="button" className="btn-verde cx-fechar" disabled={salvando || !preenchidos.length} onClick={salvar}>
-        {salvando ? "Salvando…" : `Salvar contagem${preenchidos.length ? ` (${preenchidos.length})` : ""}`}
+        {salvando ? <><span className="girando" aria-hidden="true" />Salvando…</> : `Salvar contagem${preenchidos.length ? ` (${preenchidos.length})` : ""}`}
       </button>
     </div>
   );
@@ -503,7 +503,7 @@ function Historico({ porId }) {
   const [lista, setLista] = useState(null);
   useEffect(() => onSnapshot(query(collection(db, ...L(), "insumosMov"), orderBy("em", "desc"), limit(150)), (s) => setLista(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => setLista([])), []);
   const NOME = { venda: "Venda", compra: "Compra", perda: "Perda", contagem: "Contagem" };
-  if (lista === null) return <p className="fin-carregando">Carregando…</p>;
+  if (lista === null) return <p className="fin-carregando"><span className="girando" aria-hidden="true" />Carregando…</p>;
   return (
     <div className="relatorio-documento">
       <h2>Entradas e saídas</h2>

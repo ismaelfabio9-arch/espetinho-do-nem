@@ -812,7 +812,7 @@ function CardapioMesa() {
               </div>
               {pedidoLigado && (
                 <button type="button" className="cl-btn" disabled={enviando || qtdSacola === 0} onClick={() => { setSacolaAberta(false); finalizarPedido(); }}>
-                  {enviando ? "Enviando…" : "Enviar pedido para a cozinha"}
+                  {enviando ? <><span className="girando" aria-hidden="true" />Enviando…</> : "Enviar pedido para a cozinha"}
                 </button>
               )}
               <button type="button" className="cl-btn claro" onClick={() => setSacolaAberta(false)}>Continuar escolhendo</button>

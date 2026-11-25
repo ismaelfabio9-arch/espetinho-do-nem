@@ -120,7 +120,7 @@ export default function PrecoCerto({ produtos, custos, daFicha, vendas30 = 0, in
         .sort((a, b) => ordemCat(a.categoria) - ordemCat(b.categoria) || String(a.categoria || "").localeCompare(String(b.categoria || ""), "pt-BR") || String(a.nome).localeCompare(String(b.nome), "pt-BR")),
     [produtos]
   );
-  if (!form || salvo === null) return <p className="fin-carregando">Carregando…</p>;
+  if (!form || salvo === null) return <p className="fin-carregando"><span className="girando" aria-hidden="true" />Carregando…</p>;
 
   // Despesa preenchida uma por uma (aluguel, funcionários…): o total do mês vira o valor do campo, em R$.
   const totalItens = (k) => (form[`${k}Itens`] || []).reduce((s, i) => s + (numDe(i.valor) || 0), 0);
@@ -620,7 +620,7 @@ function PorcaoRapida({ produto, insumos, digitado }) {
           {erro && <p className="cp-erro">{erro}</p>}
           <div className="pc-porcao-botoes">
             <button type="button" className="ins-btn" onClick={() => setAberto(false)}>Cancelar</button>
-            <button type="button" className="btn-verde" disabled={salvando} onClick={salvar}>{salvando ? "Salvando…" : "Salvar a porção"}</button>
+            <button type="button" className="btn-verde" disabled={salvando} onClick={salvar}>{salvando ? <><span className="girando" aria-hidden="true" />Salvando…</> : "Salvar a porção"}</button>
           </div>
         </>
       )}

@@ -193,7 +193,7 @@ export default function CardapioOnline() {
     setEtapa("dados");
   }
 
-  if (!entrega.carregado) return <div className="online cl-pagina"><p className="online-vazio">Carregando o cardápio…</p></div>;
+  if (!entrega.carregado) return <div className="online cl-pagina"><p className="online-vazio"><span className="girando" aria-hidden="true" />Carregando o cardápio…</p></div>;
   const aberta = ligadoNoPlano && entrega.ligado;
 
   return (
@@ -325,7 +325,7 @@ export default function CardapioOnline() {
           </div>
           {erro.texto && <p className="online-erro">{erro.texto}</p>}
           <button type="button" className="online-btn" disabled={enviando || !linhas.length} onClick={enviar}>
-            {enviando ? "Enviando…" : `Enviar pedido · R$ ${moeda(total)}`}
+            {enviando ? <><span className="girando" aria-hidden="true" />Enviando…</> : `Enviar pedido · R$ ${moeda(total)}`}
           </button>
         </section>
       ) : (

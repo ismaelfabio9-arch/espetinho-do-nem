@@ -1612,7 +1612,7 @@ if (pedidosDaMesa.length === 0) {
       {/* Barra presa embaixo (celular): encerrar e salvar, sempre à mão. No computador fica na comanda ao lado. */}
       <div className="md-barra">
         <button type="button" className="md-btn" onClick={abrirModalEncerrar} disabled={encerrando} data-atalho="F9">
-          {encerrando ? "Encerrando…" : "Encerrar"}
+          {encerrando ? <><span className="girando" aria-hidden="true" />Encerrando…</> : "Encerrar"}
         </button>
         <button type="button" className="md-btn verde" onClick={salvarPedido} disabled={!totalItens} data-atalho="F8">
           {totalItens > 0 && <i>{totalItens}</i>}
@@ -1678,7 +1678,7 @@ if (pedidosDaMesa.length === 0) {
           {itensPedido.length > 0 && <p className="md-com-linha"><span>Agora</span><span>R$ {formatarMoeda(total)}</span></p>}
           <p className="md-com-linha md-com-total"><span>Total</span><strong>R$ {formatarMoeda(totalGeralMesa)}</strong></p>
           <div className="md-com-botoes">
-            <button type="button" className="md-btn" onClick={abrirModalEncerrar} disabled={encerrando}>{encerrando ? "Encerrando…" : "Encerrar mesa"}</button>
+            <button type="button" className="md-btn" onClick={abrirModalEncerrar} disabled={encerrando}>{encerrando ? <><span className="girando" aria-hidden="true" />Encerrando…</> : "Encerrar mesa"}</button>
             <button type="button" className="md-btn verde" onClick={salvarPedido} disabled={!totalItens}>
               {totalItens > 0 && <i>{totalItens}</i>}
               <span>Salvar pedido</span>

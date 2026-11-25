@@ -149,7 +149,7 @@ export default function Registro({ emRelatorio = false }) {
       </div>
 
       {lista === null ? (
-        <p className="fin-carregando">Carregando…</p>
+        <p className="fin-carregando"><span className="girando" aria-hidden="true" />Carregando…</p>
       ) : !dias.length ? (
         <p className="reg-vazio">Nada registrado {per === "hoje" ? "hoje" : "neste período"}{area || pessoa || busca || soAtencao ? " com esse filtro" : ""}.</p>
       ) : (

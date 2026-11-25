@@ -531,7 +531,7 @@ function Viagem({ modo = "balcao", topo = null }) {
                   Voltar
                 </button>
                 <button type="button" className="modal-btn confirmar" disabled={d.salvando} onClick={salvarPedidoEntrega} data-atalho="F8">
-                  {d.salvando ? "Salvando…" : "Salvar entrega"}
+                  {d.salvando ? <><span className="girando" aria-hidden="true" />Salvando…</> : "Salvar entrega"}
                 </button>
               </div>
             </div>

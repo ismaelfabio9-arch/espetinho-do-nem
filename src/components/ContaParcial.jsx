@@ -254,7 +254,7 @@ export default function ContaParcial({ mesa, itens, itensPorPessoa, total, naoSa
             {msg && <p className="cp-erro">{msg}</p>}
             <div className="cp-botoes">
               <button type="button" className="cp-btn" onClick={() => setReceber(null)}>Cancelar</button>
-              <button type="button" className="cp-btn verde" disabled={salvando} onClick={confirmarReceber}>{salvando ? "Salvando…" : "Confirmar recebido"}</button>
+              <button type="button" className="cp-btn verde" disabled={salvando} onClick={confirmarReceber}>{salvando ? <><span className="girando" aria-hidden="true" />Salvando…</> : "Confirmar recebido"}</button>
             </div>
           </div>
         )}

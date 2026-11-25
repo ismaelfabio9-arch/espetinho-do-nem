@@ -168,7 +168,7 @@ export default function RelatorioCompleto() {
       )}
 
       {!rel ? (
-        <p className="rc-vazio">Carregando…</p>
+        <p className="rc-vazio"><span className="girando" aria-hidden="true" />Carregando…</p>
       ) : (
         (() => {
           const f = rel.f;
@@ -368,7 +368,7 @@ export function LucroPorProduto() {
         </div>
       )}
       {!f ? (
-        <p className="rc-vazio">Carregando…</p>
+        <p className="rc-vazio"><span className="girando" aria-hidden="true" />Carregando…</p>
       ) : (
         <>
           <div className="rc-kpi">
