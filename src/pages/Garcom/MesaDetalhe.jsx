@@ -390,7 +390,9 @@ if (pedidosDaMesa.length === 0) {
     );
     await atualizarPedidoMesa(novos);
     const nomeBase = antigo?.nomeBase || String(nome).split(" — ")[0];
-    const trocas = `pediu ${antes.filter((x) => !depois.includes(x)).join(", ") || "—"}, saiu ${depois.filter((x) => !antes.includes(x)).join(", ") || "—"}`;
+    const pediu = antes.filter((x) => !depois.includes(x));
+    const saiu = depois.filter((x) => !antes.includes(x));
+    const trocas = pediu.length && saiu.length ? `pediu ${pediu.join(", ")}, saiu ${saiu.join(", ")}` : saiu.length ? `acrescentou ${saiu.join(", ")}` : `tirou ${pediu.join(", ") || "nada"}`;
     registrarOcorrencia({ tipo: "saiuDiferente", texto: `${nomeBase}: ${trocas}`, motivo, mesa: id, valor: Number(antigo?.preco || 0) });
     registrar({ area: "pedidos", acao: "Saiu diferente (cliente ficou)", mesa: id, texto: nomeBase, antes: antes.join(", "), depois: depois.join(", "), motivo });
     mostrarNotificacao("Marcado o que saiu. O estoque baixa pelo que saiu.");

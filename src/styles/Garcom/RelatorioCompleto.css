@@ -87,3 +87,19 @@ html body .rc-prod small { color: var(--r-mute); font-size: 12px; }
 }
 /* Período igual em todas as partes do relatório (verde no escolhido) */
 .rc-per button.on { background: #16a34a; border-color: #16a34a; color: #fff; }
+/* Tudo o que aconteceu: por dia, hora numa coluna, tipo em negrito, o que foi e o motivo embaixo, valor à direita */
+.rc-ac-dia + .rc-ac-dia { margin-top: 14px; }
+html body .rc .rc-ac-dt { font-size: 12px; font-weight: 600; text-transform: capitalize; color: var(--r-mute); padding: 4px 0 6px; border-bottom: 1px solid var(--r-linha); }
+.rc-ac { display: grid; grid-template-columns: 46px 1fr auto; gap: 10px; align-items: start; padding: 10px 0; border-bottom: 1px solid var(--r-linha); }
+.rc-ac:last-child { border-bottom: 0; }
+html body .rc .rc-ac-h { font-size: 13px; color: var(--r-mute); font-variant-numeric: tabular-nums; padding-top: 1px; }
+.rc-ac-c { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.rc-ac-c b { font-size: 14.5px; font-weight: 600; }
+html body .rc .rc-ac-c b small { font-weight: 500; color: var(--r-mute); font-size: 12.5px; }
+html body .rc .rc-ac-c span { font-size: 13.5px; color: var(--r-txt); opacity: 0.85; }
+html body .rc .rc-ac-c em { font-style: normal; font-size: 12.5px; color: var(--r-mute); }
+.rc-ac-v { white-space: nowrap; font-weight: 600; font-size: 14px; font-variant-numeric: tabular-nums; }
+html body .rc .rc-ac-v.neg { color: #dc2626; }
+html body .rc .rc-ac-v.pos { color: #16a34a; }
+body.dark .rc .rc-ac-v.neg { color: #f87171 !important; }
+body.dark .rc .rc-ac-v.pos { color: #4ade80 !important; }

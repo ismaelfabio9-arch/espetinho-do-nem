@@ -17,7 +17,6 @@ import "../../styles/Garcom/RelatorioCompleto.css";
 
 const fmt = (v) => Number(v || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const R = (v) => (v < 0 ? `− R$ ${fmt(-v)}` : `R$ ${fmt(v)}`);
-const hora = (iso) => (iso ? new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : "");
 const kg = (q, u) => (u === "un" ? `${Math.round(q)} un` : q < 1 ? `${Math.round(q * 1000)} ${u === "L" ? "ml" : "g"}` : `${String(Math.round(q * 10) / 10).replace(".", ",")} ${u === "L" ? "L" : "kg"}`);
 
 function useCol(fazer, deps) {
@@ -187,11 +186,20 @@ export default function RelatorioCompleto() {
             g.fechados > 0 && g.diferenca !== 0 && { a: g.diferenca < 0 ? "Faltou na gaveta" : "Sobrou na gaveta", b: R(Math.abs(g.diferenca)) },
           ].filter(Boolean);
           const temComida = rel.saidas.lista.length > 0 || rel.acabou.length > 0 || rel.maisGasto.length > 0;
+          // Cada acontecimento: tipo (em negrito), o que foi, o motivo e o valor (+ entrou, − saiu).
+          const textoTroca = (t) => String(t || "").replace(/pediu —, saiu /, "acrescentou ").replace(/, saiu —$/, "");
           const detalhe = [
-            ...g.movimentos.map((m) => ({ id: `g${m.id}`, em: m.em, a: `Caixa do dia · ${m.tipo === "sangria" ? `sangria${m.origem && m.origem !== "Dinheiro" ? ` (${m.origem})` : ""}` : "reforço"} · ${m.motivo || ""}`, b: `${m.tipo === "sangria" ? "−" : "+"} ${R(m.valor)}` })),
-            ...mesLista.map((m) => ({ id: `l${m.id}`, em: m.em, a: `Caixa do mês · ${m.motivo || m.origem}`, b: `${m.tipo === "saida" ? "−" : "+"} ${R(m.valor)}` })),
-            ...[...rel.mexido.tirou, ...rel.mexido.saiu, ...rel.mexido.cortesia].map((o) => ({ id: `o${o.id}`, em: o.em, a: `${o.tipo === "saiuDiferente" ? "Saiu diferente" : o.tipo === "cortesia" ? "Cortesia" : "Tirou"} · ${o.texto}${o.mesa ? ` · mesa ${o.mesa}` : ""}${o.motivo ? ` · ${o.motivo}` : ""}`, b: o.tipo === "saiuDiferente" ? "" : R(o.valor) })),
+            ...g.movimentos.map((m) => ({ id: `g${m.id}`, em: m.em, tipo: m.tipo === "sangria" ? `Sangria do caixa do dia${m.origem && m.origem !== "Dinheiro" ? ` (${m.origem})` : ""}` : "Reforço no caixa do dia", txt: "", motivo: m.motivo, v: m.tipo === "sangria" ? -Number(m.valor || 0) : Number(m.valor || 0) })),
+            ...mesLista.map((m) => ({ id: `l${m.id}`, em: m.em, tipo: m.origem === "fechamento" ? "Caixa do mês · do fechamento" : m.tipo === "saida" ? (m.origem === "pagamento" ? "Pago com o caixa do mês" : "Sangria do caixa do mês") : "Reforço no caixa do mês", txt: m.origem === "pagamento" ? m.motivo : "", motivo: m.origem === "pagamento" || m.origem === "fechamento" ? "" : m.motivo, v: m.tipo === "saida" ? -Number(m.valor || 0) : Number(m.valor || 0) })),
+            ...[...rel.mexido.tirou, ...rel.mexido.saiu, ...rel.mexido.cortesia].map((o) => ({ id: `o${o.id}`, em: o.em, tipo: o.tipo === "saiuDiferente" ? "Saiu diferente" : o.tipo === "cortesia" ? "Cortesia" : "Tirou da comanda", txt: `${o.tipo === "saiuDiferente" ? textoTroca(o.texto) : o.texto}`, mesa: o.mesa, motivo: o.motivo, v: o.tipo === "saiuDiferente" ? null : -Number(o.valor || 0) })),
           ].sort((x, y) => String(y.em).localeCompare(String(x.em)));
+          const porDia = [];
+          detalhe.forEach((x) => {
+            const d = new Date(x.em).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit" });
+            const g2 = porDia[porDia.length - 1];
+            if (g2 && g2.dia === d) g2.itens.push(x);
+            else porDia.push({ dia: d, itens: [x] });
+          });
           return (
             <>
               <div className="rc-kpi">
@@ -299,7 +307,22 @@ export default function RelatorioCompleto() {
               {detalhe.length > 0 && (
                 <details className="rc-card rc-detalhe">
                   <summary>Tudo o que aconteceu ({detalhe.length})</summary>
-                  {detalhe.map((x) => <Ln key={x.id} a={`${hora(x.em)} · ${x.a}`} b={x.b} />)}
+                  {porDia.map((d) => (
+                    <div key={d.dia} className="rc-ac-dia">
+                      <div className="rc-ac-dt">{d.dia}</div>
+                      {d.itens.map((x) => (
+                        <div key={x.id} className="rc-ac">
+                          <span className="rc-ac-h">{new Date(x.em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}</span>
+                          <span className="rc-ac-c">
+                            <b>{x.tipo}{x.mesa ? <small> · mesa {x.mesa}</small> : null}</b>
+                            {x.txt && <span>{x.txt}</span>}
+                            {x.motivo && <em>{x.motivo}</em>}
+                          </span>
+                          <span className={`rc-ac-v${x.v === null ? "" : x.v < 0 ? " neg" : " pos"}`}>{x.v === null ? "" : `${x.v < 0 ? "−" : "+"} ${R(Math.abs(x.v))}`}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ))}
                 </details>
               )}
 
