@@ -42,13 +42,14 @@ function useColecao(nome) {
 }
 
 /** embutido: dentro de Cardápio e estoque → Estoque (sem título próprio; uma fileira de abas só). dia: a tela da quantidade do dia por produto. */
-function Insumos({ embutido = false, dia = null, semLista = false }) {
+function Insumos({ embutido = false, dia = null, semLista = false, somente = null }) {
   const insumos = useColecao("insumos");
   const movs = useMovs();
   const [params, setParams] = useSearchParams();
-  const primeira = semLista ? "contagem" : "estoque";
+  // somente: só estas partes (o Relatório mostra Perdas e Histórico; o Estoque fica com Contagem e o do dia).
+  const primeira = somente ? somente[0] : semLista ? "contagem" : "estoque";
   const inicial = { ingredientes: primeira, dia: dia ? "dia" : primeira }[params.get("sub")] || params.get("sub") || primeira;
-  const [aba, setAbaEstado] = useState([...(semLista ? [] : ["estoque"]), "contagem", "perdas", "historico", "dia"].includes(inicial) ? inicial : primeira);
+  const [aba, setAbaEstado] = useState([...(semLista ? [] : ["estoque"]), "contagem", "perdas", "historico", "dia"].filter((x) => !somente || somente.includes(x)).includes(inicial) ? inicial : primeira);
   const setAba = (id) => {
     setAbaEstado(id);
     if (embutido) {
@@ -57,7 +58,7 @@ function Insumos({ embutido = false, dia = null, semLista = false }) {
       setParams(p, { replace: true });
     }
   };
-  const abas = [...ABAS.filter((a) => !(semLista && a.id === "estoque")).map((a) => (a.id === "estoque" && embutido ? { ...a, nome: "Ingredientes" } : a)), ...(dia ? [{ id: "dia", nome: "Quantidade do dia" }] : [])];
+  const abas = [...ABAS.filter((a) => !(semLista && a.id === "estoque")).map((a) => (a.id === "estoque" && embutido ? { ...a, nome: "Ingredientes" } : a)), ...(dia ? [{ id: "dia", nome: "Quantidade do dia" }] : [])].filter((a) => !somente || somente.includes(a.id));
   const ativos = useMemo(() => (insumos || []).filter((i) => i.ativo !== false).sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR")), [insumos]);
   const porId = useMemo(() => Object.fromEntries((insumos || []).map((i) => [i.id, i])), [insumos]);
   const carregando = insumos === null || movs === null;
