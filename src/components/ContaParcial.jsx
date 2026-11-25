@@ -108,9 +108,9 @@ export default function ContaParcial({ mesa, itens, itensPorPessoa, total, naoSa
 
   return (
     <div className="modal-overlay" onClick={onFechar}>
-      <div className="modal-card cp" onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Conta da Mesa ${mesa}`}>
+      <div className={`modal-card cp${receber ? " com-receber" : ""}`} onClick={(e) => e.stopPropagation()} role="dialog" aria-label={`Conta da Mesa ${mesa}`}>
         <div className="cp-topo">
-          <h2>🧾 Conta da Mesa {mesa}</h2>
+          <h2>Conta da Mesa {mesa}</h2>
           <button type="button" className="cp-x" onClick={onFechar} aria-label="Fechar">✕</button>
         </div>
 
@@ -129,7 +129,7 @@ export default function ContaParcial({ mesa, itens, itensPorPessoa, total, naoSa
           </div>
         </div>
         {naoSalvo > 0 && <p className="cp-aviso">Tem R$ {moeda(naoSalvo)} em itens ainda não salvos: salve o pedido para entrarem na conta.</p>}
-        {falta === 0 && total > 0 && <p className="cp-ok">✅ A conta toda foi paga. Pode encerrar a mesa.</p>}
+        {falta === 0 && total > 0 && <p className="cp-ok">A conta toda foi paga. Pode encerrar a mesa.</p>}
 
         <div className="cp-abas" role="tablist">
           {[["conta", "Conta"], ["dividir", "Dividir conta"]].map(([k, n]) => (
@@ -160,8 +160,8 @@ export default function ContaParcial({ mesa, itens, itensPorPessoa, total, naoSa
               </ul>
             )}
             <div className="cp-botoes">
-              {podeImprimir && <button type="button" className="cp-btn" onClick={() => onImprimir()}>🖨️ Imprimir conta parcial</button>}
-              {falta > 0 && <button type="button" className="cp-btn verde" onClick={() => abrirReceber(falta)}>💵 Receber um valor</button>}
+              {podeImprimir && <button type="button" className="cp-btn" onClick={() => onImprimir()}>Imprimir conta parcial</button>}
+              {falta > 0 && <button type="button" className="cp-btn verde" onClick={() => abrirReceber(falta)}>Receber um valor</button>}
             </div>
           </>
         )}
