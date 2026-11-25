@@ -71,8 +71,7 @@ export function Dinheiro() {
         icone="💰"
         padrao="hoje"
         abas={[
-          { id: "hoje", nome: "Hoje", tela: () => <DinheiroHoje /> },
-          { id: "lancamentos", antigos: ["despesas"], nome: "Lançamentos", soDono: true, senha: true, tela: () => <Financas abas={["lancamentos"]} titulo="Lançamentos" texto="Compras, despesas e entradas." /> },
+          { id: "hoje", antigos: ["lancamentos", "despesas"], nome: "Hoje", tela: () => <DinheiroHoje /> },
           { id: "relatorio", antigos: ["lucro", "pedidos", "dias", "mexido"], nome: "Relatório", tela: () => <RelatorioArea /> },
         ]}
       />

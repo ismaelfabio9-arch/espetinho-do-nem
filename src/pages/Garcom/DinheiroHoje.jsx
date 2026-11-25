@@ -2,7 +2,7 @@
 // (só o dono) e tudo o que aconteceu hoje numa lista só, com hora, quem fez e o valor.
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { collection, doc, limit, onSnapshot, orderBy, query, setDoc, where } from "firebase/firestore";
+import { collection, deleteDoc, doc, limit, onSnapshot, orderBy, query, setDoc, where } from "firebase/firestore";
 import { db } from "../../firebase";
 import { L } from "../../loja";
 import { useSouDono } from "../../tenant";
@@ -182,6 +182,7 @@ export default function DinheiroHoje() {
               ))}
             </ul>
           )}
+          {souDono && !precisaSenha && <LancamentosMes lista={despesasMes} />}
         </div>
         {souDono && (
           <div className={`dh-lanc${acao === "lancar" ? " aberto" : ""}`}>
@@ -376,6 +377,50 @@ function EntradaAlimento({ fechar }) {
           </form>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Lançamentos do mês (antes era a aba Lançamentos): todos do mês, com apagar. */
+function LancamentosMes({ lista }) {
+  const [aberto, setAberto] = useState(false);
+  const [apagar, setApagar] = useState(null);
+  const todos = (lista || []).slice().sort((a, b) => String(b.data).localeCompare(String(a.data)));
+  const saiu = todos.filter((d) => grupoDe(d.tipo).saida).reduce((t, d) => t + Number(d.valor || 0), 0);
+  if (!todos.length) return null;
+  return (
+    <div className="dh-mes">
+      <button type="button" className="dh-mes-topo" onClick={() => setAberto(!aberto)} aria-expanded={aberto}>
+        <span>{aberto ? "▾" : "▸"} Lançamentos do mês</span>
+        <small>{todos.length} · saiu R$ {fmt(saiu)}</small>
+      </button>
+      {aberto && (
+        <ul className="dh-lista">
+          {todos.map((d) => {
+            const t = tipoDe(d.tipo);
+            const g = grupoDe(d.tipo);
+            return (
+              <li key={d.id}>
+                <div>
+                  <b>{d.descricao || t.nome}</b>
+                  <span>{String(d.data || "").split("-").reverse().slice(0, 2).join("/")} · {t.nome}{d.fornecedor ? ` · ${d.fornecedor}` : ""}</span>
+                </div>
+                <span className="dh-mes-dir">
+                  <strong className={g.saida ? "dh-neg" : "dh-pos"}>{g.saida ? "− " : "+ "}R$ {fmt(d.valor)}</strong>
+                  {apagar === d.id ? (
+                    <span className="dh-mes-conf">
+                      <button type="button" className="sim" onClick={() => deleteDoc(doc(db, ...L(), "despesas", d.id)).then(() => registrar({ area: "dinheiro", acao: "Apagou lançamento", texto: `${d.descricao || t.nome} · dia ${String(d.data || "").split("-").reverse().join("/")}`, valor: d.valor })).finally(() => setApagar(null))}>Apagar</button>
+                      <button type="button" onClick={() => setApagar(null)}>Não</button>
+                    </span>
+                  ) : (
+                    <button type="button" className="dh-mes-x" aria-label={`Apagar ${d.descricao || t.nome}`} onClick={() => setApagar(d.id)}>✕</button>
+                  )}
+                </span>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </div>
   );
 }
