@@ -193,7 +193,7 @@ export default function CardapioOnline() {
     setEtapa("dados");
   }
 
-  if (!entrega.carregado) return <div className="online cl-pagina"><p className="online-vazio"><span className="girando" aria-hidden="true" />Carregando o cardápio…</p></div>;
+  if (!entrega.carregado) return <div className="online cl-pagina"><p className="online-vazio"><span className="if-carrega" aria-hidden="true"><i /></span>Carregando o cardápio…</p></div>;
   const aberta = ligadoNoPlano && entrega.ligado;
 
   return (

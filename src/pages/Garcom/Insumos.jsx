@@ -99,7 +99,7 @@ function Insumos({ embutido = false, dia = null, semLista = false, somente = nul
       {aba === "dia" && dia ? (
         <div className="ins-dia">{dia}</div>
       ) : carregando ? (
-        <p className="fin-carregando"><span className="girando" aria-hidden="true" />Carregando…</p>
+        <p className="fin-carregando"><span className="if-carrega" aria-hidden="true"><i /></span>Carregando…</p>
       ) : aba === "estoque" ? (
         <Estoque insumos={ativos} prev={prev} perdasMes={perdasMes} verPerdas={() => setAba("perdas")} />
       ) : aba === "contagem" ? (
@@ -503,7 +503,7 @@ function Historico({ porId }) {
   const [lista, setLista] = useState(null);
   useEffect(() => onSnapshot(query(collection(db, ...L(), "insumosMov"), orderBy("em", "desc"), limit(150)), (s) => setLista(s.docs.map((d) => ({ id: d.id, ...d.data() }))), () => setLista([])), []);
   const NOME = { venda: "Venda", compra: "Compra", perda: "Perda", contagem: "Contagem" };
-  if (lista === null) return <p className="fin-carregando"><span className="girando" aria-hidden="true" />Carregando…</p>;
+  if (lista === null) return <p className="fin-carregando"><span className="if-carrega" aria-hidden="true"><i /></span>Carregando…</p>;
   return (
     <div className="relatorio-documento">
       <h2>Entradas e saídas</h2>

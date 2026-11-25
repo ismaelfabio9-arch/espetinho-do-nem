@@ -160,7 +160,7 @@ export default function RegistrarPerda({ fechar, inicial = {} }) {
 
         <input className="pd-busca" placeholder={itens.length ? "Adicionar outro item" : "Buscar prato ou ingrediente"} value={busca} onChange={(e) => setBusca(e.target.value)} />
         {carregando && busca ? (
-          <p className="fin-carregando"><span className="girando" aria-hidden="true" />Carregando…</p>
+          <p className="fin-carregando"><span className="if-carrega" aria-hidden="true"><i /></span>Carregando…</p>
         ) : (
           busca.trim() && (
             <ul className="pd-lista">

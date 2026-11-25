@@ -185,8 +185,9 @@ export default function FechamentoDia({ onCancelar, onConfirmar, encerrando }) {
       <div className="fd">
         {encerrando && (
           <div className="fd-encerrando" role="status">
-            <span className="girando" aria-hidden="true" />
+            <span className="if-carrega grande" aria-hidden="true"><i /></span>
             <b>Encerrando o dia…</b>
+            <span className="if-pontos" aria-hidden="true"><i /><i /><i /></span>
             <small>Fechando as mesas, guardando o relatório e o caixa</small>
           </div>
         )}
@@ -195,7 +196,7 @@ export default function FechamentoDia({ onCancelar, onConfirmar, encerrando }) {
           <small>{new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" })}</small>
         </div>
         {!f ? (
-          <p className="fd-vazio"><span className="girando" aria-hidden="true" />Carregando…</p>
+          <p className="fd-vazio"><span className="if-carrega" aria-hidden="true"><i /></span>Carregando…</p>
         ) : (
           <div className="fd-grade">
             <section className="fd-card">

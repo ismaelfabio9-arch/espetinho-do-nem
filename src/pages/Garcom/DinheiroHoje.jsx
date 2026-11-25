@@ -164,7 +164,7 @@ export default function DinheiroHoje() {
         <div className="dh-hoje">
           <h2>Hoje</h2>
           {carregando ? (
-            <p className="dh-vazio"><span className="girando" aria-hidden="true" />Carregando…</p>
+            <p className="dh-vazio"><span className="if-carrega" aria-hidden="true"><i /></span>Carregando…</p>
           ) : linhas.length === 0 ? (
             <p className="dh-vazio">Nada lançado hoje.</p>
           ) : (

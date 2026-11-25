@@ -46,7 +46,7 @@ function Caixa() {
         </div>
       </div>
       {carregando ? (
-        <p className="fin-carregando"><span className="girando" aria-hidden="true" />Carregando…</p>
+        <p className="fin-carregando"><span className="if-carrega" aria-hidden="true"><i /></span>Carregando…</p>
       ) : ver ? (
         <Fechamento caixa={ver} r={resumoCaixa(ver, vendasDoCaixa(ver, dias, hoje), movs, taxas)} nomeLoja={nomeLoja} voltar={() => setVer(null)} />
       ) : aberto ? (

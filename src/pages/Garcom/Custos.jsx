@@ -131,7 +131,7 @@ export default function Custos({ produtos, insumos, fichas }) {
   const desde = Date.parse(salvo?.custosConferidoEm || "") || 0;
   const mexidos = useMemo(() => ultimosMexidos(insumos, desde), [insumos, desde]);
   const mexidoEm = Object.fromEntries(mexidos.map((m) => [m.id, m.em]));
-  if (salvo === null) return <p className="fin-carregando"><span className="girando" aria-hidden="true" />Carregando…</p>;
+  if (salvo === null) return <p className="fin-carregando"><span className="if-carrega" aria-hidden="true"><i /></span>Carregando…</p>;
 
   const temPreco = (i) => typeof i.custo === "number" && i.custo > 0;
   const semPreco = ativos.filter((i) => !temPreco(i));
