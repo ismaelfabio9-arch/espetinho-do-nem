@@ -42,6 +42,20 @@ function Pedidos() {
   const nomeLoja = useNomeLoja();
   const [pedidos, setPedidos] = useState([]);
   const [nomesMesas, setNomesMesas] = useState({});
+  // Número curto do dia (1, 2, 3…) de cada pedido que já foi impresso, e o relógio para o "há X min".
+  const [numeros, setNumeros] = useState({});
+  const [agora, setAgora] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setAgora(Date.now()), 30000);
+    const sair = onSnapshot(doc(db, ...L(), "contadores", "pedidos"), (snap) => {
+      const d = snap.data() || {};
+      setNumeros(d.dia === new Date().toLocaleDateString("sv-SE") ? d.ids || {} : {});
+    }, () => {});
+    return () => {
+      clearInterval(t);
+      sair();
+    };
+  }, []);
   const [busca, setBusca] = useState("");
   const [filtro, setFiltro] = useState("todos");
   const [pc, setPc] = useState(largo);
@@ -72,8 +86,9 @@ function Pedidos() {
   function pesoStatus(status) {
     if (status === "aberta" || status === "aberto") return 1;
     if (status === "Em preparo") return 2;
-    if (status === "Entregue") return 3;
-    return 4;
+    if (status === "Pronto") return 3;
+    if (status === "Entregue") return 4;
+    return 5;
   }
 
   function tituloPedido(pedido) {
@@ -252,11 +267,7 @@ function Pedidos() {
     }
   }
 
-  function classeStatus(status) {
-    if (status === "Em preparo") return "status-preparo";
-    if (status === "Entregue") return "status-entregue";
-    return "status-novo";
-  }
+
 
   const contagem = pedidos.reduce((c, p) => ({ ...c, [grupoDe(p)]: (c[grupoDe(p)] || 0) + 1 }), {});
 
@@ -279,46 +290,59 @@ function Pedidos() {
     );
   });
 
-  const cartao = (pedido) => (
-    <div key={pedido.id} className="pedido-card">
-      <div className="pedido-topo">
+  // Passos do pedido: aberto → Em preparo → Pronto → Entregue. Um botão só leva ao próximo.
+  const PASSOS = ["aberto", "Em preparo", "Pronto", "Entregue"];
+  const passoDe = (st) => (st === "aberta" ? 0 : Math.max(0, PASSOS.indexOf(st)));
+  const PROXIMO = { 0: ["Em preparo", "Começar preparo"], 1: ["Pronto", "Marcar pronto"], 2: ["Entregue", "Marcar entregue"] };
+  const minutosDe = (p) => {
+    const t = Date.parse(p.salvoEm || p.criadoEm?.toDate?.()?.toISOString?.() || "");
+    return Number.isFinite(t) ? Math.max(0, Math.floor((agora - t) / 60000)) : null;
+  };
+  const textoTempo = (m) => (m === null ? "" : m < 1 ? "agora" : m < 60 ? `há ${m} min` : `há ${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}`);
+  const nomeCartao = (p) => {
+    if (p.tipo === "mesa") return tituloPedido(p);
+    if (p.tipo === "entrega") return tituloPedido(p);
+    if (p.titulo) return p.titulo;
+    const n = numeros[p.id] || numeros[p.numero];
+    return `${n ? `Pedido ${n}` : "Balcão"}${p.cliente ? ` · ${p.cliente}` : ""}`;
+  };
+
+  const cartao = (pedido) => {
+    const passo = passoDe(pedido.status);
+    const min = minutosDe(pedido);
+    const atrasado = min !== null && min >= 20 && passo < 3;
+    const prox = PROXIMO[passo];
+    return (
+    <div key={pedido.id} className={`pedido-card pc2${atrasado ? " atrasado" : ""}`}>
+      <div className="pc2-topo">
         <div>
-          <span className={`pedido-tipo ${pedido.tipo === "entrega" ? "pedido-tipo-entrega" : ""}`}>
-            {pedido.tipo === "mesa" ? "Mesa" : pedido.tipo === "entrega" ? `${pedido.modo === "retirada" ? "Retirada" : "Entrega"} · ${pedido.origem === "manual" ? "telefone" : "site"}` : "🛍️ Balcão / viagem"}
+          <span className="pc2-tipo">
+            {pedido.tipo === "mesa" ? "Mesa" : pedido.tipo === "entrega" ? `${pedido.modo === "retirada" ? "Retirada" : "Entrega"} · ${pedido.origem === "manual" ? "telefone" : "site"}` : "Balcão · viagem"}
           </span>
-
-          <h3>{tituloPedido(pedido)}</h3>
-
-          <span>
-            {pedido.totalItens} itens • R$ {formatarMoeda(pedido.total)}
-          </span>
-
-          {pedido.salvoEm && (
-            <small className="pedido-horario">
-              Criado às {formatarHora(pedido.salvoEm)}
-            </small>
-          )}
+          <h3>{nomeCartao(pedido)}</h3>
+          <small>{pedido.totalItens} {Number(pedido.totalItens) === 1 ? "item" : "itens"}{pedido.salvoEm ? ` · feito às ${formatarHora(pedido.salvoEm)}` : ""}</small>
         </div>
-
-        <strong className={classeStatus(pedido.status)}>
-          {pedido.status}
-        </strong>
+        <div className="pc2-st">
+          <b className={`pc2-status p${passo}`}>{passo === 0 ? "Novo" : PASSOS[passo]}</b>
+          {min !== null && passo < 3 && <small className={atrasado ? "pc2-atraso" : ""}>{textoTempo(min)}</small>}
+        </div>
+      </div>
+      <div className="pc2-passos" aria-hidden="true">
+        {PASSOS.map((x, i) => <i key={x} className={i <= passo ? "on" : ""} />)}
       </div>
 
-      <div className="pedido-itens">
+      <div className="pc2-itens">
         {ordenarItensPorPreco(pedido.itens).map((item) => (
-          <div className="pedido-item-linha" key={item.nome}>
-            <span className="item-partes">
-              <span className="item-nome">{Number(item.qtd || item.quantidade || 0)}x {partesDoItem(item).nome}</span>
-              {partesDoItem(item).detalhes.map((d, k) => <span key={k} className="item-det">{d}</span>)}
-            </span>
-
-            <strong>
-              R${" "}
-              {formatarMoeda(
-                Number(item.preco || 0) * Number(item.qtd || item.quantidade || 0)
-              )}
-            </strong>
+          <div className="pc2-item" key={item.nome}>
+            <div className="pc2-l1">
+              <span>{Number(item.qtd || item.quantidade || 0)}× {partesDoItem(item).nome}</span>
+              <span>R$ {formatarMoeda(Number(item.preco || 0) * Number(item.qtd || item.quantidade || 0))}</span>
+            </div>
+            {partesDoItem(item).detalhes.length > 0 && (
+              <div className="pc2-det">
+                {partesDoItem(item).detalhes.map((d, k) => <span key={k}>{d}</span>)}
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -358,41 +382,26 @@ function Pedidos() {
         </div>
       )}
 
-      <div className="pedido-total">
+      <div className="pc2-total">
         <span>Total</span>
         <strong>R$ {formatarMoeda(pedido.total)}</strong>
       </div>
 
-      <div className="pedido-acoes">
-        <button
-          className="btn-verde"
-          onClick={() => alterarStatus(pedido.id, "Em preparo")}
-        >
-          Em preparo
-        </button>
-
-        <button
-          className="btn-cinza"
-          onClick={() => alterarStatus(pedido.id, "Entregue")}
-        >
-          Entregue
-        </button>
-
-        {pedido.tipo === "entrega" && (
-          <button className="btn-cinza" onClick={() => void imprimirEntrega(pedido)}>
-            Imprimir
-          </button>
+      <div className="pc2-acoes">
+        {prox ? (
+          <button type="button" className="pc2-prox" onClick={() => alterarStatus(pedido.id, prox[0])}>{prox[1]}</button>
+        ) : (
+          <span className="pc2-entregue">Entregue</span>
         )}
-
-        <button
-          className="btn-remover"
-          onClick={() => finalizar(pedido)}
-        >
-          Finalizar
-        </button>
+        <button type="button" className="pc2-fin" onClick={() => finalizar(pedido)}>Finalizar</button>
+      </div>
+      <div className="pc2-mais">
+        {pedido.tipo === "entrega" ? <button type="button" onClick={() => void imprimirEntrega(pedido)}>Imprimir</button> : <span />}
+        {passo > 0 && <button type="button" onClick={() => alterarStatus(pedido.id, PASSOS[passo - 1] === "aberto" ? "aberto" : PASSOS[passo - 1])}>Voltar um passo</button>}
       </div>
     </div>
-  );
+    );
+  };
 
   const modalPagamento = pagarPedido && (
     <div className="modal-overlay" onClick={() => setPagarPedido(null)}>

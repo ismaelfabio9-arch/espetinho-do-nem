@@ -139,3 +139,47 @@ body.dark .status-entregue { background: var(--green-bg) !important; color: #86e
   .container.pedidos-pagina { max-width: 1280px; }
 }
 .pedido-item-linha { align-items: flex-start; }
+
+/* Cartão de pedido: passo a passo, tempo de espera, o que vem no prato em etiquetas e um botão para o próximo passo */
+.pedido-card.pc2 { --c-txt: #111827; --c-mute: #6b7280; --c-linha: #e5e7eb; --c-box: #f3f4f6; padding: 0 !important; overflow: hidden; border-radius: 14px; }
+body.dark .pedido-card.pc2 { --c-txt: #f4f4f5; --c-mute: #a1a1aa; --c-linha: #26262a; --c-box: #202125; background: #141416 !important; border-color: #26262a !important; }
+.pedido-card.pc2.atrasado { border-color: #dc2626 !important; }
+html body .pc2 :is(span, small, b, strong, h3) { color: inherit; }
+.pc2 { color: var(--c-txt); }
+.pc2-topo { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; padding: 14px 16px 10px; }
+html body .pc2 .pc2-tipo { font-size: 11.5px; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--c-mute); }
+.pc2-topo h3 { margin: 2px 0 0; font-size: 19px; font-weight: 700; }
+html body .pc2-topo small { color: var(--c-mute); font-size: 13px; }
+.pc2-st { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; flex: none; }
+.pc2-status { font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; }
+html body .pc2 .pc2-status.p0 { background: #dbeafe; color: #1d4ed8; }
+html body .pc2 .pc2-status.p1 { background: #fef3c7; color: #b45309; }
+html body .pc2 .pc2-status.p2 { background: #dcfce7; color: #15803d; }
+html body .pc2 .pc2-status.p3 { background: var(--c-box); color: var(--c-mute); }
+body.dark .pc2 .pc2-status.p0 { background: #172554 !important; color: #93c5fd !important; }
+body.dark .pc2 .pc2-status.p1 { background: #2a2110 !important; color: #fbbf24 !important; }
+body.dark .pc2 .pc2-status.p2 { background: #0f2417 !important; color: #4ade80 !important; }
+html body .pc2-st small { font-size: 12.5px; font-weight: 600; color: var(--c-mute); }
+html body .pc2-st small.pc2-atraso { color: #dc2626; }
+body.dark .pc2-st small.pc2-atraso { color: #f87171 !important; }
+.pc2-passos { display: flex; gap: 4px; padding: 0 16px 12px; }
+.pc2-passos i { flex: 1; height: 4px; border-radius: 2px; background: var(--c-linha); }
+.pc2-passos i.on { background: #16a34a; }
+.pc2-itens { border-top: 1px solid var(--c-linha); }
+.pc2-item { padding: 10px 16px; }
+.pc2-item + .pc2-item { border-top: 1px solid var(--c-linha); }
+.pc2-l1 { display: flex; justify-content: space-between; gap: 10px; font-weight: 600; font-size: 15px; }
+.pc2-l1 span:last-child { white-space: nowrap; }
+.pc2-det { display: flex; flex-wrap: wrap; gap: 4px 6px; margin-top: 6px; }
+html body .pc2-det span { font-size: 12.5px; background: var(--c-box); border-radius: 6px; padding: 3px 7px; color: var(--c-txt); opacity: 0.9; }
+.pc2 .pedido-entrega { margin: 0; padding: 10px 16px; border-top: 1px solid var(--c-linha); }
+.pc2-total { display: flex; justify-content: space-between; align-items: baseline; padding: 10px 16px; border-top: 1px solid var(--c-linha); }
+html body .pc2-total span { color: var(--c-mute); font-size: 14px; }
+.pc2-total strong { font-size: 20px; }
+.pc2-acoes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 16px 8px; }
+.pc2-acoes button, .pc2-entregue { border-radius: 10px; padding: 12px; font: inherit; font-weight: 700; font-size: 15px; text-align: center; }
+.pc2-prox { border: 0; background: #16a34a; color: #fff; cursor: pointer; }
+html body .pc2 .pc2-entregue { background: var(--c-box); color: var(--c-mute); }
+.pc2-fin { border: 1px solid var(--c-linha); background: transparent; color: var(--c-txt); cursor: pointer; }
+.pc2-mais { display: flex; justify-content: space-between; padding: 0 16px 12px; }
+.pc2-mais button { border: 0; background: transparent; color: var(--c-mute); font: inherit; font-size: 13px; cursor: pointer; padding: 4px 0; }
