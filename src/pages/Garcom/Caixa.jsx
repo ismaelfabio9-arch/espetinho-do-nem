@@ -46,7 +46,7 @@ function Caixa() {
         </div>
       </div>
       {carregando ? (
-        <p className="fin-carregando">Carregando…</p>
+        <p className="fin-carregando"><span className="girando" aria-hidden="true" />Carregando…</p>
       ) : ver ? (
         <Fechamento caixa={ver} r={resumoCaixa(ver, vendasDoCaixa(ver, dias, hoje), movs, taxas)} nomeLoja={nomeLoja} voltar={() => setVer(null)} />
       ) : aberto ? (
@@ -111,7 +111,7 @@ export function Abrir({ ultimo, onAberto }) {
         </label>
       </div>
       {erro && <p className="fin-erro">{erro}</p>}
-      <button className="btn-verde" disabled={salvando}>{salvando ? "Abrindo…" : "Abrir caixa"}</button>
+      <button className="btn-verde" disabled={salvando}>{salvando ? <><span className="girando" aria-hidden="true" />Abrindo…</> : "Abrir caixa"}</button>
     </form>
   );
 }
@@ -304,7 +304,7 @@ function Fechar({ caixa, r, cancelar }) {
         {erro && <p className="fin-erro">{erro}</p>}
         <div className="ins-modal-botoes">
           <button type="button" className="ins-btn" onClick={cancelar}>Cancelar</button>
-          <button className="btn-verde" disabled={salvando}>{salvando ? "Fechando…" : "Confirmar fechamento"}</button>
+          <button className="btn-verde" disabled={salvando}>{salvando ? <><span className="girando" aria-hidden="true" />Fechando…</> : "Confirmar fechamento"}</button>
         </div>
       </form>
     </div>

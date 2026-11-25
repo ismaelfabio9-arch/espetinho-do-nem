@@ -29,7 +29,7 @@ export default function FotoProduto({ produto, foto }) {
         <div className="foto-prod-quadro">{foto ? <img src={foto} alt={produto.nome} /> : <span aria-hidden="true">📷</span>}</div>
         <div className="foto-prod-acoes">
           <button type="button" className="foto-prod-btn" disabled={estado === "salvando"} onClick={() => entrada.current?.click()}>
-            {estado === "salvando" ? "Salvando…" : foto ? "Trocar foto" : "Pôr foto"}
+            {estado === "salvando" ? <><span className="girando" aria-hidden="true" />Salvando…</> : foto ? "Trocar foto" : "Pôr foto"}
           </button>
           {foto && !tirar && (
             <button type="button" className="foto-prod-tirar" onClick={() => setTirar(true)}>Tirar a foto</button>

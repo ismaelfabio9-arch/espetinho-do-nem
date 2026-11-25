@@ -183,12 +183,19 @@ export default function FechamentoDia({ onCancelar, onConfirmar, encerrando }) {
   return (
     <div className="fd-fundo" role="dialog" aria-modal="true" aria-label="Fechamento do dia">
       <div className="fd">
+        {encerrando && (
+          <div className="fd-encerrando" role="status">
+            <span className="girando" aria-hidden="true" />
+            <b>Encerrando o dia…</b>
+            <small>Fechando as mesas, guardando o relatório e o caixa</small>
+          </div>
+        )}
         <div className="fd-cab">
           <h1>Fechamento do dia</h1>
           <small>{new Date().toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" })}</small>
         </div>
         {!f ? (
-          <p className="fd-vazio">Carregando…</p>
+          <p className="fd-vazio"><span className="girando" aria-hidden="true" />Carregando…</p>
         ) : (
           <div className="fd-grade">
             <section className="fd-card">
@@ -283,7 +290,7 @@ export default function FechamentoDia({ onCancelar, onConfirmar, encerrando }) {
         <div className="fd-bt">
           <button type="button" className="fd-cancelar" disabled={encerrando} onClick={onCancelar}>Cancelar</button>
           <button type="button" className="fd-sem" disabled={!f || encerrando || (esperado !== null && Math.abs(sobra) > 0.009)} onClick={() => encerrar(false)}>Encerrar sem imprimir</button>
-          <button type="button" className="fd-com" disabled={!f || encerrando || (esperado !== null && Math.abs(sobra) > 0.009)} onClick={() => encerrar(true)}>{encerrando ? "Encerrando…" : "Encerrar e imprimir"}</button>
+          <button type="button" className="fd-com" disabled={!f || encerrando || (esperado !== null && Math.abs(sobra) > 0.009)} onClick={() => encerrar(true)}>{encerrando ? <><span className="girando" aria-hidden="true" />Encerrando…</> : "Encerrar e imprimir"}</button>
         </div>
       </div>
     </div>

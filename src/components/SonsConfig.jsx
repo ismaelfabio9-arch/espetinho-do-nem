@@ -33,7 +33,7 @@ export default function SonsConfig() {
             <li key={id}>
               <span>{s.nome}</span>
               <button type="button" className="config-btn" onClick={() => ouvir(id)} aria-label={`Ouvir: ${s.nome}`}>
-                {tocando === id ? "Tocando…" : "Ouvir"}
+                {tocando === id ? <><span className="girando" aria-hidden="true" />Tocando…</> : "Ouvir"}
               </button>
             </li>
           ))}

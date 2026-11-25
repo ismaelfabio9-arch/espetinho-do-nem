@@ -148,12 +148,12 @@ export default function PainelDono() {
           <p>Cada uma das suas lojas e o total somado, num lugar só. Só o dono entra, com a conta Google dele.</p>
           <p className="dono-aviso">🔒 O acesso não fica salvo neste aparelho: saiu desta tela, ele fecha.</p>
           <button type="button" className="dono-btn" onClick={entrar} disabled={entrando}>
-            {entrando ? "Entrando…" : "Entrar com a conta do dono"}
+            {entrando ? <><span className="girando" aria-hidden="true" />Entrando…</> : "Entrar com a conta do dono"}
           </button>
           {erro && <p className="dono-erro">{erro}</p>}
         </div>
       ) : !dados ? (
-        <p className="dono-carregando">Carregando as lojas…</p>
+        <p className="dono-carregando"><span className="girando" aria-hidden="true" />Carregando as lojas…</p>
       ) : dados.porLoja.length < 2 ? (
         <div className="dono-entrar">
           <div className="dono-icone" aria-hidden="true">🏪</div>

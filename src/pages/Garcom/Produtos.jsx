@@ -1092,7 +1092,7 @@ function Produtos() {
                 </button>
                 )}
                 <button type="button" className="btn-verde" disabled={ficha.salvando} onClick={salvarFicha}>
-                  {ficha.salvando ? "Salvando…" : "Salvar"}
+                  {ficha.salvando ? <><span className="girando" aria-hidden="true" />Salvando…</> : "Salvar"}
                 </button>
               </div>
             </div>

@@ -146,7 +146,7 @@ function Financas({ abas = ["resumo", "lancamentos"], titulo = "Dinheiro", texto
       </div>
 
       {carregando ? (
-        <p className="fin-carregando">Carregando…</p>
+        <p className="fin-carregando"><span className="girando" aria-hidden="true" />Carregando…</p>
       ) : aba === "lancamentos" ? (
         <Lancamentos f={f} categorias={categorias} />
       ) : aba === "custos" ? (
@@ -482,7 +482,7 @@ export function NovoLancamento({ categorias = [], onSalvo, tipoInicial = "", val
       {grupo?.id === "fixa" && <p className="nl-aviso">Despesa fixa: entra também no Preço certo, nas despesas fixas do mês.</p>}
       {grupo?.id === "compra" && <p className="nl-aviso">Compra vira estoque: entra no lucro só quando o produto é vendido.</p>}
       {erro && <p className="fin-erro">{erro}</p>}
-      <button className="nl-ok" disabled={salvando}>{salvando ? "Salvando…" : "Lançar"}</button>
+      <button className="nl-ok" disabled={salvando}>{salvando ? <><span className="girando" aria-hidden="true" />Salvando…</> : "Lançar"}</button>
     </form>
   );
 }

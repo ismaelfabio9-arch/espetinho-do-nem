@@ -283,7 +283,7 @@ export function NovoInsumo({ insumos, editar, fechar, aoCriar, nomeInicial = "" 
             </span>
           )}
           <button type="button" className="ins-btn" onClick={fechar}>Cancelar</button>
-          <button className="btn-verde" disabled={salvando}>{salvando ? "Salvando…" : ed ? "Salvar" : "Cadastrar"}</button>
+          <button className="btn-verde" disabled={salvando}>{salvando ? <><span className="girando" aria-hidden="true" />Salvando…</> : ed ? "Salvar" : "Cadastrar"}</button>
         </div>
       </form>
     </div>
@@ -710,7 +710,7 @@ function EditarFicha({ produto, ficha, insumos, porId, onCusto, precoAtual, onNo
       </div>
       )}
 
-      <p className={mudou ? "ficha-pendente" : "fin-ok ficha-ok"} aria-live="polite">{mudou ? "Salvando…" : msg}</p>
+      <p className={mudou ? "ficha-pendente" : "fin-ok ficha-ok"} aria-live="polite">{mudou ? <><span className="girando" aria-hidden="true" />Salvando…</> : msg}</p>
       {novo && (
         <NovoInsumo
           insumos={lista}
@@ -798,7 +798,7 @@ export function FichaDoProduto({ produto, precoAtual, onNomes, grupos = [] }) {
   useEffect(() => onSnapshot(doc(db, ...L(), "fichas", produto.id), (s) => setFicha(s.exists() ? s.data() : null), () => setFicha(null)), [produto.id]);
   useEffect(() => onSnapshot(doc(db, ...L(), "custos", produto.id), (s) => setCustoManual(typeof s.data()?.custo === "number" ? s.data().custo : null), () => setCustoManual(null)), [produto.id]);
   const aoCusto = useCallback((custo, temItens) => setCustoFicha({ custo, temItens }), []);
-  if (insumos === null || ficha === undefined || custoManual === undefined) return <p className="fin-carregando">Carregando…</p>;
+  if (insumos === null || ficha === undefined || custoManual === undefined) return <p className="fin-carregando"><span className="girando" aria-hidden="true" />Carregando…</p>;
   const ativos = insumos.filter((i) => i.ativo !== false).sort((a, b) => String(a.nome).localeCompare(String(b.nome), "pt-BR"));
   const porId = Object.fromEntries(insumos.map((i) => [i.id, i]));
   const custo = custoFicha.temItens ? custoFicha.custo : custoManual;

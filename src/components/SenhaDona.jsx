@@ -42,7 +42,7 @@ export function TelaSenha({ cfg, titulo = "Senha da dona", onCancelar, emJanela 
       {erro && <p className="sd-erro">{erro}</p>}
       <div className="sd-bts">
         {onCancelar && <button type="button" className="sd-cancelar" onClick={onCancelar}>Cancelar</button>}
-        <button className="sd-entrar" disabled={!senha || conferindo}>{conferindo ? "Conferindo…" : "Entrar"}</button>
+        <button className="sd-entrar" disabled={!senha || conferindo}>{conferindo ? <><span className="girando" aria-hidden="true" />Conferindo…</> : "Entrar"}</button>
       </div>
     </form>
   );
@@ -53,7 +53,7 @@ export function TelaSenha({ cfg, titulo = "Senha da dona", onCancelar, emJanela 
 /** Envolve uma parte de dinheiro: pede a senha antes de mostrar. */
 export function PedirSenha({ children, titulo }) {
   const { precisa, carregando, cfg, lib } = usePrecisaSenha();
-  if (carregando) return <p style={{ padding: 24 }}>Carregando…</p>;
+  if (carregando) return <p style={{ padding: 24 }}><span className="girando" aria-hidden="true" />Carregando…</p>;
   if (precisa) return <TelaSenha cfg={cfg} titulo={titulo} />;
   return (
     <>

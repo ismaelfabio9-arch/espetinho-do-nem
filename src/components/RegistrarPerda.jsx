@@ -160,7 +160,7 @@ export default function RegistrarPerda({ fechar, inicial = {} }) {
 
         <input className="pd-busca" placeholder={itens.length ? "Adicionar outro item" : "Buscar prato ou ingrediente"} value={busca} onChange={(e) => setBusca(e.target.value)} />
         {carregando && busca ? (
-          <p className="fin-carregando">Carregando…</p>
+          <p className="fin-carregando"><span className="girando" aria-hidden="true" />Carregando…</p>
         ) : (
           busca.trim() && (
             <ul className="pd-lista">
@@ -217,7 +217,7 @@ export default function RegistrarPerda({ fechar, inicial = {} }) {
         <div className="ins-modal-botoes">
           <button type="button" className="ins-btn" onClick={() => fechar(false)}>Cancelar</button>
           <button type="button" className="btn-verde" disabled={salvando || !pronto} onClick={salvar}>
-            {salvando ? "Salvando…" : `Registrar${itens.length > 1 ? ` ${itens.length} itens` : ""}${total > 0 ? ` · ${R(total)}` : ""}`}
+            {salvando ? <><span className="girando" aria-hidden="true" />Salvando…</> : `Registrar${itens.length > 1 ? ` ${itens.length} itens` : ""}${total > 0 ? ` · ${R(total)}` : ""}`}
           </button>
         </div>
       </div>
