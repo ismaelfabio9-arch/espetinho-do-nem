@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 // As áreas do sistema (o resto fica no Painel, Pedidos, Mesas e Configurações):
 //   💵 Vendas: Caixa · Pedidos de hoje · Dias anteriores · Relatório · O que foi mexido (registro, só o dono)
 //   🍔 Cardápio e estoque: Produtos (com os ingredientes de cada um) · Cardápio de hoje · Ingredientes (preço e estoque) · Estoque (contagem, perdas, histórico, do dia) · Preço certo
@@ -66,7 +67,11 @@ export function Dinheiro() {
   const completo = useRecurso("dinheiro-completo");
   const [paramsD] = useSearchParams();
   // A equipe ainda lança saída de alimento, acabou e entrada de alimento pelo menu sem a senha.
-  const soEquipe = ["perda", "acabou", "entrada"].includes(paramsD.get("acao"));
+  const [soEquipe, setSoEquipe] = useState(() => ["perda", "acabou", "entrada"].includes(paramsD.get("acao")));
+  // Fechou a saída de alimento (ou trocou de aba): volta a pedir a senha.
+  useEffect(() => {
+    if (soEquipe && paramsD.get("aba") && paramsD.get("aba") !== "hoje") setSoEquipe(false);
+  }, [paramsD, soEquipe]);
   if (completo)
     return (
       <Area
