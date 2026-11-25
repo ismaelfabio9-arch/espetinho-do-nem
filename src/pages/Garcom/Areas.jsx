@@ -18,7 +18,7 @@ import Insumos from "./Insumos";
 import Financas from "./Financas";
 import Registro from "./Registro";
 import DinheiroHoje from "./DinheiroHoje";
-import RelatorioCompleto from "./RelatorioCompleto";
+import RelatorioCompleto, { LucroPorProduto } from "./RelatorioCompleto";
 
 // Com o Dinheiro completo, Vendas e Dinheiro viram uma área só (Dinheiro): o que era de Vendas vai para lá.
 const VENDAS_PARA_DINHEIRO = { caixa: "hoje", hoje: "relatorio&parte=pedidos", dias: "relatorio&parte=dias", relatorio: "relatorio", mexido: "relatorio&parte=mexido" };
@@ -106,11 +106,11 @@ function RelatorioArea() {
       padrao={antiga || "geral"}
       abas={[
         { id: "geral", nome: "Geral", senha: true, tela: () => <RelatorioCompleto /> },
-        { id: "lucro", nome: "Lucro por produto", soDono: true, senha: true, tela: () => <Financas abas={["resumo"]} titulo="Lucro por produto e categoria" texto="Lucro, caixa, categorias e produtos do período." /> },
-        { id: "pedidos", nome: "Pedidos do dia", tela: () => <HistoricoMesas /> },
-        { id: "dias", nome: "Dias anteriores", tela: () => <Historico /> },
+        { id: "lucro", nome: "Lucro por produto", soDono: true, senha: true, tela: () => <LucroPorProduto /> },
+        { id: "pedidos", nome: "Pedidos do dia", tela: () => <HistoricoMesas emRelatorio /> },
+        { id: "dias", nome: "Dias anteriores", tela: () => <Historico emRelatorio /> },
         ...(custos && souDono ? [{ id: "estoque", nome: "Estoque e perdas", senha: true, tela: () => <Insumos embutido semLista somente={["perdas", "historico"]} /> }] : []),
-        { id: "mexido", nome: "O que foi mexido", soDono: true, senha: true, tela: () => <Registro /> },
+        { id: "mexido", nome: "O que foi mexido", soDono: true, senha: true, tela: () => <Registro emRelatorio /> },
       ]}
     />
   );

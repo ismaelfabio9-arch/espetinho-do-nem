@@ -322,3 +322,98 @@ function Ln({ a, b, total, sub }) {
     </div>
   );
 }
+
+/** Relatório → Lucro por produto: cada categoria com o que vendeu e quanto sobrou; toca para ver os produtos. */
+export function LucroPorProduto() {
+  const taxas = useTaxas();
+  const [per, setPer] = useState("mes");
+  const [faixa, setFaixa] = useState(() => faixaDe("mes"));
+  const [aberta, setAberta] = useState(null);
+  const dias = useCol(() => collection(db, ...L(), "relatorioGerencial"), []);
+  const hoje = useCol(() => collection(db, ...L(), "vendasDia"), []);
+  const produtos = useCol(() => collection(db, ...L(), "produtos"), []);
+  const custosDocs = useCol(() => collection(db, ...L(), "custos"), []);
+  const fichas = useCol(() => collection(db, ...L(), "fichas"), []);
+  const insumos = useCol(() => collection(db, ...L(), "insumos"), []);
+  const carregando = [dias, hoje, produtos, custosDocs, fichas, insumos].some((x) => x === null);
+  const f = useMemo(() => {
+    if (carregando) return null;
+    const m = {};
+    (custosDocs || []).forEach((c) => {
+      if (typeof c.custo === "number") m[c.id] = c.custo;
+    });
+    const porId = Object.fromEntries((insumos || []).map((i) => [i.id, i]));
+    (fichas || []).forEach((fi) => {
+      const c = custoDaFicha(fi, porId);
+      if (c !== null) m[fi.id] = c;
+    });
+    return calcularFinancas({ vendas: juntarVendas(dias, hoje), produtos, custos: m, lancamentos: [], taxas, de: faixa.de, ate: faixa.ate });
+  }, [carregando, dias, hoje, produtos, custosDocs, fichas, insumos, taxas, faixa]);
+  const escolher = (id) => {
+    setPer(id);
+    if (id !== "escolher") setFaixa(faixaDe(id));
+  };
+  const cats = f ? [...f.categorias].sort((a, b) => b.vendido - a.vendido) : [];
+  return (
+    <div className="container rc rel-parte">
+      <div className="rc-per no-print">
+        {PERIODOS.map((p) => (
+          <button key={p.id} type="button" className={per === p.id ? "on" : ""} onClick={() => escolher(p.id)}>{p.nome}</button>
+        ))}
+      </div>
+      {per === "escolher" && (
+        <div className="rc-datas no-print">
+          <label>De<input type="date" value={faixa.de} onChange={(e) => setFaixa({ ...faixa, de: e.target.value })} /></label>
+          <label>Até<input type="date" value={faixa.ate} onChange={(e) => setFaixa({ ...faixa, ate: e.target.value })} /></label>
+        </div>
+      )}
+      {!f ? (
+        <p className="rc-vazio">Carregando…</p>
+      ) : (
+        <>
+          <div className="rc-kpi">
+            <div><span>Vendido</span><b>{R(f.vendas)}</b></div>
+            <div><span>Custo dos pratos</span><b>{R(f.custoProdutos)}</b></div>
+            <div><span>Sobrou</span><b className={f.lucroBruto < 0 ? "rc-neg" : "rc-pos"}>{R(f.lucroBruto)}</b></div>
+            <div><span>Margem</span><b>{f.margemBruta === null ? "–" : `${f.margemBruta}%`}</b></div>
+          </div>
+          {f.semCusto > 0 && (
+            <p className="rc-aviso">{f.semCusto} {f.semCusto === 1 ? "produto vendido está" : "produtos vendidos estão"} sem custo: o que sobrou aparece maior. <a href="#/cardapio?aba=preco">Pôr os custos</a></p>
+          )}
+          {cats.length === 0 ? (
+            <p className="rc-vazio">Nenhuma venda no período.</p>
+          ) : (
+            <div className="rc-cats">
+              {cats.map((c) => {
+                const prods = f.produtos.filter((p) => p.categoria === c.nome).sort((a, b) => b.vendido - a.vendido);
+                const on = aberta === c.nome;
+                return (
+                  <section key={c.nome} className="rc-card rc-cat">
+                    <button type="button" className="rc-cat-topo" onClick={() => setAberta(on ? null : c.nome)} aria-expanded={on}>
+                      <span className="rc-cat-nome">{on ? "▾" : "▸"} {c.nome}</span>
+                      <span className="rc-cat-num">
+                        <b>{R(c.vendido)}</b>
+                        <small className={c.lucro < 0 ? "rc-neg" : ""}>sobrou {R(c.lucro)}{c.margem !== null ? ` · ${c.margem}%` : ""}</small>
+                      </span>
+                    </button>
+                    {on && (
+                      <div className="rc-prods">
+                        {prods.map((p) => (
+                          <div key={p.nome} className="rc-prod">
+                            <span>{p.nome} <small>{p.qtd}×</small></span>
+                            <span>{R(p.vendido)}</span>
+                            <span className={p.lucro !== null && p.lucro < 0 ? "rc-neg" : ""}>{p.lucro === null ? <small>sem custo</small> : R(p.lucro)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}

@@ -17,7 +17,7 @@ import "../../styles/Garcom/Historico.css";
 import AbasTipo from "../../components/AbasTipo";
 import { TIPOS_VENDA, contarPorTipo, moeda, qtdItem, resumir, tipoVenda } from "../../utils/tipoVenda";
 
-function HistoricoMesas() {
+function HistoricoMesas({ emRelatorio = false }) {
   const [historico, setHistorico] = useState([]);
   const [mensagem, setMensagem] = useState("");
   const [tipo, setTipo] = useState("mesa");
@@ -83,20 +83,24 @@ function HistoricoMesas() {
   const nomeTipo = TIPOS_VENDA.find((t) => t.id === tipo).nome;
 
   return (
-    <div className="container">
+    <div className={emRelatorio ? "container rel-parte" : "container"}>
       {mensagem && <div className="toast">{mensagem}</div>}
 
-      <Link to="/config" className="voltar">
-        ← Voltar
-      </Link>
+      {!emRelatorio && (
+        <>
+          <Link to="/config" className="voltar">
+            ← Voltar
+          </Link>
 
-      <div className="pedidos-header">
-        <div>
-          <span>Pedidos finalizados</span>
-          <h1>Histórico de pedidos</h1>
-          <p>Mesas, balcão e entregas separados. Tudo junto só no Relatório Gerencial.</p>
-        </div>
-      </div>
+          <div className="pedidos-header">
+            <div>
+              <span>Pedidos finalizados</span>
+              <h1>Histórico de pedidos</h1>
+              <p>Mesas, balcão e entregas separados. Tudo junto só no Relatório Gerencial.</p>
+            </div>
+          </div>
+        </>
+      )}
 
       <AbasTipo tipo={tipo} onTroca={setTipo} contagem={contarPorTipo(historico)} />
 

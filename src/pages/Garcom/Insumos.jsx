@@ -105,7 +105,7 @@ function Insumos({ embutido = false, dia = null, semLista = false, somente = nul
       ) : aba === "contagem" ? (
         <Contagem insumos={ativos} />
       ) : aba === "perdas" ? (
-        <Perdas movs={movs} porId={porId} />
+        <Perdas movs={movs} porId={porId} soVer={!!somente} />
       ) : (
         <Historico porId={porId} />
       )}
@@ -427,7 +427,7 @@ function Contagem({ insumos }) {
   );
 }
 
-function Perdas({ movs, porId }) {
+function Perdas({ movs, porId, soVer = false }) {
   const [per, setPer] = useState("mes");
   const [novo, setNovo] = useState(false);
   const [aberto, setAberto] = useState(null);
@@ -438,7 +438,7 @@ function Perdas({ movs, porId }) {
   const total = Math.round((s.total + r.faltas) * 100) / 100;
   return (
     <div className="relatorio-documento">
-      <button type="button" className="pd-novo" onClick={() => setNovo(true)}>Registrar saída de alimento</button>
+      {!soVer && <button type="button" className="pd-novo" onClick={() => setNovo(true)}>Registrar saída de alimento</button>}
       <h2>Perdas e saídas · − {R(total)}</h2>
       <div className="fin-periodos">
         {[{ id: "hoje", nome: "Hoje" }, { id: "7dias", nome: "7 dias" }, { id: "mes", nome: "Este mês" }, { id: "mesPassado", nome: "Mês passado" }, { id: "ano", nome: "Este ano" }].map((p) => (

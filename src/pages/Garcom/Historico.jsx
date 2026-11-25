@@ -17,7 +17,7 @@ import AbasTipo from "../../components/AbasTipo";
 import { TIPOS_VENDA, contarPorTipo, mesasAtendidas, moeda, resumir, tipoVenda } from "../../utils/tipoVenda";
 
 
-function Historico() {
+function Historico({ emRelatorio = false }) {
   const [historico, setHistorico] = useState([]);
   const [fechamentoAberto, setFechamentoAberto] = useState(null);
   const [tipo, setTipo] = useState("mesa");
@@ -60,20 +60,24 @@ function Historico() {
   const nomeTipo = TIPOS_VENDA.find((t) => t.id === tipo).nome;
 
   return (
-    <div className="container">
-      <Link to="/config" className="voltar">
-        ← Voltar
-      </Link>
+    <div className={emRelatorio ? "container rel-parte" : "container"}>
+      {!emRelatorio && (
+        <>
+          <Link to="/config" className="voltar">
+            ← Voltar
+          </Link>
 
-      <div className="pedidos-header">
-        <div>
-          <span>Fechamentos</span>
-          <h1>Histórico dos dias</h1>
-          <p>Cada dia encerrado, separado em mesas, balcão e entregas. Tudo junto só no Relatório Gerencial.</p>
-        </div>
-      </div>
+          <div className="pedidos-header">
+            <div>
+              <span>Fechamentos</span>
+              <h1>Histórico dos dias</h1>
+              <p>Cada dia encerrado, separado em mesas, balcão e entregas. Tudo junto só no Relatório Gerencial.</p>
+            </div>
+          </div>
+        </>
+      )}
 
-      {historico.length > 0 && (
+      {historico.length > 0 && !emRelatorio && (
         <button
           className="btn-remover"
           style={{
@@ -195,6 +199,9 @@ function Historico() {
             );
           })}
         </div>
+      )}
+      {emRelatorio && historico.length > 0 && (
+        <button type="button" className="rel-limpar" onClick={limparHistorico}>Limpar histórico</button>
       )}
     </div>
   );
