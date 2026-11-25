@@ -82,3 +82,37 @@
 .modal-card.cp h2 { color: var(--text) !important; }
 .cp-placar b, .cp-quem b, .cp-valor-pessoa, .cp-itens, .cp-abas button, .cp-modos button.ativo, .cp-pessoas b { color: var(--text); }
 .cp-abas button.ativo { color: #fff; }
+
+/* Mais compacta: menos espaço, e no notebook o Receber fica ao lado da conta (sem subir e descer) */
+.modal-card.cp { gap: 10px; padding: 18px !important; }
+.cp-placar div { padding: 8px 6px; }
+.cp-placar b { font-size: 17px; }
+.cp-itens li { font-size: 13.5px; align-items: flex-start; }
+.cp-itens li > :last-child { white-space: nowrap; }
+.cp-receber { gap: 8px; padding: 12px; }
+.cp-receber .formas-pagamento button { padding: 10px 6px !important; min-height: 0 !important; }
+@media (min-width: 900px) {
+  .modal-card.cp.com-receber { max-width: 940px; grid-template-columns: minmax(0, 1fr) 400px; column-gap: 20px; align-items: start; }
+  .modal-card.cp.com-receber > :not(.cp-receber) { grid-column: 1; }
+  .modal-card.cp.com-receber > .cp-receber { grid-column: 2; grid-row: 1 / span 20; position: sticky; top: 0; }
+}
+/* Tema escuro: nada de quadro branco com texto branco */
+html body.dark .modal-card.cp { background: #141416 !important; border-color: #2a2b2f; color: #f4f4f5 !important; }
+html body.dark .cp-placar div { background: #1f1f22 !important; }
+html body.dark .cp-placar .falta { background: rgba(220, 38, 38, 0.14) !important; }
+html body.dark .cp-placar .falta b { color: #f87171 !important; }
+html body.dark .cp-placar .pago b { color: #4ade80 !important; }
+html body.dark .cp-placar span { color: #a1a1aa !important; }
+html body.dark .cp-abas button, html body.dark .cp-btn:not(.verde), html body.dark .cp-x { background: #1f1f22 !important; border-color: #333 !important; color: #f4f4f5 !important; }
+html body.dark .cp-abas button.ativo, html body.dark .cp-btn.verde { background: #16a34a !important; border-color: #16a34a !important; color: #fff !important; }
+html body.dark .cp-ok { background: rgba(22, 163, 74, 0.16) !important; color: #4ade80 !important; }
+html body.dark .cp-aviso { background: rgba(245, 158, 11, 0.15) !important; color: #fbbf24 !important; }
+html body.dark .cp-valor input { background: #0f0f10 !important; border-color: #3a3a3e !important; color: #fff !important; }
+html body.dark .cp-receber .formas-pagamento button { background: #1f1f22 !important; border-color: #333 !important; color: #f4f4f5 !important; }
+html body.dark .cp-receber .formas-pagamento button.ativo { background: #16a34a !important; border-color: #16a34a !important; color: #fff !important; }
+html body .cp-receber .formas-pagamento button.ativo { background: #16a34a !important; border-color: #16a34a !important; color: #fff !important; }
+html body.dark .cp-divisao li { background: #1f1f22 !important; }
+html body.dark .cp-divisao li.pagou { background: rgba(22, 163, 74, 0.12) !important; }
+html body.dark .cp-modos { background: #1f1f22 !important; }
+html body.dark .cp-modos button.ativo { background: #2a2b2f !important; color: #fff !important; }
+html body.dark .cp-nome, html body.dark .cp-parte input, html body.dark .cp-nomes input { background: #0f0f10 !important; border-color: #3a3a3e !important; color: #fff !important; }
