@@ -305,7 +305,14 @@ function enviarParaPc(conteudoHTML, larguraPapel) {
  */
 export async function imprimir(conteudoHTML, larguraPapel = "58mm") {
   if (mandarParaPc && !esteAparelhoImprime()) return enviarParaPc(conteudoHTML, larguraPapel);
-  return imprimirAqui(conteudoHTML, larguraPapel);
+  // Computador e notebook: imprime num quadro escondido, sem abrir janela (a janela de impressão ficava
+  // aberta e, no app instalado, aparecia com a barra branca do endereço).
+  return imprimirAqui(conteudoHTML, larguraPapel, !ehCelular());
+}
+
+function ehCelular() {
+  const ua = navigator.userAgent || "";
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
 }
 
 /**
@@ -380,7 +387,7 @@ export function imprimirAqui(conteudoHTML, larguraPapel = "58mm", semJanela = fa
       }
       setTimeout(function () {
         try {
-          if (!janela.closed) janela.location.replace(enderecoSistema);
+          if (!janela.closed && ehCelular()) janela.location.replace(enderecoSistema);
         } catch (e) {
           // janela já fechada
         }
