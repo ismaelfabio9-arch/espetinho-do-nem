@@ -108,7 +108,7 @@ export default function CardapioHoje() {
                       <small>
                         R$ {moeda(p.preco)}
                         {textoDias(p) ? ` · ${textoDias(p)}` : ""}
-                        {p.foraHoje === true ? " · desligado" : naMao ? " · mudado na mão hoje" : auto ? " · automático" : ""}
+                        {p.foraHoje === true ? " · desligado" : naMao && p.feriado === true && p.ligadoHoje.ligado ? " · feriado hoje" : naMao && p.soNaMao === true ? (p.ligadoHoje.ligado ? " · ligado hoje" : "") : naMao ? " · mudado na mão hoje" : auto && p.soNaMao !== true ? " · automático" : ""}
                       </small>
                     </span>
                     <i className={on ? "hoje-chave" : "hoje-chave off"} aria-hidden="true" />
