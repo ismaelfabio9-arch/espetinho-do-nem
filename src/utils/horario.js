@@ -6,6 +6,8 @@
 // categorias/<id>.horario = { de: "10:00", ate: "16:00", dias?: [0..6] }  (ate vazio = até fechar)
 // produtos/<id>.dias = [0..6] (vazio = todos os dias)
 // produtos/<id>.ligadoHoje = { dia: "AAAA-MM-DD", ligado: true | false } (mudança na mão, só hoje)
+// produtos/<id>.feriado = true: também entra no feriado ("Hoje é feriado" em Cardápio de hoje liga só hoje)
+// produtos/<id>.soNaMao = true: prato de dias variados, só aparece no dia em que a dona liga
 import { useEffect, useState } from "react";
 
 export const DIAS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
@@ -34,11 +36,12 @@ const categoriaDe = (p, categoriasDocs) => (categoriasDocs || []).find((c) => c.
 
 /** Tem regra automática (horário da categoria ou dias do produto)? */
 export function temHorario(p, categoriasDocs) {
-  return noHorario(categoriaDe(p, categoriasDocs)?.horario) !== null || (Array.isArray(p.dias) && p.dias.length > 0);
+  return p.soNaMao === true || noHorario(categoriaDe(p, categoriasDocs)?.horario) !== null || (Array.isArray(p.dias) && p.dias.length > 0);
 }
 
 /** O produto pelo horário e pelos dias (sem contar a mudança na mão). */
 export function pelaRegra(p, categoriasDocs, agora = new Date()) {
+  if (p.soNaMao === true) return false;
   if (Array.isArray(p.dias) && p.dias.length && !p.dias.includes(agora.getDay())) return false;
   return noHorario(categoriaDe(p, categoriasDocs)?.horario, agora) !== false;
 }
@@ -54,6 +57,14 @@ export function disponivelAgora(p, categoriasDocs, agora = new Date()) {
 /** A categoria está no horário dela agora? (vem primeiro no cardápio) */
 export function categoriaNoHorario(catDoc, agora = new Date()) {
   return noHorario(catDoc?.horario, agora) === true;
+}
+
+/** "Sáb, Dom e feriado", "só quando ligar" (para mostrar ao lado do produto). */
+export function textoDias(p) {
+  if (p.soNaMao === true) return "só quando ligar";
+  const dias = Array.isArray(p.dias) && p.dias.length > 0 && p.dias.length < 7 ? p.dias.slice().sort((a, b) => ((a + 6) % 7) - ((b + 6) % 7)).map((d) => DIAS[d]) : [];
+  if (p.feriado === true) return dias.length ? `${dias.join(", ")} e feriado` : "";
+  return dias.join(", ");
 }
 
 /** "10:00 às 16:00", "a partir das 16:00", "Seg, Qua" */

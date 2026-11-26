@@ -10,7 +10,7 @@ import { db } from "../../firebase";
 import { L } from "../../loja";
 import { ordenarGruposPorCategoria } from "../../utils/categorias";
 import { ordenarItensCategoria } from "../../utils/produtosOrdem";
-import { DIAS, categoriaNoHorario, disponivelAgora, hojeISO, noHorario, pelaRegra, temHorario, textoHorario, useMinuto } from "../../utils/horario";
+import { DIAS, categoriaNoHorario, disponivelAgora, hojeISO, noHorario, pelaRegra, temHorario, textoDias, textoHorario, useMinuto } from "../../utils/horario";
 import { registrar } from "../../utils/registro";
 import "./CardapioHoje.css";
 
@@ -51,6 +51,14 @@ export default function CardapioHoje() {
     return setDoc(doc(db, ...L(), "produtos", p.id), { foraHoje: !ligar }, { merge: true });
   }
   const alternar = (p) => mudar(p, !ligado(p));
+
+  // Feriado: liga só hoje os pratos marcados "e feriado" (no dia seguinte volta sozinho ao normal).
+  const deFeriado = produtos.filter((p) => p.feriado === true);
+  const ehFeriado = deFeriado.length > 0 && deFeriado.every((p) => p.ligadoHoje?.dia === hojeISO() && p.ligadoHoje.ligado);
+  async function feriado(ligar) {
+    await Promise.all(deFeriado.map((p) => (ligar ? (pelaRegra(p, categoriasDocs) ? null : setDoc(doc(db, ...L(), "produtos", p.id), { ligadoHoje: { dia: hojeISO(), ligado: true }, foraHoje: false }, { merge: true })) : p.ligadoHoje?.dia === hojeISO() ? setDoc(doc(db, ...L(), "produtos", p.id), { ligadoHoje: null }, { merge: true }) : null)));
+    registrar({ area: "cardapio", acao: ligar ? "Marcou hoje como feriado" : "Tirou o feriado de hoje", texto: `${deFeriado.length} pratos` });
+  }
   const categoria = (c, ligar) => c.itens.forEach((p) => ligado(p) !== ligar && mudar(p, ligar));
 
   return (
@@ -61,6 +69,15 @@ export default function CardapioHoje() {
         <span>{hoje}</span>
       </div>
       <p className="hoje-sub">Só o que estiver ligado aparece para o garçom e para o cliente.</p>
+      {deFeriado.length > 0 && (
+        <button type="button" className={ehFeriado ? "hoje-item hoje-feriado" : "hoje-item hoje-feriado off"} onClick={() => feriado(!ehFeriado)} aria-pressed={ehFeriado}>
+          <span>
+            <b>Hoje é feriado</b>
+            <small>Liga hoje os {deFeriado.length} pratos de sábado, domingo e feriado</small>
+          </span>
+          <i className={ehFeriado ? "hoje-chave" : "hoje-chave off"} aria-hidden="true" />
+        </button>
+      )}
       {grupos.map((c) => {
         const cd = catDoc(c.categoria);
         const h = cd?.horario;
@@ -90,7 +107,7 @@ export default function CardapioHoje() {
                       <b>{p.nome}</b>
                       <small>
                         R$ {moeda(p.preco)}
-                        {Array.isArray(p.dias) && p.dias.length > 0 && p.dias.length < 7 ? ` · ${p.dias.slice().sort().map((d) => DIAS[d]).join(", ")}` : ""}
+                        {textoDias(p) ? ` · ${textoDias(p)}` : ""}
                         {p.foraHoje === true ? " · desligado" : naMao ? " · mudado na mão hoje" : auto ? " · automático" : ""}
                       </small>
                     </span>
@@ -154,15 +171,20 @@ function EditarHorario({ cat, fechar }) {
 /** Dias da semana em que o produto entra no cardápio. */
 function EditarDias({ p, fechar }) {
   const [dias, setDias] = useState(Array.isArray(p.dias) ? p.dias : []);
+  const [fer, setFer] = useState(p.feriado === true);
+  const [soNaMao, setSoNaMao] = useState(p.soNaMao === true);
   async function salvar() {
-    await setDoc(doc(db, ...L(), "produtos", p.id), { dias }, { merge: true });
-    registrar({ area: "cardapio", acao: "Mudou os dias do produto", texto: p.nome, depois: dias.length ? dias.slice().sort().map((d) => DIAS[d]).join(", ") : "todos os dias" });
+    const novo = { dias: soNaMao ? [] : dias, feriado: !soNaMao && fer, soNaMao };
+    await setDoc(doc(db, ...L(), "produtos", p.id), novo, { merge: true });
+    registrar({ area: "cardapio", acao: "Mudou os dias do produto", texto: p.nome, depois: textoDias(novo) || "todos os dias" });
     fechar();
   }
   return (
     <div className="hoje-editar">
       <small className="hoje-nota">Dias em que {p.nome} entra. Nenhum marcado: todos os dias.</small>
-      <ChipsDias valor={dias} mudar={setDias} />
+      <label className="hoje-check"><input type="checkbox" checked={soNaMao} onChange={(e) => setSoNaMao(e.target.checked)} /> Dias variados: só aparece quando eu ligar no dia</label>
+      {!soNaMao && <ChipsDias valor={dias} mudar={setDias} />}
+      {!soNaMao && <label className="hoje-check"><input type="checkbox" checked={fer} onChange={(e) => setFer(e.target.checked)} /> Também no feriado</label>}
       <div className="hoje-bts">
         <button type="button" onClick={fechar}>Cancelar</button>
         <button type="button" className="ok" onClick={salvar}>Salvar</button>
