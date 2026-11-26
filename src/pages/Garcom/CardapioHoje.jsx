@@ -3,6 +3,9 @@
 // Cardápio automático: cada categoria pode ter horário (Almoço das 10:00 às 16:00, Pizzas a partir das
 // 16:00) e cada produto os dias da semana em que entra. Ligar ou desligar na mão um produto que tem
 // horário vale só para hoje; amanhã volta o automático.
+// Horários da loja (turnos): a dona cria uma vez (Almoço 10:00 às 16:00, Noite a partir das 16:00) e liga
+// cada categoria ao seu. configuracoes/turnos = { lista: [{ id, nome, de, ate, dias }] }; a categoria guarda
+// turno (id) e uma cópia do horário (categoria.horario), que é o que o garçom e o cliente usam.
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { collection, doc, onSnapshot, setDoc } from "firebase/firestore";
@@ -25,6 +28,17 @@ export default function CardapioHoje() {
 
   useEffect(() => onSnapshot(collection(db, ...L(), "categorias"), (s) => setCategoriasDocs(s.docs.map((d) => ({ id: d.id, ...d.data() })))), []);
   useEffect(() => onSnapshot(collection(db, ...L(), "produtos"), (s) => setProdutos(s.docs.map((d) => ({ id: d.id, ...d.data() })).filter((p) => p.ativo !== false))), []);
+  const [turnos, setTurnos] = useState([]);
+  useEffect(() => onSnapshot(doc(db, ...L(), "configuracoes", "turnos"), (s) => setTurnos(Array.isArray(s.data()?.lista) ? s.data().lista : []), () => setTurnos([])), []);
+
+  /** Liga a categoria a um horário da loja ("" = o dia todo). */
+  async function ligarTurno(cd, valor) {
+    if (valor === "outro") return setEditando(cd.nome);
+    const t = turnos.find((x) => x.id === valor);
+    const horario = t ? { de: t.de || "", ate: t.ate || "", dias: t.dias || [] } : null;
+    await setDoc(doc(db, ...L(), "categorias", cd.id), { turno: t ? t.id : null, horario, atualizadoEm: new Date().toISOString() }, { merge: true });
+    registrar({ area: "cardapio", acao: "Mudou o horário da categoria", texto: cd.nome, depois: t ? `${t.nome} (${textoHorario(horario)})` : "o dia todo" });
+  }
 
   const grupos = useMemo(() => {
     const g = {};
@@ -78,6 +92,7 @@ export default function CardapioHoje() {
           <i className={ehFeriado ? "hoje-chave" : "hoje-chave off"} aria-hidden="true" />
         </button>
       )}
+      <Turnos turnos={turnos} categoriasDocs={categoriasDocs} />
       {grupos.map((c) => {
         const cd = catDoc(c.categoria);
         const h = cd?.horario;
@@ -90,7 +105,13 @@ export default function CardapioHoje() {
                 {comHorario && <small className={categoriaNoHorario(cd) ? "hoje-hr on" : "hoje-hr"}>{textoHorario(h)}{categoriaNoHorario(cd) ? " · agora" : ""}</small>}
               </h2>
               <span>
-                {cd && <button type="button" onClick={() => setEditando(editando === c.categoria ? null : c.categoria)}>horário</button>}
+                {cd && (
+                  <select className="hoje-turno" aria-label={`Horário de ${c.categoria}`} value={turnos.some((t) => t.id === cd.turno) ? cd.turno : comHorario ? "outro" : ""} onChange={(e) => ligarTurno(cd, e.target.value)}>
+                    <option value="">O dia todo</option>
+                    {turnos.map((t) => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                    <option value="outro">{comHorario && !turnos.some((t) => t.id === cd.turno) ? "Horário próprio" : "Outro horário…"}</option>
+                  </select>
+                )}
                 <button type="button" onClick={() => categoria(c, true)}>ligar todos</button>
                 <button type="button" onClick={() => categoria(c, false)}>desligar todos</button>
               </span>
@@ -150,7 +171,7 @@ function EditarHorario({ cat, fechar }) {
   const [ate, setAte] = useState(h.ate || "");
   const [dias, setDias] = useState(Array.isArray(h.dias) ? h.dias : []);
   async function salvar(horario) {
-    await setDoc(doc(db, ...L(), "categorias", cat.id), { horario, atualizadoEm: new Date().toISOString() }, { merge: true });
+    await setDoc(doc(db, ...L(), "categorias", cat.id), { horario, turno: null, atualizadoEm: new Date().toISOString() }, { merge: true });
     registrar({ area: "cardapio", acao: horario ? "Mudou o horário da categoria" : "Tirou o horário da categoria", texto: cat.nome, depois: horario ? textoHorario(horario) : "" });
     fechar();
   }
@@ -190,6 +211,73 @@ function EditarDias({ p, fechar }) {
       <div className="hoje-bts">
         <button type="button" onClick={fechar}>Cancelar</button>
         <button type="button" className="ok" onClick={salvar}>Salvar</button>
+      </div>
+    </div>
+  );
+}
+
+/** Horários da loja: criar, mudar e apagar. Mudar um horário muda todas as categorias ligadas a ele. */
+function Turnos({ turnos, categoriasDocs }) {
+  const [editando, setEditando] = useState(null); // id do horário aberto ("novo" para criar)
+  async function salvarLista(lista) {
+    await setDoc(doc(db, ...L(), "configuracoes", "turnos"), { lista, atualizadoEm: new Date().toISOString() }, { merge: true });
+  }
+  async function salvar(t) {
+    const lista = turnos.some((x) => x.id === t.id) ? turnos.map((x) => (x.id === t.id ? t : x)) : [...turnos, t];
+    await salvarLista(lista);
+    const horario = { de: t.de || "", ate: t.ate || "", dias: t.dias || [] };
+    await Promise.all(categoriasDocs.filter((c) => c.turno === t.id).map((c) => setDoc(doc(db, ...L(), "categorias", c.id), { horario, atualizadoEm: new Date().toISOString() }, { merge: true })));
+    registrar({ area: "cardapio", acao: "Mudou um horário da loja", texto: t.nome, depois: textoHorario(horario) });
+    setEditando(null);
+  }
+  async function apagar(t) {
+    await salvarLista(turnos.filter((x) => x.id !== t.id));
+    await Promise.all(categoriasDocs.filter((c) => c.turno === t.id).map((c) => setDoc(doc(db, ...L(), "categorias", c.id), { horario: null, turno: null, atualizadoEm: new Date().toISOString() }, { merge: true })));
+    registrar({ area: "cardapio", acao: "Apagou um horário da loja", texto: t.nome });
+    setEditando(null);
+  }
+  const ligadas = (t) => categoriasDocs.filter((c) => c.turno === t.id).map((c) => c.nome);
+  return (
+    <section className="hoje-turnos">
+      <div className="hoje-turnos-topo">
+        <h2>Horários da loja</h2>
+        <button type="button" onClick={() => setEditando(editando === "novo" ? null : "novo")}>+ Novo horário</button>
+      </div>
+      {turnos.length === 0 && editando !== "novo" && <p className="hoje-nota">Crie os horários (ex.: Almoço das 10:00 às 16:00, Noite a partir das 16:00) e escolha em cada categoria qual é o dela.</p>}
+      {turnos.map((t) => (
+        <div key={t.id}>
+          <button type="button" className="hoje-turno-linha" onClick={() => setEditando(editando === t.id ? null : t.id)}>
+            <b>{t.nome}</b>
+            <span>{textoHorario(t) || "sem horário"}</span>
+            <small>{ligadas(t).length ? ligadas(t).join(", ") : "nenhuma categoria ainda"}</small>
+          </button>
+          {editando === t.id && <EditarTurno t={t} salvar={salvar} apagar={() => apagar(t)} fechar={() => setEditando(null)} />}
+        </div>
+      ))}
+      {editando === "novo" && <EditarTurno t={{ id: `t${Date.now().toString(36)}`, nome: "", de: "", ate: "", dias: [] }} salvar={salvar} fechar={() => setEditando(null)} />}
+    </section>
+  );
+}
+
+function EditarTurno({ t, salvar, apagar, fechar }) {
+  const [nome, setNome] = useState(t.nome);
+  const [de, setDe] = useState(t.de || "");
+  const [ate, setAte] = useState(t.ate || "");
+  const [dias, setDias] = useState(Array.isArray(t.dias) ? t.dias : []);
+  const ok = nome.trim() && (de || ate);
+  return (
+    <div className="hoje-editar">
+      <label className="hoje-nome">Nome<input value={nome} maxLength={30} placeholder="Ex.: Almoço, Noite" onChange={(e) => setNome(e.target.value)} /></label>
+      <div className="hoje-horas">
+        <label>De<input type="time" value={de} onChange={(e) => setDe(e.target.value)} /></label>
+        <label>Até<input type="time" value={ate} onChange={(e) => setAte(e.target.value)} /></label>
+      </div>
+      <small className="hoje-nota">Até vazio: até a loja fechar. Sem dia marcado: todos os dias.</small>
+      <ChipsDias valor={dias} mudar={setDias} />
+      <div className="hoje-bts">
+        {apagar && <button type="button" onClick={apagar}>Apagar</button>}
+        <button type="button" onClick={fechar}>Cancelar</button>
+        <button type="button" className="ok" disabled={!ok} onClick={() => salvar({ id: t.id, nome: nome.trim().slice(0, 30), de, ate, dias })}>Salvar</button>
       </div>
     </div>
   );
