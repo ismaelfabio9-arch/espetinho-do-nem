@@ -22,7 +22,7 @@ body.dark .hoje-chave.off { background: #3a3a3a; }
 .hoje-cat-topo h2 { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; }
 html body .hoje-cat-topo .hoje-hr { font-size: 11.5px; letter-spacing: 0; text-transform: none; font-weight: 600; color: #6b7280; border: 1px solid #d1d5db; border-radius: 999px; padding: 1px 8px; }
 html body .hoje-cat-topo .hoje-hr.on { color: #15803d; border-color: #86efac; }
-.hoje-linha { position: relative; }
+.hoje-linha, .hoje-linha-topo { position: relative; }
 .hoje-linha .hoje-item { padding-right: 112px; }
 .hoje-dias-bt { position: absolute; right: 66px; top: 50%; transform: translateY(calc(-50% + 4px)); background: none; border: 0; color: #6b7280; font-size: 12px; font-weight: 700; cursor: pointer; padding: 6px; }
 .hoje-linha .hoje-editar { margin-top: 6px; }

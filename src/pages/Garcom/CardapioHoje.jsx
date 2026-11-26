@@ -102,6 +102,7 @@ export default function CardapioHoje() {
               const naMao = p.ligadoHoje && p.ligadoHoje.dia === hojeISO();
               return (
                 <div key={p.id} className="hoje-linha">
+                  <div className="hoje-linha-topo">
                   <button type="button" className={on ? "hoje-item" : "hoje-item off"} onClick={() => alternar(p)} aria-pressed={on}>
                     <span>
                       <b>{p.nome}</b>
@@ -114,6 +115,7 @@ export default function CardapioHoje() {
                     <i className={on ? "hoje-chave" : "hoje-chave off"} aria-hidden="true" />
                   </button>
                   <button type="button" className="hoje-dias-bt" onClick={() => setDiasDe(diasDe === p.id ? null : p.id)}>dias</button>
+                  </div>
                   {diasDe === p.id && <EditarDias p={p} fechar={() => setDiasDe(null)} />}
                 </div>
               );
