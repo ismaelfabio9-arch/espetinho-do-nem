@@ -23,7 +23,7 @@ import {
 import { db } from "../../firebase";
 import { baixarInsumos } from "../../utils/insumos";
 import { AVISO_PARCIAL, temPagamentoParcial } from "../../utils/contaMesa";
-import { useSouDono } from "../../tenant";
+import { trocarLoja, useSouDono, useTenant } from "../../tenant";
 import AvisoCaixa from "../../components/AvisoCaixa";
 
 function MesaIcon({ size = 24, strokeWidth = 2 }) {
@@ -41,6 +41,8 @@ function Dashboard() {
   const viagemLigado = useRecurso("viagem");
   // Dinheiro só para o dono.
   const souDono = useSouDono();
+  const tenant = useTenant();
+  const variasLojas = (tenant.lojas || []).length > 1;
   const financasDaLoja = useRecurso("financas");
   const dinheiroCompleto = useRecurso("dinheiro-completo");
   const caixaLigado = financasDaLoja && dinheiroCompleto;
@@ -597,6 +599,11 @@ function Dashboard() {
               Configurações
             </Link>
 
+            {variasLojas && (
+              <button type="button" className="menu-atalhos-ref" onClick={trocarLoja}>
+                Trocar de loja ({tenant.loja?.name || "Loja"})
+              </button>
+            )}
             <button type="button" className="menu-atalhos-ref" onClick={() => { setMenuAberto(false); window.dispatchEvent(new Event("abrir-atalhos")); }}>
               ⌨️ Atalhos do teclado
             </button>
@@ -618,6 +625,13 @@ function Dashboard() {
           )}
         </Link>
       </header>
+
+      {variasLojas && (
+        <div className="loja-aberta">
+          <span>Loja: <b>{tenant.loja?.name || "Loja"}</b></span>
+          <button type="button" onClick={trocarLoja}>Trocar de loja</button>
+        </div>
+      )}
 
       <AvisoCaixa />
 
