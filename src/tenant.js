@@ -89,16 +89,6 @@ export async function entrarComGoogle() {
   }
 }
 
-/** Volta para a lista de lojas (quem tem mais de uma loja na mesma conta). */
-export function trocarLoja() {
-  try {
-    localStorage.removeItem(SAVED_KEY);
-  } catch {
-    /* sem armazenamento */
-  }
-  window.location.reload();
-}
-
 /** Loja aberta e as lojas da conta (para mostrar o nome e o "Trocar de loja"). */
 export function useTenant() {
   const [t, setT] = useState(getTenant);
@@ -141,6 +131,18 @@ let started = false;
 export function iniciarLogin() {
   if (!MULTI || started) return;
   started = true;
+  // Veio de Minha conta (site da IFTech) com a loja no link: este aparelho passa a abrir essa loja.
+  try {
+    const url = new URL(window.location.href);
+    const pedida = url.searchParams.get("loja");
+    if (pedida && /^[A-Za-z0-9]{8,40}$/.test(pedida)) {
+      localStorage.setItem(SAVED_KEY, pedida);
+      url.searchParams.delete("loja");
+      window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    }
+  } catch {
+    /* sem armazenamento: escolhe a loja na tela de lojas */
+  }
   getRedirectResult(auth).catch(() => {});
   let listUnsub = null;
   onAuthStateChanged(auth, (user) => {

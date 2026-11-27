@@ -517,7 +517,3 @@ body.dark .table-card-ref.alvo-troca {
 .areas-ref a span { font-size: 13.5px; font-weight: 800; line-height: 1.2; }
 .menu-secao { display: block; margin: 12px 0 4px; padding: 0 14px; font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
 .menu-lateral a small { display: block; font-size: 12px; font-weight: 500; color: var(--muted); }
-/* Quem tem mais de uma loja na mesma conta: qual está aberta e o botão de trocar. */
-.loja-aberta { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 0 0 12px; padding: 10px 14px; border-radius: 12px; border: 1px solid var(--border); background: var(--card); font-size: 14px; color: var(--text); }
-html body .loja-aberta span, html body .loja-aberta b { color: var(--text); }
-.loja-aberta button { flex-shrink: 0; border: 1px solid var(--green); background: transparent; color: var(--green); border-radius: 9px; padding: 7px 12px; font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; }
