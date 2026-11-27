@@ -89,6 +89,23 @@ export async function entrarComGoogle() {
   }
 }
 
+/** Volta para a lista de lojas (quem tem mais de uma loja na mesma conta). */
+export function trocarLoja() {
+  try {
+    localStorage.removeItem(SAVED_KEY);
+  } catch {
+    /* sem armazenamento */
+  }
+  window.location.reload();
+}
+
+/** Loja aberta e as lojas da conta (para mostrar o nome e o "Trocar de loja"). */
+export function useTenant() {
+  const [t, setT] = useState(getTenant);
+  useEffect(() => subscribeTenant(setT), []);
+  return t;
+}
+
 export async function sair() {
   try {
     localStorage.removeItem(SAVED_KEY);

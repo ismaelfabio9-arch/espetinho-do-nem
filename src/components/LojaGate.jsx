@@ -69,7 +69,7 @@ export default function LojaGate({ children }) {
         )}
         {t.status === "choose" && (
           <>
-            <p style={{ color: "#555" }}>Escolha a loja:</p>
+            <p style={{ color: "#555" }}>Você tem {t.lojas.length} lojas nesta conta. Escolha qual abrir:</p>
             {t.lojas.map((l) => (
               <button key={l.id} style={{ ...botao, background: "#fff", color: "#111", border: "1px solid #ddd" }} onClick={() => escolherLoja(l.id)}>
                 {l.name || "Loja"}
