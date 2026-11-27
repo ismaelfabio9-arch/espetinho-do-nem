@@ -1,0 +1,99 @@
+/* Painel do Dono (novo): usa as cores do sistema (claro e escuro). */
+.pd { display: flex; flex-direction: column; gap: 14px; padding-bottom: 28px; color: var(--text); }
+.pd h1, .pd h2, .pd h3, .pd b, .pd strong, .pd span, .pd small, .pd p { color: inherit; }
+.pd-topo { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; flex-wrap: wrap; }
+.pd-sobre { font-size: 12.5px; font-weight: 700; letter-spacing: .02em; color: var(--green) !important; }
+.pd-topo h1 { margin: 2px 0 2px; font-size: 28px; line-height: 1.1; }
+.pd-topo small { font-size: 12.5px; color: var(--muted) !important; }
+.pd-acoes { display: flex; gap: 6px; }
+.pd-acoes button { height: 36px; padding: 0 14px; border-radius: 10px; border: 1px solid var(--border); background: var(--card); color: var(--text); font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; }
+.pd-acoes .sair { color: var(--red); border-color: color-mix(in srgb, var(--red) 45%, var(--border)); }
+
+.pd-periodos { display: flex; gap: 4px; padding: 4px; border-radius: 12px; background: var(--card-2); border: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+.pd-periodos button { flex: 1 0 auto; height: 34px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: var(--muted); font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer; white-space: nowrap; }
+.pd-periodos button.on { background: var(--card); color: var(--text); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+
+.pd-hero { padding: 16px; border-radius: 16px; border: 1px solid var(--border); background: var(--card); display: flex; flex-direction: column; gap: 4px; }
+.pd-hero > span { font-size: 13px; color: var(--muted) !important; }
+.pd-hero > strong { font-size: 34px; line-height: 1.1; font-weight: 800; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.pd-var { font-size: 12.5px; font-weight: 700; }
+.pd-var.sobe { color: #16a34a !important; }
+.pd-var.desce { color: #dc2626 !important; }
+.pd-var.neutro { color: var(--muted) !important; font-weight: 600; }
+body.dark .pd-var.sobe { color: #4ade80 !important; }
+body.dark .pd-var.desce { color: #f87171 !important; }
+.pd-divisao { display: flex; gap: 2px; height: 10px; border-radius: 6px; overflow: hidden; margin-top: 10px; background: var(--card-2); }
+.pd-divisao i { display: block; height: 100%; }
+.pd-divisao.fina { height: 6px; margin-top: 5px; min-width: 6px; }
+.pd-legenda { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 6px; }
+.pd-legenda span { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted) !important; }
+.pd-legenda i { width: 9px; height: 9px; border-radius: 3px; display: inline-block; }
+
+.pd-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.pd-kpis > div { padding: 12px 13px; border-radius: 14px; border: 1px solid var(--border); background: var(--card); display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.pd-kpis span { font-size: 12.5px; color: var(--muted) !important; }
+.pd-kpis b { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pd-kpis .pd-var { font-size: 11.5px; }
+
+.pd-bloco { padding: 14px; border-radius: 16px; border: 1px solid var(--border); background: var(--card); }
+.pd-bloco h2 { margin: 0 0 10px; font-size: 16px; font-weight: 800; display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 10px; }
+.pd-bloco h2 small { font-size: 12.5px; font-weight: 600; color: var(--muted) !important; }
+.pd-vazio { margin: 0; font-size: 13.5px; color: var(--muted) !important; }
+
+.pd-agora { display: flex; flex-direction: column; }
+.pd-agora-loja { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--border); }
+.pd-agora-loja:first-child { border-top: 0; padding-top: 0; }
+.pd-agora-loja div { display: flex; flex-direction: column; min-width: 0; }
+.pd-agora-loja b { font-size: 14.5px; }
+.pd-agora-loja small { font-size: 12.5px; color: var(--muted) !important; }
+.pd-agora-loja strong { font-size: 14.5px; font-variant-numeric: tabular-nums; }
+.pd-ponto { width: 9px; height: 9px; border-radius: 50%; background: var(--border); }
+.pd-ponto.on { background: #16a34a; box-shadow: 0 0 0 4px color-mix(in srgb, #16a34a 22%, transparent); }
+
+.pd-lojas { display: flex; flex-direction: column; gap: 10px; }
+.pd-loja { border: 1px solid var(--border); border-radius: 14px; padding: 12px; background: var(--card-2); }
+.pd-loja-topo { width: 100%; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; background: none; border: 0; padding: 0; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.pd-pos { width: 26px; height: 26px; border-radius: 8px; display: grid; place-items: center; color: #fff !important; font-size: 13px; font-weight: 800; }
+.pd-loja-nome { display: flex; flex-direction: column; min-width: 0; }
+.pd-loja-nome b { font-size: 15.5px; line-height: 1.25; overflow-wrap: anywhere; }
+.pd-loja-nome small { font-size: 12.5px; color: var(--muted) !important; }
+.pd-loja-valor { display: flex; flex-direction: column; align-items: flex-end; }
+.pd-loja-valor b { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pd-loja-valor .pd-var { font-size: 11.5px; white-space: nowrap; }
+.pd-barra { height: 6px; border-radius: 4px; background: color-mix(in srgb, var(--border) 70%, transparent); overflow: hidden; margin-top: 10px; }
+.pd-barra i { display: block; height: 100%; border-radius: 4px; background: var(--green); }
+.pd-tipos { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-top: 8px; }
+.pd-tipos span { font-size: 12.5px; color: var(--muted) !important; }
+.pd-tipos b { color: var(--text) !important; font-weight: 700; font-variant-numeric: tabular-nums; }
+.pd-loja-corpo { margin-top: 10px; padding-top: 10px; border-top: 1px dashed var(--border); }
+.pd-loja-corpo h3 { margin: 8px 0 4px; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted) !important; }
+.pd-linha { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; font-size: 14px; }
+.pd-linha b { font-variant-numeric: tabular-nums; }
+
+.pd-grafico { display: flex; align-items: flex-end; gap: 4px; height: 170px; padding-top: 6px; }
+.pd-col { flex: 1; min-width: 0; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: stretch; gap: 4px; }
+.pd-pilha { display: flex; flex-direction: column-reverse; border-radius: 5px 5px 2px 2px; overflow: hidden; min-height: 2px; background: color-mix(in srgb, var(--border) 60%, transparent); }
+.pd-pilha i { display: block; width: 100%; }
+.pd-col span { font-size: 10.5px; color: var(--muted) !important; text-align: center; white-space: nowrap; overflow: hidden; height: 14px; }
+
+.pd-duas { display: grid; grid-template-columns: 1fr; gap: 14px; }
+.pd-pag { display: grid; grid-template-columns: 74px 1fr auto 38px; align-items: center; gap: 10px; padding: 6px 0; font-size: 14px; }
+.pd-pag .pd-barra { margin-top: 0; }
+.pd-pag b { font-variant-numeric: tabular-nums; }
+.pd-pag small { text-align: right; color: var(--muted) !important; font-size: 12.5px; }
+.pd-prod { padding: 6px 0; }
+.pd-prod-topo { display: flex; justify-content: space-between; gap: 10px; font-size: 14px; }
+.pd-prod-topo b { font-variant-numeric: tabular-nums; }
+.pd-rodape { margin: 4px 2px 0; font-size: 12px; color: var(--muted) !important; }
+
+@media (min-width: 900px) {
+  .pd-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .pd-duas { grid-template-columns: 1fr 1fr; align-items: start; }
+  .pd-lojas { display: grid; grid-template-columns: repeat(auto-fill, minmax(330px, 1fr)); }
+  .pd-hero > strong { font-size: 40px; }
+  .pd-grafico { height: 210px; }
+}
+@media print {
+  .pd-bloco, .pd-hero, .pd-kpis > div, .pd-loja { break-inside: avoid; }
+}
+.pd-loja-topo, .pd-loja-topo b { color: var(--text) !important; }
